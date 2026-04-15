@@ -83,6 +83,10 @@ fi
 
 # ── 3. Ollama starten (falls nicht läuft) ────────────────────────────────────
 step "Ollama Service prüfen"
+
+# Flash Attention: bis zu 2x schnellere Inferenz bei großem Kontext
+export OLLAMA_FLASH_ATTENTION=1
+
 if ! ollama list >/dev/null 2>&1; then
   info "Ollama läuft nicht – starte im Hintergrund..."
   ollama serve &>/dev/null &
@@ -106,6 +110,18 @@ else
   ollama pull "${MIMI_NOX_MODEL}"
   echo ""
   ok "${MIMI_NOX_MODEL} bereit"
+fi
+
+# ── 4b. Optimiertes MiMi-Nox Modell erstellen ────────────────────────────────
+if [[ -f "Modelfile" ]]; then
+  step "Optimiertes Modell erstellen (mimi-nox)"
+  if ollama show "mimi-nox" >/dev/null 2>&1; then
+    ok "mimi-nox Modell bereits vorhanden"
+  else
+    info "Erstelle optimiertes Modell aus Modelfile (num_ctx=32768, temperature=0.6)..."
+    ollama create mimi-nox -f Modelfile
+    ok "mimi-nox Modell erstellt – nutzt Flash Attention + optimierte Parameter"
+  fi
 fi
 
 # ── 5. Python venv + Dependencies ────────────────────────────────────────────

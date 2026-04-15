@@ -11,3 +11,13 @@ def get_local_ip() -> str:
     except Exception:
         # Fallback if offline
         return "127.0.0.1"
+
+def is_internet_available(timeout: float = 2.0) -> bool:
+    """Checks if the system has internet access by attempting a DNS/UDP connection."""
+    try:
+        # Pinging a reliable external IP (dns.google)
+        socket.setdefaulttimeout(timeout)
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("1.1.1.1", 53))
+        return True
+    except Exception:
+        return False

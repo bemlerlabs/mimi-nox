@@ -9,6 +9,7 @@ import base64
 import json
 import logging
 import asyncio
+from contextvars import ContextVar
 from pathlib import Path
 
 try:
@@ -168,22 +169,50 @@ async def _capture_user_click() -> tuple[int, int]:
 
 
 # ===========================================================================
-# Tools
+# Sandbox Callbacks — ContextVar (T-02/T-03: Request-scoped, kein Modul-Global)
 # ===========================================================================
 
-# Callback for the TUI / UI to pause and ask for permission
-ON_SANDBOX_CONFIRM = None
-ON_VISION_LEARNING = None
-ON_VISION_LEARNED_SUCCESS = None
+# ContextVars: Jeder asyncio-Task / jeder FastAPI-Request bekommt
+# seinen eigenen callback-scope. Kein Leak zwischen simultanen Requests.
+_sandbox_cb_var:       ContextVar = ContextVar('vision_sandbox_cb',        default=None)
+_vision_learning_var:  ContextVar = ContextVar('vision_learning_cb',       default=None)
+_vision_learned_var:   ContextVar = ContextVar('vision_learned_success_cb', default=None)
+
+# Rückwärtskompatible Properties — damit bestehender Code der ON_SANDBOX_CONFIRM
+# direkt liest/schreibt weiterhin funktioniert (deprecated, aber kein Breaking Change)
+@property
+def _ON_SANDBOX_CONFIRM_compat(): return _sandbox_cb_var.get()
+
+# Neue API: Setter-Funktionen für den Request-Handler (statt Monkey-Patching)
+def set_sandbox_confirm_cb(cb):
+    """Setzt den Sandbox-Confirm-Callback für den aktuellen asyncio-Context."""
+    _sandbox_cb_var.set(cb)
+
+def set_vision_learning_cb(cb):
+    """Setzt den Vision-Learning-Callback für den aktuellen asyncio-Context."""
+    _vision_learning_var.set(cb)
+
+def set_vision_learned_success_cb(cb):
+    """Setzt den Vision-Learned-Success-Callback für den aktuellen asyncio-Context."""
+    _vision_learned_var.set(cb)
+
+# Legacy-Globals für Code-Kompatibilität (lesen aus ContextVar)
+# DEPRECATED: Direkte Zuweisung zu ON_SANDBOX_CONFIRM hat globalen Effekt.
+# Nutze set_sandbox_confirm_cb() für Request-scoped Callbacks.
+ON_SANDBOX_CONFIRM = None        # Wird in check_sandbox() durch ContextVar ersetzt
+ON_VISION_LEARNING = None        # Wird in vision_click() durch ContextVar ersetzt
+ON_VISION_LEARNED_SUCCESS = None # Wird in vision_click() durch ContextVar ersetzt
 
 async def check_sandbox(tool_name: str, args: dict):
     from os import environ
     # autonomous_mode bypasses confirmation
     is_autonomous = environ.get("MIMI_NOX_AUTONOMOUS_MODE", "0") == "1"
-    
+
     if not is_autonomous:
-        if ON_SANDBOX_CONFIRM:
-            approved = await ON_SANDBOX_CONFIRM(tool_name, args)
+        # T-03: ContextVar zuerst prüfen (Request-scoped), Fallback auf Legacy-Global
+        cb = _sandbox_cb_var.get() or ON_SANDBOX_CONFIRM
+        if cb:
+            approved = await cb(tool_name, args)
             if not approved:
                 raise Exception("Action aborted by User Intervention")
         else:
@@ -209,19 +238,22 @@ async def vision_click(target_description: str) -> str:
     
     # 4. BDD Regel 1: Zero-Guessing Policy (HITL Fallback)
     if coords == "UNSURE":
-        if ON_VISION_LEARNING:
-            await ON_VISION_LEARNING(target_description)
-            
+        # T-03: ContextVar zuerst, dann Legacy-Global
+        learning_cb = _vision_learning_var.get() or ON_VISION_LEARNING
+        if learning_cb:
+            await learning_cb(target_description)
+
         # Listener blockiert asynchron, bis der User physisch in sein UI klickt
         x, y = await _capture_user_click()
-        
+
         # Crop berechnen und lernen (Boundary Safe, BDD Regel 3)
         crop_img_base64 = _crop_around(b64_img, x, y, size=50)
         save_vision_rule(target_description, crop_img_base64, x, y)
-        
-        if ON_VISION_LEARNED_SUCCESS:
-            await ON_VISION_LEARNED_SUCCESS(target_description)
-            
+
+        learned_cb = _vision_learned_var.get() or ON_VISION_LEARNED_SUCCESS
+        if learned_cb:
+            await learned_cb(target_description)
+
         return f"Element '{target_description}' war unsicher. Der Nutzer hat durch seinen manuellen Klick eingegriffen, und das System hat das Bild des Elements für zukünftige Durchläufe gelernt."
         
     # Failsafe wenn Element nicht gefunden

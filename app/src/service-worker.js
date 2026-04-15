@@ -7,7 +7,7 @@
  *   - Alles andere: Network-First mit Cache-Fallback
  */
 
-const CACHE_VERSION = 'v11'; // UI/UX audit fixes: status, chips, mobile cards
+const CACHE_VERSION = 'v14'; // tactical offline update
 const CACHE_NAME = `mimi-nox-${CACHE_VERSION}`;
 
 // Statische Assets die pre-gecached werden
@@ -23,6 +23,9 @@ const PRECACHE_ASSETS = [
   '/forest.svg',
   '/lib/marked.min.js',
   '/lib/purify.min.js',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/favicon.png',
 ];
 
 // Diese URL-Präfixe werden NIEMALS gecached (immer Live-Daten)

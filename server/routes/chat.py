@@ -13,10 +13,11 @@ from pydantic import BaseModel
 
 from core.chat import OllamaNotReachableError, OllamaModelNotFoundError, OllamaModelBusyError, chat_with_tools
 from core.react import reflect, react_loop
-from core.commands import is_learn_command, extract_learn_topic
+from core.commands import is_learn_command, extract_learn_topic, is_swarm_command, extract_swarm_task
 from core.skill_builder import build_skill
 from core.skills import SkillLoadError
 from core.artifact_detector import ArtifactDetector
+from core.swarm_v2 import run_swarm_v2
 
 router = APIRouter(tags=["Chat"])
 
@@ -48,9 +49,29 @@ class ApproveRequest(BaseModel):
     token: str
     approved: bool
 
-# ── Globale Sandbox State ──────────────────────────────────────────────────
-# Speichert Event-Schleifen für blockierende Tool-Calls
-pending_sandbox: dict[str, dict] = {}
+# ── Request-scoped Sandbox State (T-02 Fix) ──────────────────────────────────
+# ContextVar: Jeder asyncio-Request bekommt seinen eigenen Sandbox-Dict.
+# Kein Leak zwischen simultanen Requests, auch mit uvicorn --workers N.
+from contextvars import ContextVar as _ContextVar
+
+_sandbox_store: _ContextVar[dict | None] = _ContextVar('nox_sandbox_store', default=None)
+
+
+def get_sandbox() -> dict:
+    """Gibt den request-scoped Sandbox-State-Dict zurück (erstellt ihn bei Bedarf)."""
+    store = _sandbox_store.get()
+    if store is None:
+        store = {}
+        _sandbox_store.set(store)
+    return store
+
+
+# Legacy-Alias — bleibt importierbar für Kompatibilität, wird nicht mehr befüllt
+pending_sandbox: dict[str, dict] = {}  # DEPRECATED: nutze get_sandbox()
+
+# App-weites Token-Registry für Cross-Request Sandbox-Approval
+# (approve_sandbox läuft in eigenem Request-Context, daher kein ContextVar)
+_active_sandbox_events: dict[str, dict] = {}
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────
@@ -108,6 +129,39 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
 
             _done_sent = False
             try:
+                # ── /swarm: Swarm V2 Pipeline ─────────────────────────────
+                if is_swarm_command(request.message):
+                    swarm_task = extract_swarm_task(request.message)
+                    if not swarm_task:
+                        emit({"type": "chunk", "data": "🐝 Nutzung: `/swarm <Aufgabe>` – z.B. `/swarm Analysiere 3 KI-Trends und fasse sie zusammen`"})
+                        emit({"type": "done"})
+                        _done_sent = True
+                        return
+
+                    emit({"type": "thinking_start"})
+                    emit({"type": "swarm_status", "phase": "planning", "message": "🐝 Swarm V2 gestartet — Manager analysiert Aufgabe…"})
+
+                    try:
+                        result = await run_swarm_v2(
+                            task=swarm_task,
+                            model=model,
+                            on_event=emit,
+                        )
+                        # Finale Synthese als Chunks streamen
+                        if result.final:
+                            words = result.final.split(" ")
+                            for i, word in enumerate(words):
+                                chunk = word + (" " if i < len(words) - 1 else "")
+                                emit({"type": "chunk", "data": chunk})
+                    except (OllamaNotReachableError, OllamaModelNotFoundError) as exc:
+                        emit({"type": "error", "msg": str(exc)})
+                    except Exception as exc:
+                        emit({"type": "error", "msg": f"Swarm-Fehler: {exc}"})
+
+                    emit({"type": "done"})
+                    _done_sent = True
+                    return
+
                 # ── /learn: Skill-Builder-Pipeline ─────────────────────────
                 if is_learn_command(request.message):
                     topic = extract_learn_topic(request.message)
@@ -162,22 +216,31 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                         return True
                     token = str(uuid.uuid4())
                     event = asyncio.Event()
-                    pending_sandbox[token] = {"event": event, "approved": False}
+                    # T-02: _active_sandbox_events ist app-weit (cross-request)
+                    # damit approve_sandbox() den Token findet.
+                    # get_sandbox() ist für request-internen State (nicht hier nötig).
+                    _active_sandbox_events[token] = {"event": event, "approved": False}
                     emit({"type": "sandbox_confirm", "token": token, "tool": name, "args": args})
                     await event.wait()
-                    res = pending_sandbox.pop(token, {"approved": False})
+                    res = _active_sandbox_events.pop(token, {"approved": False})
                     return res["approved"]
-                    
-                import core.vision
-                core.vision.ON_SANDBOX_CONFIRM = _sandbox_cb
-                
+
+                # T-03: ContextVar-Setter statt Monkey-Patching
+                from core.vision import (
+                    set_sandbox_confirm_cb,
+                    set_vision_learning_cb,
+                    set_vision_learned_success_cb,
+                )
+
+                set_sandbox_confirm_cb(_sandbox_cb)
+
                 async def _vision_learning_cb(target: str) -> None:
                     emit({"type": "vision_learning", "target": target})
-                core.vision.ON_VISION_LEARNING = _vision_learning_cb
+                set_vision_learning_cb(_vision_learning_cb)
 
                 async def _vision_learned_success_cb(target: str) -> None:
                     emit({"type": "vision_learned_success", "target": target})
-                core.vision.ON_VISION_LEARNED_SUCCESS = _vision_learned_success_cb
+                set_vision_learned_success_cb(_vision_learned_success_cb)
 
                 # ── Phase 1: Erste Antwort sofort streamen ─────────────────
                 first_chunks: list[str] = []
@@ -323,10 +386,15 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
 
 @router.post("/sandbox/approve")
 async def approve_sandbox(req: ApproveRequest):
-    """Nimmt Sandbox-Bestätigungen (y/n) aus dem UI entgegen."""
-    if req.token in pending_sandbox:
-        pending_sandbox[req.token]["approved"] = req.approved
-        pending_sandbox[req.token]["event"].set()
+    """Nimmt Sandbox-Bestätigungen (y/n) aus dem UI entgegen.
+
+    NOTE: Dieses Endpoint arbeitet mit dem app-weiten _active_sandbox_events-
+    Registry, nicht mit dem request-scoped get_sandbox(). Tokens werden von
+    _sandbox_cb() registriert und hier aufgelöst.
+    """
+    if req.token in _active_sandbox_events:
+        _active_sandbox_events[req.token]["approved"] = req.approved
+        _active_sandbox_events[req.token]["event"].set()
         return {"status": "ok"}
     raise HTTPException(404, "Sandbox Token nicht gefunden oder abgelaufen")
 

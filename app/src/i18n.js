@@ -258,7 +258,7 @@ const translations = {
     'profile.sub': 'Helps the AI give better, more personalized answers.',
     'profile.name': 'Name',
     'profile.nameOptional': '(optional)',
-    'profile.namePlaceholder': 'What's your name?',
+    'profile.namePlaceholder': "What's your name?",
     'profile.expertise': 'Expertise',
     'profile.expertisePlaceholder': 'e.g. Python developer, Marketing, Doctor…',
     'profile.language': 'Preferred Language',

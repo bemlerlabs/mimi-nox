@@ -962,3 +962,21 @@ def get_tool_schemas() -> list[dict]:
             },
         }
     ]
+
+
+def get_filtered_tool_schemas(whitelist: list[str]) -> list[dict]:
+    """
+    Gibt eine gefilterte Teilmenge der Tool-Schemas zurück.
+    Wird von Swarm-Agenten genutzt, um nur erlaubte Tools anzubieten.
+
+    Args:
+        whitelist: Liste von Tool-Namen die erlaubt sind
+
+    Returns:
+        Gefilterte Tool-Schema-Liste
+    """
+    all_tools = get_tool_schemas()
+    return [
+        t for t in all_tools
+        if t.get("function", {}).get("name") in whitelist
+    ]

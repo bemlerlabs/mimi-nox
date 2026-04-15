@@ -35,7 +35,7 @@ class Memory:
 
     COLLECTION_NAME = "mimi_nox_memory"
 
-    def __init__(self, persist_dir: str | None = None) -> None:
+    def __init__(self, persist_dir: str | None = None, collection_name: str | None = None) -> None:
         import chromadb
 
         self._dir = str(persist_dir or DEFAULT_MEMORY_DIR)
@@ -44,7 +44,8 @@ class Memory:
         self._client = chromadb.PersistentClient(path=self._dir)
         # Nutze chromadb's eingebautes Default-Embedding (lokal, kein Ollama)
         self._collection = self._client.get_or_create_collection(
-            name=self.COLLECTION_NAME,
+            name=collection_name or self.COLLECTION_NAME,
+            metadata={"hnsw:space": "cosine"}
         )
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ class Memory:
             output.append({
                 "text": doc,
                 "metadata": meta or {},
-                "score": round(max(0.0, 1.0 - float(dist)), 4),
+                "score": round(1.0 / (1.0 + float(dist)), 4),
             })
 
         return output

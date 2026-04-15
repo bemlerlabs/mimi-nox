@@ -963,6 +963,84 @@ class NoxApp {
               break;
 
               
+            // ── Swarm V2 Events ──────────────────────────────────────
+            case 'swarm_status':
+              this._addActivity('cmd', evt.message || `🐝 Swarm: ${evt.phase}`);
+              // Swarm-Dashboard in Bubble einfügen (nur einmal)
+              if (!wrap.querySelector('.swarm-dashboard')) {
+                const dashboard = document.createElement('div');
+                dashboard.className = 'swarm-dashboard';
+                dashboard.innerHTML = `<div class="swarm-header">🐝 Swarm Pipeline <span class="swarm-phase">${evt.phase}</span></div><div class="swarm-agents"></div>`;
+                wrap.querySelector('.msg-content').insertBefore(dashboard, bubble);
+              } else {
+                const phaseEl = wrap.querySelector('.swarm-phase');
+                if (phaseEl) phaseEl.textContent = evt.phase;
+              }
+              this._scrollToBottom();
+              break;
+
+            case 'agent_spawned':
+              this._addActivity('cmd', `⚡ Agent ${evt.agent_id} (${evt.role}): ${(evt.subtask || '').slice(0, 50)}`);
+              {
+                const agentsContainer = wrap.querySelector('.swarm-agents');
+                if (agentsContainer) {
+                  const card = document.createElement('div');
+                  card.className = 'swarm-agent-card spawned';
+                  card.id = `agent-${evt.agent_id}`;
+                  card.innerHTML = `
+                    <div class="agent-status-dot"></div>
+                    <div class="agent-info">
+                      <span class="agent-role">${evt.role}</span>
+                      <span class="agent-task">${(evt.subtask || '').slice(0, 60)}</span>
+                      <span class="agent-detail">Spawned…</span>
+                    </div>
+                  `;
+                  agentsContainer.appendChild(card);
+                }
+              }
+              this._scrollToBottom();
+              break;
+
+            case 'agent_progress':
+              {
+                const agentCard = document.getElementById(`agent-${evt.agent_id}`);
+                if (agentCard) {
+                  agentCard.className = `swarm-agent-card ${evt.status}`;
+                  const detail = agentCard.querySelector('.agent-detail');
+                  if (detail) detail.textContent = evt.detail || evt.status;
+                }
+                if (evt.status !== 'running') {
+                  this._addActivity(
+                    evt.status === 'done' ? 'done_inline' : (evt.status === 'error' ? 'error' : 'cmd'),
+                    `Agent ${evt.agent_id}: ${evt.status} ${evt.detail ? '— ' + evt.detail.slice(0, 50) : ''}`
+                  );
+                }
+              }
+              break;
+
+            case 'agent_terminated':
+              {
+                const termCard = document.getElementById(`agent-${evt.agent_id}`);
+                if (termCard) {
+                  termCard.className = 'swarm-agent-card terminated';
+                  const detail = termCard.querySelector('.agent-detail');
+                  if (detail) detail.textContent = '✓ Terminiert';
+                }
+                this._addActivity('done_inline', `🏁 Agent ${evt.agent_id} terminiert`);
+              }
+              break;
+
+            case 'swarm_done':
+              {
+                const phaseElDone = wrap.querySelector('.swarm-phase');
+                if (phaseElDone) phaseElDone.textContent = '✅ done';
+                const header = wrap.querySelector('.swarm-header');
+                if (header) header.classList.add('swarm-complete');
+                this._addActivity('done', `🐝 Swarm abgeschlossen: ${evt.agent_count} Agenten`);
+              }
+              this._scrollToBottom();
+              break;
+
             case 'vision_learning':
               this._playTone(350, 0.2, 'square');
               this._addActivity('warning', `🧠 HITL: Warte auf User-Klick für "${evt.target}"...`);

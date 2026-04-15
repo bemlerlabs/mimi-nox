@@ -9,12 +9,8 @@
   <link rel="apple-touch-icon" href="icon-192.png" />
   <meta name="description" content="◑ MiMi Nox – Chat" />
   <title>◑ MiMi Nox</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <script src="lib/marked.min.js"></script>
-  <script src="lib/purify.min.js"></script>
   <link rel="manifest" href="manifest.json" />
+  <script src="/socket.io/socket.io.js"></script>
   <style>
     /* ── Design Tokens (aus Schwarzwald Edition) ── */
     :root {
@@ -28,9 +24,37 @@
       --text: #f0fdf4;
       --text-muted: #6b7280;
       --text-dim: #374151;
-      --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Inter, sans-serif;
-      --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+      --font-main: "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --topbar-h: 52px;
+    }
+
+    /* ── Tactical Mode (Crisis Mode) ── */
+    [data-theme='tactical'] {
+      --bg: #050705;
+      --panel: #0a0f0a;
+      --bubble-user: #0e2a14;
+      --bubble-ai: #070d07;
+      --green: #ff9800; /* Tactical Amber for priority */
+      --green-light: #ffb74d;
+      --green-dim: #92400e;
+      --text: #ffffff;
+      --text-muted: #a1a1aa;
+      --text-dim: #71717a;
+      font-family: var(--font-mono); /* Force mono for everything in tactical mode */
+    }
+
+    [data-theme='tactical'] .logo-icon {
+      color: var(--green);
+      filter: drop-shadow(0 0 8px rgba(255,152,0,0.6));
+    }
+    
+    [data-theme='tactical'] .logo-name::after {
+      content: " [CRISIS MODE]";
+      font-size: 10px;
+      color: #ef4444;
+      vertical-align: top;
+      margin-left: 4px;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -463,12 +487,165 @@
 
     /* ── Utility ── */
     .hidden { display: none !important; }
+
+    /* ── Thinking Bubble (E4B Thinking Mode) ── */
+    .mobile-thinking {
+      align-self: flex-start;
+      background: rgba(34, 197, 94, 0.04);
+      border: 1px solid rgba(34, 197, 94, 0.1);
+      border-radius: 12px;
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      max-width: 88%;
+      animation: slide-in 0.2s ease-out;
+      transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+      max-height: 200px;
+      overflow: hidden;
+    }
+    .mobile-thinking.collapsed {
+      max-height: 0;
+      opacity: 0;
+      padding: 0 12px;
+      margin: 0;
+      border-color: transparent;
+    }
+    /* ── Tab Bar ── */
+    .nav-tabs {
+      display: flex;
+      background: rgba(0,0,0,0.4);
+      border-bottom: 1px solid var(--gray-800);
+      gap: 2px;
+    }
+    .nav-tab {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 10px;
+      cursor: pointer;
+      position: relative;
+    }
+    .nav-tab.active {
+      color: var(--green);
+      background: rgba(34,197,94,0.05);
+    }
+    .nav-tab.active::after {
+      content: "";
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    .think-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--green-dim);
+      display: block;
+      margin-bottom: 4px;
+    }
+    .think-text {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      line-height: 1.5;
+      display: block;
+      max-height: 150px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .think-text::-webkit-scrollbar { display: none; }
+
+    /* ── Swarm Dashboard (Mobile) ── */
+    .mobile-swarm {
+      align-self: flex-start;
+      background: rgba(4, 14, 6, 0.6);
+      border: 1px solid rgba(34, 197, 94, 0.12);
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      max-width: 88%;
+      animation: slide-in 0.2s ease-out;
+    }
+    .sw-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--green-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .sw-header.sw-complete { color: var(--green); }
+    .sw-phase {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-dim);
+      background: rgba(34, 197, 94, 0.06);
+      border: 1px solid rgba(34, 197, 94, 0.1);
+      padding: 1px 6px;
+      border-radius: 100px;
+      margin-left: auto;
+    }
+    .sw-agents { display: flex; flex-direction: column; gap: 5px; }
+    .sw-agent {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      padding: 5px 8px;
+      background: rgba(2, 5, 4, 0.5);
+      border: 1px solid rgba(255,255,255,0.03);
+      border-radius: 8px;
+      animation: slide-in 0.2s ease-out;
+    }
+    .sw-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .sw-role {
+      font-weight: 700;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--green);
+    }
+    .sw-task {
+      color: var(--text-muted);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    /* Status colors */
+    .sw-agent.spawned .sw-dot { background: #fbbf24; box-shadow: 0 0 4px rgba(251,191,36,0.4); }
+    .sw-agent.spawned { border-color: rgba(251,191,36,0.1); }
+    .sw-agent.running .sw-dot { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); animation: sw-pulse 1.5s infinite; }
+    .sw-agent.running { border-color: rgba(34,197,94,0.15); }
+    .sw-agent.done .sw-dot, .sw-agent.terminated .sw-dot { background: var(--green); }
+    .sw-agent.done, .sw-agent.terminated { opacity: 0.6; }
+    .sw-agent.error .sw-dot { background: #ef4444; box-shadow: 0 0 4px rgba(239,68,68,0.4); }
+    .sw-agent.error { border-color: rgba(239,68,68,0.15); }
+    @keyframes sw-pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 4px rgba(34,197,94,0.4); }
+      50%      { transform: scale(1.2); box-shadow: 0 0 8px rgba(34,197,94,0.7); }
+    }
   </style>
 </head>
 <body>
 
   <div class="app">
     <!-- Header (Fix 15: status label) -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="tabAgents">AGENTEN</button>
+      <button class="nav-tab" id="tabMesh">HERMES (MESH)</button>
+    </div>
     <header class="header">
       <div class="header-left">
         <span class="logo-icon">◑</span>
@@ -479,25 +656,39 @@
       <button class="btn-clear" id="btn-clear">✨ Neu</button>
     </header>
 
-    <!-- Chat -->
-    <div class="chat" id="chat">
-      <div class="welcome-msg" id="welcome">
+    <!-- Main Chat Window (Fix 4 & 5: padding) -->
+    <main class="chat" id="chat">
+      <!-- Welcome card and Agent messages go here -->
+    </main>
+
+    <!-- Mesh Chat Window (T-4.1) -->
+    <main class="chat hidden" id="meshChat">
+      <div class="msg ai system">
+        <div class="content">📡 LOKALES MESH-NETZWERK AKTIVIERT. Alle Nachrichten werden an verbundene Geräte im lokalen WLAN übertragen.</div>
+      </div>
+    </main>
+
+    <div class="welcome-msg" id="welcome">
         <span class="icon">◑</span>
         <div class="title">Hey 👋</div>
         <span id="mobile-welcome-text">Schreib mir – ich bin dein lokaler KI-Agent.</span>
         <!-- Fix 10: Welcome Cards -->
         <div class="welcome-cards" id="welcome-cards">
-          <button class="welcome-card" data-prompt="Suche die neuesten KI-News von heute">
-            <span class="card-icon">🔍</span>
-            <span>Aktuelle News suchen</span>
+          <button class="welcome-card" data-prompt="/medic Medizinischer Notfall - Was ist zu tun?">
+            <span class="card-icon">🚑</span>
+            <span data-i18n="crisis.medic_card">Medizinische Hilfe</span>
           </button>
-          <button class="welcome-card" data-prompt="Analysiere ein Bild für mich">
-            <span class="card-icon">📷</span>
-            <span>Bild analysieren</span>
+          <button class="welcome-card" data-prompt="/repair Wie repariere ich ein technisches Gerät?">
+            <span class="card-icon">🛠️</span>
+            <span data-i18n="crisis.repair_card">Reparatur & Tech</span>
           </button>
-          <button class="welcome-card" data-prompt="/write Schreibe eine professionelle E-Mail zum Thema Terminverschiebung">
-            <span class="card-icon">✏️</span>
-            <span>Text schreiben</span>
+          <button class="welcome-card" data-prompt="/map Wo befinde ich mich und wie ist das Gelände?">
+            <span class="card-icon">🗺️</span>
+            <span data-i18n="crisis.map_card">Navigation</span>
+          </button>
+          <button class="welcome-card" data-prompt="/power Wie ist der aktuelle System- und Energiestatus?">
+            <span class="card-icon">⚡</span>
+            <span data-i18n="crisis.power_card">Energie-Status</span>
           </button>
         </div>
       </div>
@@ -505,12 +696,18 @@
 
     <!-- Fix 11: Skill Chips -->
     <div class="skill-chips" id="mobile-skill-chips">
-      <button class="skill-chip" data-trigger="/research">🔍 /research</button>
-      <button class="skill-chip" data-trigger="/files">📁 /files</button>
-      <button class="skill-chip" data-trigger="/review">💻 /review</button>
-      <button class="skill-chip" data-trigger="/write">✏️ /write</button>
-      <button class="skill-chip" data-trigger="/shell">>_ /shell</button>
-      <button class="skill-chip" data-trigger="/scan">⚡ /scan</button>
+      <button class="skill-chip" data-trigger="/medic">🚑 /medic</button>
+      <button class="skill-chip" data-trigger="/repair">🛠️ /repair</button>
+      <button class="skill-chip" data-trigger="/map">🗺️ /map</button>
+      <button class="skill-chip" data-trigger="/power">⚡ /power</button>
+      <button class="skill-chip" data-trigger="/swarm">🐝 /swarm</button>
+    </div>
+
+    <!-- Power Monitor -->
+    <div id="power-monitor" style="display:flex; justify-content: space-between; padding: 4px 14px; font-size: 10px; font-family:var(--font-mono); color: var(--text-dim); background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.03);">
+      <span id="pwr-cpu">CPU: --%</span>
+      <span id="pwr-mem">MEM: --/-- MB</span>
+      <span id="pwr-upt">UP: --:--</span>
     </div>
 
     <!-- Input -->
@@ -559,6 +756,56 @@
     const toast = $('toast');
     const statusDot = $('status-dot');
 
+    let currentTab = 'agents';
+    let survivorName = localStorage.getItem('survivor_name') || 'Survivor_' + Math.floor(Math.random()*1000);
+
+    // Socket Init
+    const socket = io();
+    socket.emit('mesh:join', { user: survivorName });
+
+    socket.on('mesh:message', (data) => {
+      renderMeshMessage(data);
+    });
+
+    socket.on('mesh:presence', (data) => {
+      showToast(`${data.user} ist ${data.status === 'online' ? 'beigetreten' : 'gegangen'}`);
+    });
+
+    function renderMeshMessage(data) {
+      const isMe = data.from === survivorName;
+      const el = document.createElement('div');
+      el.className = `msg ${isMe ? 'user' : 'ai mesh'}`;
+      el.innerHTML = `
+        <div class="meta">${data.from} • ${new Date(data.timestamp).toLocaleTimeString()}</div>
+        <div class="content">${DOMPurify.sanitize(data.content)}</div>
+      `;
+      $('meshChat').appendChild(el);
+      if (currentTab === 'mesh') scrollToBottom($('meshChat'));
+    }
+
+    // ── Tab Switching ──
+    const btnAgents = $('tabAgents');
+    const btnMesh = $('tabMesh');
+    const chatAgents = $('chat');
+    const chatMesh = $('meshChat');
+
+    btnAgents.onclick = () => {
+      currentTab = 'agents';
+      btnAgents.classList.add('active');
+      btnMesh.classList.remove('active');
+      chatAgents.classList.remove('hidden');
+      chatMesh.classList.add('hidden');
+    };
+
+    btnMesh.onclick = () => {
+      currentTab = 'mesh';
+      btnMesh.classList.add('active');
+      btnAgents.classList.remove('active');
+      chatMesh.classList.remove('hidden');
+      chatAgents.classList.add('hidden');
+      scrollToBottom(chatMesh);
+    };
+
     let history = [];
     let streaming = false;
     let abortCtrl = null;
@@ -567,7 +814,35 @@
     // ── Init ──
     fetch(`${API}/mobile/ping`, { method: 'POST' }).catch(() => {});
     checkHealth();
+    updatePowerMetrics();
     setInterval(checkHealth, 30000);
+    setInterval(updatePowerMetrics, 10000);
+
+    async function updatePowerMetrics() {
+      try {
+        const res = await fetch(`${API}/system/power`);
+        const data = await res.json();
+        
+        const cpuEl = $('pwr-cpu');
+        const memEl = $('pwr-mem');
+        const uptEl = $('pwr-upt');
+
+        if (cpuEl) {
+          cpuEl.textContent = `CPU: ${data.cpu}%`;
+          cpuEl.style.color = data.cpu > 80 ? '#ef4444' : (document.documentElement.getAttribute('data-theme') === 'tactical' ? 'var(--green-light)' : 'var(--text-dim)');
+        }
+        if (memEl) {
+          memEl.textContent = `MEM: ${data.memUsedMB}/${data.memTotalMB} MB`;
+        }
+        if (uptEl) {
+          const h = Math.floor(data.uptimeS / 3600);
+          const m = Math.floor((data.uptimeS % 3600) / 60);
+          uptEl.textContent = `UP: ${h}h ${m}m`;
+        }
+      } catch (err) {
+        // Silent fail for metrics
+      }
+    }
 
     // ── Events ──
     sendBtn.addEventListener('click', send);
@@ -695,9 +970,16 @@
       const text = input.value.trim();
       if (!text) return;
 
+      if (currentTab === 'mesh') {
+        socket.emit('mesh:message', { content: text });
+        input.value = '';
+        autoResize();
+        return;
+      }
+
       input.value = '';
       autoResize();
-      if (welcome) welcome.remove();
+      if (welcome) welcome.classList.add('hidden'); // Fix: use hide
 
       // Bild-Referenz SICHERN bevor clearAttachedImage() aufgerufen wird
       const imageToSend = attachedImageB64;
@@ -748,11 +1030,31 @@
               case 'chunk':
                 full += evt.data;
                 bubble.textContent += evt.data;
+                // Collapse thinking when answer starts
+                const thinkEl = bubble.parentElement?.querySelector('.mobile-thinking');
+                if (thinkEl && !thinkEl.classList.contains('collapsed')) {
+                  thinkEl.classList.add('collapsed');
+                }
                 scrollBottom();
                 break;
 
               case 'thinking_start':
                 showToast('🧠 Denke nach…');
+                // Create thinking bubble above AI bubble
+                if (!bubble.parentElement?.querySelector('.mobile-thinking')) {
+                  const think = document.createElement('div');
+                  think.className = 'mobile-thinking';
+                  think.innerHTML = '<span class="think-label">💭 Thinking</span><span class="think-text"></span>';
+                  bubble.parentElement?.insertBefore(think, bubble);
+                }
+                break;
+
+              case 'thinking':
+                const thinkText = bubble.parentElement?.querySelector('.think-text');
+                if (thinkText) {
+                  thinkText.textContent += evt.data;
+                  thinkText.scrollTop = thinkText.scrollHeight;
+                }
                 break;
 
               case 'activity':
@@ -771,8 +1073,64 @@
 
               case 'replace_text':
                 full = evt.text || full;
-                // Bubble sofort mit bereinigtem Text aktualisieren
                 bubble.textContent = full;
+                break;
+
+              // ── Swarm V2 Events ──────────────────────────────
+              case 'swarm_status':
+                showToast(`🐝 Swarm: ${evt.phase}`);
+                if (!bubble.parentElement?.querySelector('.mobile-swarm')) {
+                  const sw = document.createElement('div');
+                  sw.className = 'mobile-swarm';
+                  sw.innerHTML = `<div class="sw-header">🐝 Swarm <span class="sw-phase">${evt.phase}</span></div><div class="sw-agents"></div>`;
+                  bubble.parentElement?.insertBefore(sw, bubble);
+                } else {
+                  const ph = bubble.parentElement.querySelector('.sw-phase');
+                  if (ph) ph.textContent = evt.phase;
+                }
+                scrollBottom();
+                break;
+
+              case 'agent_spawned':
+                showToast(`⚡ Agent: ${evt.role}`);
+                {
+                  const agents = bubble.parentElement?.querySelector('.sw-agents');
+                  if (agents) {
+                    const card = document.createElement('div');
+                    card.className = 'sw-agent spawned';
+                    card.id = `m-agent-${evt.agent_id}`;
+                    card.innerHTML = `<span class="sw-dot"></span><span class="sw-role">${evt.role}</span><span class="sw-task">${(evt.subtask||'').slice(0,40)}</span>`;
+                    agents.appendChild(card);
+                  }
+                }
+                scrollBottom();
+                break;
+
+              case 'agent_progress':
+                {
+                  const ac = document.getElementById(`m-agent-${evt.agent_id}`);
+                  if (ac) ac.className = `sw-agent ${evt.status}`;
+                }
+                break;
+
+              case 'agent_terminated':
+                {
+                  const tc = document.getElementById(`m-agent-${evt.agent_id}`);
+                  if (tc) {
+                    tc.className = 'sw-agent terminated';
+                  }
+                }
+                break;
+
+              case 'swarm_done':
+                showToast(`🐝 Swarm fertig: ${evt.agent_count} Agenten`);
+                {
+                  const ph = bubble.parentElement?.querySelector('.sw-phase');
+                  if (ph) ph.textContent = '✅ done';
+                  const hdr = bubble.parentElement?.querySelector('.sw-header');
+                  if (hdr) hdr.classList.add('sw-complete');
+                }
+                scrollBottom();
                 break;
 
               case 'error':
@@ -893,11 +1251,27 @@
       try {
         const res = await fetch(`${API}/health`, { signal: AbortSignal.timeout(5000) });
         const data = await res.json();
-        const isOnline = data.ollama;
+        const isOnline = data.ollamaReady;
+        const isAirGapped = data.airGapped;
+
         statusDot.classList.toggle('offline', !isOnline);
+        
+        // Auto-apply tactical theme if air-gapped
+        if (isAirGapped) {
+          document.documentElement.setAttribute('data-theme', 'tactical');
+        } else {
+          // Only remove if we're not manually in tactical mode (optional, but for now auto)
+          document.documentElement.removeAttribute('data-theme');
+        }
+
         if (label) {
-          label.textContent = isOnline ? 'Online' : 'Offline';
-          label.className = 'status-label' + (isOnline ? '' : ' offline');
+          if (isAirGapped) {
+            label.innerHTML = '🔒 LOKAL (AIR-GAPPED)';
+            label.className = 'status-label tactical';
+          } else {
+            label.innerHTML = isOnline ? 'Online' : 'Offline';
+            label.className = 'status-label' + (isOnline ? '' : ' offline');
+          }
         }
       } catch {
         statusDot.classList.add('offline');

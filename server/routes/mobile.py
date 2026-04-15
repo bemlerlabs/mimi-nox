@@ -7,7 +7,7 @@ import qrcode
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from utils.network import get_local_ip
+from utils.network import get_local_ip, is_internet_available
 from utils.tunnel import tunnel_manager
 
 router = APIRouter(tags=["Mobile"])
@@ -26,16 +26,19 @@ def get_mobile_qr(request: Request) -> MobileQRResponse:
     _device_connected = False  # Reset on new pairing request
     port = request.url.port or 8765
     
-    # Trigger public SSH tunnel lazily
-    tunnel_manager.start_tunnel(port)
+    target_url = None
     
-    # Wait up to 3 seconds for it to assign a URL
-    for _ in range(30):
-        if tunnel_manager.public_url:
-            break
-        time.sleep(0.1)
+    if is_internet_available(timeout=1.0):
+        # Trigger public SSH tunnel lazily
+        tunnel_manager.start_tunnel(port)
         
-    target_url = tunnel_manager.public_url
+        # Wait up to 3 seconds for it to assign a URL
+        for _ in range(30):
+            if tunnel_manager.public_url:
+                break
+            time.sleep(0.1)
+        target_url = tunnel_manager.public_url
+    
     if not target_url:
         ip = get_local_ip()
         target_url = f"http://{ip}:{port}"
