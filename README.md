@@ -169,7 +169,7 @@ The script handles everything:
 git clone https://github.com/MimiTechAi/mimi-nox.git
 cd mimi-nox
 python -m venv .venv && source .venv/bin/activate
-pip install -e .
+pip install -e ".[gui]"
 ollama pull gemma4:e4b
 ```
 
@@ -622,7 +622,7 @@ python tests/validate_all_capabilities.py
 
 ```bash
 # Dev setup
-pip install -e ".[dev,voice]"
+pip install -e ".[dev,gui,voice]"
 
 # Tests
 pytest tests/ -v

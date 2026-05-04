@@ -131,7 +131,7 @@ if [[ ! -d ".venv" ]]; then
   "$PYTHON" -m venv .venv
 fi
 info "Installiere Dependencies (inkl. chromadb – kann 1-2 Min dauern)..."
-.venv/bin/pip install -q -e "." 2>&1 | tail -3
+.venv/bin/pip install -q -e ".[gui]" 2>&1 | tail -3
 ok "Dependencies installiert (ddgs, chromadb, textual, ollama)"
 
 # ── 5b. nomic-embed-text für Memory ──────────────────────────────────────────
