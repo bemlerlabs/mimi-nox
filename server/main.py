@@ -111,6 +111,10 @@ def create_app() -> FastAPI:
     image_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/images", StaticFiles(directory=str(image_dir)), name="images")
 
+    # ── Statische Dateien (Charts aus /tmp) ───────────────────────────────
+    import tempfile
+    app.mount("/charts", StaticFiles(directory=tempfile.gettempdir()), name="charts")
+
     # ── Statische Dateien (Web-Frontend) ───────────────────────────────────
     frontend_dir = Path(__file__).parent.parent / "app" / "src"
     if frontend_dir.exists():

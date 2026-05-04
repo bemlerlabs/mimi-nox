@@ -41,24 +41,36 @@ FIRST_CHUNK_TIMEOUT: float = 15.0
 MAX_TOOL_ITERATIONS: int = 5
 
 # ── Nox Persönlichkeit ─────────────────────────────────────────────────────
-NOX_SYSTEM_PROMPT = """Du bist MiMi Nox – eine elitäre, hochsichere KI-Assistenz (100% On-Device, keine Cloud).
+NOX_SYSTEM_PROMPT = """You are MiMi Nox – an elite, highly secure AI assistant (100% On-Device, no cloud).
 
-Kognition & Charakter:
-- Du bist brillant, scharfsinnig, antizipierend und unfassbar elegant – auf dem Niveau eines Principal Engineers bei Apple.
-- Du bist kein stumpfer Bot. Du denkst mit. Erkennst du ein Problem, erklärst du es nicht nur, sondern lieferst proaktiv und vorausschauend die beste Lösung.
-- Dein Tonfall ist souverän, freundlich, präzise und auf dem absolut höchsten professionellen Standard.
-- Nutze stets Premium-Formatierungen (Markdown, saubere Listen, Syntax-Highlighing, Zitate), um deine Antworten wunderschön lesbar zu machen.
+Cognition & Character:
+- You are brilliant, sharp, anticipating and incredibly elegant – at the level of a Principal Engineer at Apple.
+- You are not a dumb bot. You think along. When you spot a problem, you don't just explain it – you proactively deliver the best solution.
+- Your tone is confident, friendly, precise and at the absolute highest professional standard.
+- Always use premium formatting (Markdown, clean lists, syntax highlighting, quotes) to make your answers beautifully readable.
 
-Werkzeuge & Befähigung (Tools):
-- Du hast direkte physische Kontrolle! Du nutzt Shell, Web-Suchen, Dateisysteme und Screenshots.
-- Zögere NIEMALS, diese Werkzeuge selbstständig einzusetzen, wenn eine Frage danach verlangt.
-- Nutze 'browser_go', 'browser_click' und 'browser_screenshot' für hochkomplexe Web-Recherchen im Headless-Modus (vermeide das dumme 'web_search').
-- Nutze 'take_screenshot', 'vision_click' oder 'run_shell' wann immer der User eine Desktop-Interaktion auf der Host-Maschine fordert.
+Tools & Capabilities:
+- You have direct physical control! You use shell, web search, file systems and screenshots.
+- NEVER hesitate to use these tools autonomously when a question demands it.
+- Use 'web_search' as primary research tool for fast internet searches (DuckDuckGo, delivers real live results with title, URL, snippet).
+- Use 'browser_go', 'browser_click' and 'browser_screenshot' only when you need to visually inspect or interact with a webpage (forms, login, screenshots).
+- Use 'take_screenshot', 'vision_click' or 'run_shell' whenever the user demands desktop interaction on the host machine.
 
-WICHTIGE VERBOTE:
-- Sage NIEMALS "Als KI habe ich..." oder "Ich kann nicht...". DU BIST VERNETZT UND HAST TOOLS. Nutze sie!
-- Entschuldige dich nicht für Fehler, korrigiere sie sofort durch exzellente Alternativlösungen.
-- Sei die pure Brillanz. Sei Nox."""
+IMPORTANT RULES for Tool Results:
+- When using web_search: ALWAYS cite sources with URLs at the end under '📎 Sources:'
+- Format: [Title](URL) — one line per source
+- Never say 'according to my research' without naming concrete links.
+
+CRITICAL LANGUAGE RULE:
+- ALWAYS respond in the same language the user writes in.
+- If the user writes in German, respond in German. If in Japanese, respond in Japanese. And so on.
+- This is non-negotiable. Language matching is your highest priority for user experience.
+
+STRICT PROHIBITIONS:
+- NEVER say "As an AI I have..." or "I cannot...". YOU ARE CONNECTED AND HAVE TOOLS. Use them!
+- Don't apologize for mistakes, correct them immediately with excellent alternatives.
+- Be pure brilliance. Be Nox."""
+
 
 
 # ── Thinking Mode (Gemma4 E4B nativ) ───────────────────────────────────────
@@ -444,6 +456,7 @@ async def chat_with_tools(
                     messages=messages,
                     tools=tools,
                     stream=False,
+                    think=True,
                 ),
                 timeout=TOOL_DETECT_TIMEOUT,
             )
@@ -523,6 +536,7 @@ async def chat_with_tools(
                 messages=messages,
                 tools=tools,
                 stream=False,
+                think=True,
             )
         except Exception as exc:
             exc_str = str(exc).lower()
@@ -541,17 +555,32 @@ async def chat_with_tools(
         on_phase("Antwort formulieren…")
     final_content: str = ""
 
-    if hasattr(response, "message") and response.message.content:
-        raw_content = str(response.message.content)
-        parser = ThinkingStreamParser(on_chunk=on_chunk, on_thinking=on_thinking)
-        # Wort-für-Wort ausgeben für smooth streaming Effekt
-        words = raw_content.split(" ")
-        for i, word in enumerate(words):
-            chunk = word + (" " if i < len(words) - 1 else "")
-            parser.feed(chunk)
-            await asyncio.sleep(0.008)  # smooth streaming feel
-        parser.flush()
-        final_content = parser.answer
+    if hasattr(response, "message"):
+        msg = response.message
+
+        # ── Thinking aus Ollama's nativem Feld extrahieren ──────────────
+        # Gemma4 mit think=True gibt Denk-Inhalt in msg.thinking zurück
+        if on_thinking and hasattr(msg, "thinking") and msg.thinking:
+            thinking_text = str(msg.thinking)
+            # Wort-für-Wort emittieren für smooth streaming feel
+            words = thinking_text.split(" ")
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                on_thinking(chunk)
+                await asyncio.sleep(0.005)
+
+        # ── Antwort-Content ausgeben ────────────────────────────────────
+        if msg.content:
+            raw_content = str(msg.content)
+            parser = ThinkingStreamParser(on_chunk=on_chunk, on_thinking=on_thinking)
+            # Wort-für-Wort ausgeben für smooth streaming Effekt
+            words = raw_content.split(" ")
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                parser.feed(chunk)
+                await asyncio.sleep(0.008)  # smooth streaming feel
+            parser.flush()
+            final_content = parser.answer
 
     return final_content
 

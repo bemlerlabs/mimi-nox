@@ -401,65 +401,117 @@ body {
 .bubble-action-btn:hover { opacity: 1; background: rgba(34,197,94,0.08); }
 .action-sep { color: var(--panel-border); font-size: 12px; }
 
-/* Thinking Bubble (Gemma4 E4B <|think|> Mode) */
-.bubble-thinking {
-  background: rgba(4, 10, 4, 0.5);
-  border: 1px solid rgba(34, 197, 94, 0.08);
-  border-left: 2px solid var(--green-dim);
-  border-radius: 4px var(--radius-sm) var(--radius-sm) 4px;
-  padding: 8px 12px;
-  margin-bottom: 6px;
-  max-height: 200px;
-  overflow-y: auto;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
-}
-.bubble-thinking.hidden { display: none; }
-.bubble-thinking.collapsed {
-  max-height: 28px;
+/* ══════════════════════════════════════════════════════════
+   THINKING PANEL (Claude / Grok Style)
+   ══════════════════════════════════════════════════════════ */
+
+.thinking-panel {
+  margin-bottom: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  padding: 6px 12px;
-  cursor: pointer;
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  background: rgba(34, 197, 94, 0.03);
 }
-.thinking-header {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--green-dim);
-  cursor: pointer;
-  user-select: none;
+.thinking-panel.hidden { display: none; }
+
+/* ── Toggle-Button (immer sichtbar) ─────────────────────── */
+.thinking-toggle {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-muted);
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
 }
-.thinking-header:hover { color: var(--green); }
-.thinking-text {
-  font-size: 12px;
-  font-style: italic;
-  color: var(--text-dim);
-  line-height: 1.5;
-  margin-top: 4px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 160px;
-  overflow-y: auto;
+.thinking-toggle:hover {
+  background: rgba(34, 197, 94, 0.05);
+  color: var(--green-light);
 }
 
-/* Pulsing Animation – sofort wenn Anfrage losgeht */
-.bubble-thinking.pulsing {
-  animation: thinking-pulse 1.5s ease-in-out infinite;
+/* Animierter Spinner-Dot */
+.thinking-spinner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+  animation: thinking-dot-pulse 1.4s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
 }
-.bubble-thinking.pulsing .thinking-header span::after {
-  content: '';
-  animation: thinking-dots 1.5s steps(4, end) infinite;
+@keyframes thinking-dot-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); box-shadow: 0 0 10px rgba(34,197,94,0.8); }
 }
-@keyframes thinking-pulse {
-  0%, 100% { border-left-color: var(--green-dim); opacity: 0.7; }
-  50% { border-left-color: var(--green); opacity: 1; }
+.thinking-panel.thinking-done .thinking-spinner { display: none; }
+
+/* Label */
+.thinking-label {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 0.01em;
 }
-@keyframes thinking-dots {
-  0%  { content: ''; }
-  25% { content: '.'; }
-  50% { content: '..'; }
-  75% { content: '...'; }
+.thinking-panel.thinking-open  .thinking-label { color: var(--green-light); }
+.thinking-panel.thinking-done  .thinking-label { color: var(--text-dim); font-size: 12px; }
+
+/* Chevron (dreht sich) */
+.thinking-chevron {
+  color: var(--text-dim);
+  transition: transform 0.25s ease, color 0.15s;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.thinking-panel.thinking-open .thinking-chevron { transform: rotate(180deg); color: var(--green); }
+
+/* ── Accordion Body ─────────────────────────────────────── */
+.thinking-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  border-top: 0px solid transparent;
+}
+.thinking-panel.thinking-open .thinking-body {
+  max-height: 280px;
+  border-top: 1px solid rgba(34, 197, 94, 0.1);
+}
+
+/* ── Content-Text ───────────────────────────────────────── */
+.thinking-content {
+  padding: 12px 16px 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(134, 239, 172, 0.65);
+  font-style: italic;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  max-height: 260px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34,197,94,0.2) transparent;
+}
+.thinking-content::-webkit-scrollbar { width: 3px; }
+.thinking-content::-webkit-scrollbar-thumb {
+  background: rgba(34, 197, 94, 0.25);
+  border-radius: 2px;
+}
+
+/* ── Done State (zugeklappt nach Fertig) ────────────────── */
+.thinking-panel.thinking-done .thinking-body { max-height: 0; }
+.thinking-panel.thinking-done:hover .thinking-toggle {
+  background: rgba(34, 197, 94, 0.04);
+}
+.thinking-panel.thinking-done.thinking-open .thinking-body {
+  max-height: 280px;
 }
 
 /* Tool/System Message */
@@ -1429,127 +1481,220 @@ body {
 }
 
 /* ============================================================
-   MOBILE RESPONSIVE (max-width: 768px)
-   Shared baseline for any mobile browser
+
+/* ============================================================
+   RESPONSIVE DESIGN — INTELLIGENT MULTI-BREAKPOINT SYSTEM
+   ─────────────────────────────────────────────────────────────
+   Breakpoints:
+     xs:  < 480px   — kleines Smartphone (SE, Galaxy A)
+     sm:  < 768px   — normales Smartphone / Portrait
+     md:  < 1024px  — Tablet / Landscape
+     lg:  ≥ 1024px  — Desktop (default)
    ============================================================ */
+
+/* ── Fluid Typography (skaliert automatisch) ─────────────── */
+:root {
+  --fs-xs:   clamp(11px, 2.8vw, 13px);
+  --fs-sm:   clamp(13px, 3.2vw, 14px);
+  --fs-base: clamp(14px, 3.5vw, 15px);
+  --fs-lg:   clamp(16px, 4vw,   20px);
+  --fs-xl:   clamp(20px, 5vw,   28px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TABLET — max-width: 1024px
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  :root {
+    --panel-w: 280px;
+  }
+  .tab-inner {
+    padding: 24px 28px;
+  }
+  .skills-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE — max-width: 768px
+   ═══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
 
-  /* ── Topbar: nur Logo + Status-Dot ── */
+  /* ── Topbar ──────────────────────────────────────────── */
   .topbar {
-    padding: 0 14px;
-    height: 52px;
+    padding: 0 12px;
+    height: 50px;
   }
-  .btn-hamburger {
-    display: none !important; /* Kein Hamburger – kein Panel */
-  }
-  .logo-tagline {
-    display: none;
-  }
-  /* Nav-Tabs komplett weg auf Mobile */
-  .topnav {
-    display: none !important;
-  }
-  /* QR-Button: auf Mobile macht er null Sinn */
-  #btn-mobile-pairing {
-    display: none !important;
-  }
-  /* Autonom-Toggle: nur Checkbox, kein Text */
-  .autonom-mode-label span {
-    display: none;
-  }
-  .autonom-mode-label {
-    gap: 0;
-  }
-  #status-text {
-    display: none;
-  }
-  .topbar-right {
-    gap: 10px;
-    min-width: unset;
-  }
+  .logo-tagline   { display: none; }
+  .topnav         { display: none !important; }
+  #btn-mobile-pairing { display: none !important; }
+  .autonom-mode-label span { display: none; }
+  .autonom-mode-label { gap: 0; }
+  #status-text    { display: none; }
+  .topbar-right   { gap: 8px; }
+  .btn-hamburger  { display: flex !important; }
 
-  /* ── Hintergrund: kein Forest auf Mobile (Performance + Ablenkung) ── */
-  .forest-bg {
-    display: none;
-  }
+  /* ── Background: kein Forest (Performance) ──────────── */
+  .forest-bg { display: none; }
 
-  /* ── Welcome-Screen: kein Splash, nur minimale Begrüßung ── */
-  .welcome-cards {
-    display: none !important; /* Quick-Action-Karten weg */
-  }
+  /* ── Welcome Screen (Mobile-freundlich, nicht versteckt) */
   .welcome {
-    gap: 8px;
-    padding-top: 40px;
+    padding: 20px 16px;
+    gap: 10px;
   }
   .welcome-glow {
-    font-size: 36px;
+    font-size: 32px;
+    margin-bottom: 4px;
   }
   .welcome-heading {
-    font-size: 20px;
+    font-size: var(--fs-lg);
+    text-align: center;
   }
   .welcome-sub {
-    font-size: 13px;
+    font-size: var(--fs-xs);
+    text-align: center;
+    max-width: 280px;
+  }
+  /* Welcome-Cards: 2-Spalten Grid statt verstecken */
+  .welcome-cards {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    max-width: 340px;
+    margin-top: 8px;
+  }
+  .welcome-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 6px;
+    border-radius: 14px;
+    min-height: 64px;
+  }
+  .welcome-card .card-icon {
+    font-size: 20px;
+  }
+  .welcome-card span:last-child {
+    font-size: 11px;
+    line-height: 1.3;
   }
 
-  /* ── Chat-Bereich: 100% Breite, mehr Raum ── */
+  /* ── Chat-Bereich ────────────────────────────────────── */
   .chat-area {
-    padding: 12px 10px 0;
+    padding: 10px 8px 0;
   }
   .bubble-user, .bubble-ai-wrap {
-    max-width: 92%;
+    max-width: 88%;
   }
   .bubble-user {
     padding: 10px 14px;
-    font-size: 14px;
+    font-size: var(--fs-sm);
     border-radius: 18px 18px 4px 18px;
   }
   .bubble-ai {
     padding: 10px 14px;
-    font-size: 14px;
+    font-size: var(--fs-sm);
     border-radius: 18px 18px 18px 4px;
   }
+  .messages { padding: 0 2px; }
 
-  /* ── Activity Panel: Off-Canvas (erreichbar per Swipe/Toggle) ── */
+  /* Bubble Actions immer sichtbar auf Touch */
+  .bubble-ai-wrap .bubble-actions {
+    opacity: 1;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .bubble-action-btn {
+    font-size: 11px;
+    padding: 4px 2px;
+    min-height: 32px;
+  }
+
+  /* ── Thinking Panel: kompakter auf Mobile ────────────── */
+  .thinking-panel { margin-bottom: 8px; }
+  .thinking-toggle {
+    padding: 9px 12px;
+    font-size: var(--fs-xs);
+  }
+  .thinking-content {
+    font-size: var(--fs-xs);
+    padding: 10px 12px 12px;
+    max-height: 160px;
+  }
+  .thinking-panel.thinking-open .thinking-body {
+    max-height: 180px;
+  }
+
+  /* ── Activity Panel: Off-Canvas Slide-in ─────────────── */
   .activity-panel {
     position: fixed;
-    top: var(--topbar-h);
+    top: 50px; /* topbar height */
     bottom: var(--bottom-h);
     right: -100%;
-    width: 88%;
-    max-width: 340px;
+    width: min(88%, 340px);
     z-index: 500;
-    box-shadow: -4px 0 24px rgba(0,0,0,0.9);
-    transition: right 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: -4px 0 32px rgba(0,0,0,0.85);
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-left: 1px solid rgba(34,197,94,0.15);
   }
-  .activity-panel.mobile-open {
-    right: 0;
+  .activity-panel.mobile-open { right: 0; }
+
+  /* Scrim (Overlay hinter Panel) */
+  .activity-panel.mobile-open::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: -1;
+    backdrop-filter: blur(2px);
   }
 
-  /* ── Bottombar: schmaler, kein Skill-Chip-Block ── */
+  /* ── Bottombar ───────────────────────────────────────── */
   .bottombar {
-    padding: 8px 10px 10px;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom));
-    gap: 6px;
+    padding: 6px 10px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    gap: 5px;
   }
-  /* Skill-Chips auf Mobile verstecken – zu viel Rauschen */
+
+  /* Skill-Chips: horizontal scroll statt verstecken */
   .skill-chips {
-    display: none !important;
+    display: flex !important;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 0 0 4px 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
   }
-  /* Input-Hint (Keyboard-Shortcuts) auf Touch sinnlos */
-  .input-hint {
-    display: none !important;
+  .skill-chips::-webkit-scrollbar { display: none; }
+  .skill-chip {
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 4px 11px;
+    min-height: 28px;
+    white-space: nowrap;
   }
+
+  /* Input-Hint verstecken auf Touch */
+  .input-hint { display: none !important; }
+
   .input-wrap {
-    padding: 6px 6px 6px 12px;
-    border-radius: 24px; /* Runder wie Telegram */
+    padding: 6px 6px 6px 14px;
+    border-radius: 26px;
   }
   .chat-input {
-    font-size: 16px; /* Verhindert iOS Auto-Zoom! */
+    font-size: 16px; /* verhindert iOS-Autozoom! */
+    min-height: 24px;
   }
   .send-btn {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
+    flex-shrink: 0;
   }
   .mic-btn {
     width: 38px;
@@ -1557,83 +1702,133 @@ body {
     border-radius: 50%;
     border: none;
   }
+  .attach-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
 
-  /* ── Onboarding Modal: voller Screen ── */
+  /* Slash-Menu: volle Breite auf Mobile */
+  #slash-menu {
+    border-radius: 14px 14px 0 0 !important;
+  }
+
+  /* ── Onboarding Modal ────────────────────────────────── */
+  .modal-overlay { padding: 12px; align-items: flex-end; }
   .modal-box {
-    padding: 28px 20px;
-    width: 95%;
+    padding: 24px 18px;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    margin-bottom: 0;
   }
   .ob-categories {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
+  .ob-cat { padding: 14px 10px; min-height: 90px; }
+  .ob-cat-icon { font-size: 24px; }
+  .ob-cat-name { font-size: 12px; }
+  .ob-cat-desc { display: none; } /* Spart Platz auf kleinen Screens */
+
+  /* ── Skills Tab ──────────────────────────────────────── */
+  .tab-inner { padding: 18px 14px; }
+  .skills-grid { grid-template-columns: 1fr; gap: 10px; }
+  .skills-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .form-row { grid-template-columns: 1fr; }
+
+  /* ── Profile Tab ─────────────────────────────────────── */
+  .profile-form input,
+  .profile-form select { font-size: 16px; } /* iOS-Autozoom verhindern */
 }
 
-/* ============================================================
+/* ═══════════════════════════════════════════════════════════
+   SMALL PHONE — max-width: 480px (iPhone SE, Galaxy A14)
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+
+  /* Topbar noch kompakter */
+  .logo-name { font-size: 15px; }
+  .logo-symbol { font-size: 18px; }
+
+  /* Welcome: 1 Spalte auf sehr kleinen Screens */
+  .welcome-cards {
+    grid-template-columns: 1fr;
+    max-width: 260px;
+  }
+
+  /* Bubbles: voller Breite */
+  .bubble-user, .bubble-ai-wrap { max-width: 94%; }
+  .bubble-user, .bubble-ai { font-size: 14px; }
+
+  /* Send-Button als runden FAB */
+  .send-btn {
+    width: 42px;
+    height: 42px;
+    font-size: 17px;
+  }
+
+  /* Bubble-Actions: 2 Zeilen erlauben */
+  .bubble-actions {
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  /* Modal: echtes Bottom Sheet */
+  .modal-box { padding: 20px 14px; }
+  .ob-title  { font-size: 18px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
    MOBILE PWA ZEN MODE (body.mobile-pwa-mode)
-   Wird gesetzt wenn window.innerWidth <= 768.
+   Wird gesetzt wenn window.innerWidth ≤ 768.
    Telegram-Style: nur Chat, kein Overhead.
-   ============================================================ */
+   ═══════════════════════════════════════════════════════════ */
 
-/* Panel + Toggle komplett weg */
 body.mobile-pwa-mode .activity-panel,
-body.mobile-pwa-mode .ap-toggle {
-  display: none !important;
-}
+body.mobile-pwa-mode .ap-toggle       { display: none !important; }
 
-/* Chat-Bereich nutzt volle Breite */
 body.mobile-pwa-mode .chat-area {
   flex: 1;
   width: 100% !important;
   max-width: 100% !important;
 }
 
-/* Topbar: nur Logo zentriert + Status-Dot rechts */
 body.mobile-pwa-mode .topbar {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   padding: 0 14px;
 }
-body.mobile-pwa-mode .logo {
-  justify-content: flex-start;
-  grid-column: 1;
-}
-body.mobile-pwa-mode .topnav {
-  display: none !important;
-}
+body.mobile-pwa-mode .logo       { grid-column: 1; justify-content: flex-start; }
 body.mobile-pwa-mode .topbar-right {
   grid-column: 3;
   justify-content: flex-end;
-  min-width: unset;
 }
-
-/* Alle Desktop-spezifischen Elemente endgültig weg */
 body.mobile-pwa-mode .topnav,
-body.mobile-pwa-mode #mobile-qr-btn,
 body.mobile-pwa-mode #btn-mobile-pairing,
 body.mobile-pwa-mode .btn-hamburger,
 body.mobile-pwa-mode .logo-tagline,
 body.mobile-pwa-mode .forest-bg,
-body.mobile-pwa-mode .welcome-cards,
-body.mobile-pwa-mode .skill-chips,
 body.mobile-pwa-mode .input-hint,
-body.mobile-pwa-mode .ap-toggle {
-  display: none !important;
-}
+body.mobile-pwa-mode .ap-toggle  { display: none !important; }
 
-/* ── Tool-Activity Toast (nur Mobile anzeigen) ── */
+/* Skill-Chips im PWA-Mode sichtbar lassen (nützlich!) */
+body.mobile-pwa-mode .skill-chips { display: flex !important; }
+
+/* ── Tool-Activity Toast (Mobile) ── */
 .mobile-toast {
   position: fixed;
-  top: calc(var(--topbar-h) + 8px);
+  top: calc(50px + 8px);
   left: 50%;
-  transform: translateX(-50%) translateY(-10px);
-  background: rgba(4, 14, 6, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  transform: translateX(-50%) translateY(-12px);
+  background: rgba(4, 14, 6, 0.93);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--green-dim);
   border-radius: 20px;
-  padding: 7px 16px;
+  padding: 7px 18px;
   font-size: 12px;
   color: var(--green-light);
   font-family: var(--font-mono);
@@ -1642,29 +1837,21 @@ body.mobile-pwa-mode .ap-toggle {
   opacity: 0;
   transition: opacity 0.2s ease, transform 0.2s ease;
   white-space: nowrap;
-  max-width: calc(100vw - 40px);
+  max-width: calc(100vw - 32px);
   overflow: hidden;
   text-overflow: ellipsis;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
 }
 .mobile-toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
 
-/* ── Bubble-Styles: Telegram-rounded auf Mobile ── */
+/* ── Bubble Rounded Styles auf Mobile ── */
 @media (max-width: 768px) {
-  .bubble-ai-wrap {
-    gap: 4px;
-  }
-  .bubble-ai-wrap .bubble-actions {
-    opacity: 1; /* immer sichtbar auf touch */
-  }
-  /* Breitere Nachrichten-Bubbles */
-  .messages {
-    padding: 0 2px;
-  }
+  .bubble-ai-wrap { gap: 4px; }
 }
+
 
 /* ============================================================
    SWARM V2 DASHBOARD
@@ -1833,5 +2020,550 @@ body.mobile-pwa-mode .ap-toggle {
   }
   .agent-task {
     font-size: 11px;
+  }
+}
+
+/* ============================================================
+   MOBILE BOTTOM NAVIGATION BAR
+   Nur auf Smartphone (display:none Desktop, flex auf Mobile)
+   ============================================================ */
+.mobile-bottomnav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 56px;
+  background: rgba(2, 5, 4, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(34, 197, 94, 0.12);
+  z-index: 150;
+  padding-bottom: env(safe-area-inset-bottom);
+  flex-direction: row;
+  align-items: stretch;
+}
+.mbn-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 4px;
+  color: var(--text-dim);
+  transition: color 0.15s, background 0.15s;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.mbn-tab:active { background: rgba(34, 197, 94, 0.05); }
+.mbn-tab.active { color: var(--green); }
+.mbn-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 2px;
+  background: var(--green);
+  border-radius: 0 0 2px 2px;
+}
+.mbn-icon { font-size: 19px; line-height: 1; }
+.mbn-tab.active .mbn-icon { filter: drop-shadow(0 0 4px rgba(34,197,94,0.6)); }
+.mbn-label { font-size: 10px; font-weight: 500; font-family: var(--font-main); }
+
+@media (max-width: 768px) {
+  /* Bottom Nav einblenden */
+  .mobile-bottomnav { display: flex; }
+
+  /* Bottombar: über Mobile-Nav, immer sichtbar beim Chat */
+  .bottombar {
+    bottom: 56px;
+    z-index: 200;
+    padding-bottom: 8px;
+    border-top: 1px solid rgba(34,197,94,0.1);
+    display: flex;
+  }
+
+  /* Nur Nicht-Chat-Tabs verstecken das Input */
+  body.tab-skills  .bottombar,
+  body.tab-history .bottombar,
+  body.tab-memory  .bottombar,
+  body.tab-profile .bottombar { display: none !important; }
+
+  /* Main: Platz für Topbar + Input + Mobile-Nav */
+  .main { padding-bottom: calc(var(--bottom-h) + 56px); }
+
+  /* Tab-Inhalte: scroll + safe-area */
+  .tab-content { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .tab-inner { padding: 16px 14px 32px; }
+
+  /* Input wächst mit Text, max 4 Zeilen */
+  .chat-input { max-height: 96px; overflow-y: auto; }
+  .input-wrap { min-height: 46px; align-items: flex-end; }
+
+  /* Touch-Targets mind. 44px */
+  .send-btn, .mic-btn, .attach-btn { min-width: 44px; min-height: 44px; }
+
+  /* Kamera-Button (nur Mobile) */
+  .camera-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    background: none; border: none;
+    color: var(--text-dim); font-size: 18px;
+    cursor: pointer; border-radius: 50%;
+    transition: color 0.15s; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .camera-btn:active { color: var(--green); }
+}
+
+/* ============================================================
+   ◑ PROFESSIONAL POLISH PASS — April 2026
+   Jeder Bereich einzeln verfeinert. Kein Override-Spam.
+   ============================================================ */
+
+/* ── 1. TOPBAR: schärfer, kompakter ─────────────────────────
+   Vorher: zu breite Gaps, status-text überläuft auf md-screens
+   Jetzt:  kompakte Gap-Staffelung, blur erhöht für Premium-Look */
+.topbar {
+  backdrop-filter: blur(32px) saturate(1.4);
+  -webkit-backdrop-filter: blur(32px) saturate(1.4);
+  border-bottom: 1px solid rgba(34, 197, 94, 0.07);
+}
+.logo-symbol { filter: drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 28px rgba(34,197,94,0.35)); }
+.status-badge { gap: 5px; font-size: 12px; }
+.status-dot { width: 7px; height: 7px; }
+
+/* ── 2. WELCOME SCREEN: zentriert, konsistente Abstände ─────
+   Cards: aktiver Tap-State, Icon größer, Text klarer */
+.welcome-cards { gap: 10px; max-width: 540px; }
+.welcome-card {
+  background: rgba(4, 12, 4, 0.9);
+  border: 1px solid rgba(34,197,94,0.12);
+  border-radius: 16px;
+  padding: 14px 18px;
+  gap: 10px;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.18s ease, box-shadow 0.2s ease;
+}
+.welcome-card:hover {
+  border-color: rgba(34,197,94,0.35);
+  background: rgba(19,78,28,0.25);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(34,197,94,0.08);
+}
+.welcome-card:active { transform: translateY(0); box-shadow: none; }
+.card-icon { font-size: 20px; flex-shrink: 0; }
+
+/* ── 3. NACHRICHTEN-BUBBLES: professionellere Typographie ───
+   User-Bubble: wärmeres Grün, schärfere Border-Radius-Asymmetrie
+   AI-Bubble: border-left als Akzent stärker, bessere line-height */
+.bubble-user {
+  background: linear-gradient(135deg, #134e1c 0%, #0e3b16 100%);
+  border-radius: 20px 20px 4px 20px;
+  padding: 11px 16px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(34,197,94,0.12);
+}
+.bubble-ai {
+  border-left: 2px solid rgba(34,197,94,0.5);
+  border-radius: 2px 20px 20px 20px;
+  padding: 13px 18px;
+  font-size: 14.5px;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+  background: rgba(6, 12, 6, 0.88);
+}
+
+/* Markdown innerhalb AI-Bubbles */
+.bubble-ai h1, .bubble-ai h2, .bubble-ai h3 {
+  color: var(--green-light);
+  font-weight: 700;
+  margin: 14px 0 6px;
+  line-height: 1.3;
+}
+.bubble-ai h1 { font-size: 17px; border-bottom: 1px solid rgba(34,197,94,0.15); padding-bottom: 6px; }
+.bubble-ai h2 { font-size: 15px; }
+.bubble-ai h3 { font-size: 14px; }
+.bubble-ai p  { margin: 0 0 10px; }
+.bubble-ai p:last-child { margin-bottom: 0; }
+.bubble-ai ul, .bubble-ai ol { padding-left: 20px; margin: 6px 0 10px; }
+.bubble-ai li { margin: 4px 0; line-height: 1.65; }
+.bubble-ai code {
+  background: rgba(34,197,94,0.08);
+  border: 1px solid rgba(34,197,94,0.15);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--green-light);
+}
+.bubble-ai pre {
+  background: rgba(2,5,2,0.8);
+  border: 1px solid rgba(34,197,94,0.12);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--green-dim) transparent;
+}
+.bubble-ai pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--green-light);
+}
+.bubble-ai blockquote {
+  border-left: 3px solid var(--green-dim);
+  margin: 8px 0;
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.bubble-ai strong { color: var(--text); font-weight: 600; }
+.bubble-ai a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+.bubble-ai table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+.bubble-ai th, .bubble-ai td { border: 1px solid rgba(34,197,94,0.15); padding: 6px 10px; text-align: left; }
+.bubble-ai th { background: rgba(34,197,94,0.08); color: var(--green-light); font-weight: 600; }
+.bubble-ai hr { border: none; border-top: 1px solid rgba(34,197,94,0.12); margin: 12px 0; }
+
+/* ── 4. BUBBLE ACTIONS: immer subtil, hover klar ────────────
+   Vorher: opacity-only, kein klarer Tap-State
+   Jetzt:  Pill-Shape Hover, besseres Spacing */
+.bubble-actions { gap: 2px; padding: 2px 2px; margin-top: 2px; }
+.bubble-action-btn {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 100px;
+  color: var(--text-dim);
+  opacity: 1;
+  gap: 5px;
+  transition: background 0.15s, color 0.15s;
+}
+.bubble-action-btn:hover {
+  background: rgba(34,197,94,0.1);
+  color: var(--green-light);
+  opacity: 1;
+}
+.bubble-action-btn:active { background: rgba(34,197,94,0.18); }
+.action-sep { display: none; } /* Seps weg — Pill-Buttons trennen selbst */
+
+/* ── 5. INPUT-BEREICH: sauberere Linie, besseres Focus ──────
+   Vorher: border etwas muddy, focus nicht klar genug
+   Jetzt:  klarer Focus-Ring, input wächst organisch */
+.input-wrap {
+  border: 1px solid rgba(34,197,94,0.15);
+  border-radius: 24px;
+  background: rgba(4,10,4,0.9);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  align-items: center;
+  padding: 8px 8px 8px 16px;
+}
+.input-wrap:focus-within {
+  border-color: rgba(34,197,94,0.45);
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.07), 0 4px 20px rgba(0,0,0,0.3);
+}
+.chat-input {
+  line-height: 1.6;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+.chat-input::placeholder { color: var(--text-dim); font-size: 14px; }
+
+/* Send-Button: klar als primäre Aktion */
+.send-btn {
+  background: var(--green);
+  color: #020504;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(34,197,94,0.35);
+}
+.send-btn:hover { background: var(--green-light); box-shadow: 0 4px 16px rgba(34,197,94,0.5); }
+.send-btn:active { transform: scale(0.93); box-shadow: none; }
+.send-btn:disabled { background: var(--green-dim); box-shadow: none; opacity: 0.5; cursor: default; }
+
+/* Mic/Attach/Camera: subtile Icon-Buttons */
+.mic-btn, .attach-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 17px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+}
+.mic-btn:hover, .attach-btn:hover { color: var(--green-light); background: rgba(34,197,94,0.08); }
+.mic-btn.recording { color: var(--green); animation: pulse-dot 1s ease-in-out infinite; }
+
+/* ── 6. SKILL-CHIPS: kompakter, schärferer Hover ────────────
+   Vorher: zu viel Padding, kein Feedback
+   Jetzt:  Pill-Shape, grüner Glow auf Hover */
+.skill-chip {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 100px;
+  border: 1px solid rgba(34,197,94,0.2);
+  background: rgba(34,197,94,0.04);
+  color: var(--text-muted);
+  transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.1s;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.skill-chip:hover {
+  border-color: rgba(34,197,94,0.5);
+  background: rgba(34,197,94,0.1);
+  color: var(--green-light);
+  transform: translateY(-1px);
+}
+.skill-chip:active { transform: scale(0.96); }
+
+/* ── 7. ACTIVITY PANEL: schärfere Trennlinie, bessere Scrollbar */
+.activity-panel {
+  border-left: 1px solid rgba(34,197,94,0.08);
+}
+.ap-terminal { scrollbar-width: thin; scrollbar-color: rgba(34,197,94,0.2) transparent; }
+.ap-terminal::-webkit-scrollbar { width: 3px; }
+.ap-terminal::-webkit-scrollbar-thumb { background: rgba(34,197,94,0.2); border-radius: 2px; }
+
+/* ── 8. SLASH MENU: glassmorphic, klar abgesetzt ────────────
+   Vorher: plain border-box
+   Jetzt:  blur + subtiler shadow + transition */
+#slash-menu {
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgba(34,197,94,0.2);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(34,197,94,0.05);
+  animation: slide-up 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 9. MODAL / ONBOARDING: Bottom-Sheet premium ────────────
+   Vorher: plain card
+   Jetzt:  echter Glaseffekt, safe-area padding */
+.modal-overlay {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0,0,0,0.7);
+}
+.modal-box {
+  background: rgba(4,10,4,0.97);
+  border: 1px solid rgba(34,197,94,0.15);
+  box-shadow: 0 -4px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(34,197,94,0.05);
+}
+
+/* ── 10. MOBILE BOTTOM NAV: stärker differenziert ───────────
+   Active: breiterer Balken, icon glüht
+   Inactive: deutlicher dimmer */
+.mbn-tab { color: rgba(107, 114, 128, 0.6); }
+.mbn-tab.active { color: var(--green); }
+.mbn-tab.active .mbn-icon {
+  filter: drop-shadow(0 0 6px rgba(34,197,94,0.7));
+  transform: scale(1.15);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.mbn-label { font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.mbn-tab.active .mbn-label { color: var(--green); }
+
+/* ── 11. SCROLLBARS: systemweit dünn und grün ───────────────*/
+* { scrollbar-width: thin; scrollbar-color: rgba(34,197,94,0.15) transparent; }
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(34,197,94,0.2); border-radius: 2px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(34,197,94,0.4); }
+
+/* ── 12. FOKUS-STATES: Accessibility + Premium-Look ─────────*/
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid rgba(34,197,94,0.6);
+  outline-offset: 2px;
+}
+
+
+/* ── File Result (Chart/PDF/SVG) in Chat-Bubble ─────────────────────────── */
+.file-result-chart {
+  margin: 10px 0 4px;
+}
+.chart-img {
+  max-width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(34,197,94,0.15);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  display: block;
+}
+.file-result-dl {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--green);
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+.file-result-dl:hover { opacity: 1; text-decoration: underline; }
+
+.file-result-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 10px 16px;
+  background: rgba(34,197,94,0.06);
+  border: 1px solid rgba(34,197,94,0.2);
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+.file-result-btn:hover {
+  background: rgba(34,197,94,0.12);
+  border-color: rgba(34,197,94,0.4);
+}
+.file-result-btn .file-result-dl {
+  margin: 0;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--green-light);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   LANGUAGE PICKER OVERLAY (First Launch)
+   ═══════════════════════════════════════════════════════ */
+
+.lang-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 5, 4, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  animation: langFadeIn 0.4s ease-out;
+}
+
+@keyframes langFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.lang-overlay.fade-out {
+  animation: langFadeOut 0.3s ease-in forwards;
+}
+
+@keyframes langFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.lang-picker {
+  position: relative;
+  text-align: center;
+  padding: 48px 40px;
+  max-width: 520px;
+  width: 90%;
+}
+
+.lang-picker-glow {
+  font-size: 72px;
+  line-height: 1;
+  color: var(--green);
+  text-shadow: 0 0 60px rgba(34, 197, 94, 0.4);
+  margin-bottom: 16px;
+  animation: langPulse 2s ease-in-out infinite;
+}
+
+@keyframes langPulse {
+  0%, 100% { text-shadow: 0 0 40px rgba(34, 197, 94, 0.3); }
+  50%      { text-shadow: 0 0 80px rgba(34, 197, 94, 0.6); }
+}
+
+.lang-picker-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary, #f0fdf4);
+  margin: 0 0 8px;
+}
+
+.lang-picker-sub {
+  font-size: 14px;
+  color: var(--text-secondary, #6b7280);
+  margin: 0 0 32px;
+}
+
+.lang-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.lang-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 12px;
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 16px;
+  background: rgba(34, 197, 94, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-primary, #f0fdf4);
+  font-family: 'Inter', sans-serif;
+}
+
+.lang-btn:hover {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.4);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.15);
+}
+
+.lang-btn:active {
+  transform: scale(0.97);
+}
+
+.lang-flag {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.lang-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green-light, #86efac);
+}
+
+@media (max-width: 480px) {
+  .lang-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .lang-picker {
+    padding: 32px 20px;
   }
 }

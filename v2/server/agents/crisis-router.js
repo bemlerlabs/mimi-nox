@@ -80,8 +80,8 @@ export function routeCrisisPrompt(prompt) {
   const confidence = Math.min(0.9, maxScore / 2);
 
   return {
-    agentId: maxScore > 0 ? bestAgent : null,
-    confidence,
+    agentId: maxScore > 0 ? bestAgent : 'sensor_agent',  // Fallback: sensor_agent
+    confidence: maxScore > 0 ? confidence : 0.1,
     sanitizedPrompt: prompt
   };
 }

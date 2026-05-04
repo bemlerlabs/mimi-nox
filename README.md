@@ -1,23 +1,58 @@
 <div align="center">
 
-<img src="docs/screenshots/hero-banner.png" alt="MiMi Nox – Your Private Local AI Agent" width="100%">
+<img src="docs/screenshots/hero-banner.png" alt="MiMi Nox – Your AI, Running on YOUR Machine" width="100%">
 
 <br>
 
-**Your private, local AI agent. No cloud. No tracking. Built in the Black Forest.**
+# Your AI. Your Knowledge. Your Machine.
+
+**The only AI agent that learns from YOU, works offline, and never sends a single byte to the cloud.**
+
+<br>
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Ollama](https://img.shields.io/badge/Powered%20by-Ollama-000?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PC9zdmc+)](https://ollama.com)
 [![Gemma4](https://img.shields.io/badge/Model-Gemma%204%20E4B-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/gemma)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-248%20passed-22c55e?style=for-the-badge&logo=pytest&logoColor=white)](#-testing)
-
-**Runs smoothly on MacBooks (M1+) and PCs with 8 GB RAM.**
-<br>No GPU required – Apple Silicon recommended for best experience.
-
-[Quick Start](#-quick-start) · [Killer Features](#-what-makes-mimi-nox-different) · [Screenshots](#-screenshots) · [API Docs](#-api-reference) · [Contributing](#-contributing)
+[![Tests](https://img.shields.io/badge/Tests-111%20passed-22c55e?style=for-the-badge&logo=pytest&logoColor=white)](#-testing)
+[![Docker](https://img.shields.io/badge/Docker-One%20Click-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#-docker)
+[![i18n](https://img.shields.io/badge/Languages-All-f59e0b?style=for-the-badge&logo=googletranslate&logoColor=white)](#-internationalization)
 
 </div>
+
+<br>
+
+<div align="center">
+
+### 🐳 One command. That's it.
+
+```bash
+docker compose up
+```
+
+Then open **http://localhost:8765** — your private AI is ready. 🚀
+
+</div>
+
+<br>
+
+<div align="center">
+
+|  | MiMi Nox 🌲 | ChatGPT / Claude | OpenClaw |
+|---|---|---|---|
+| **Your data stays on YOUR device** | ✅ Always | ❌ Cloud | ⚠️ Partial |
+| **Works 100% offline** | ✅ Gemma 4 | ❌ | ❌ |
+| **Learns from YOU over time** | ✅ Local knowledge tree | ❌ Feeds their models | ❌ |
+| **Phone app without App Store** | ✅ QR → PWA | ❌ | ❌ |
+| **You can see the AI thinking** | ✅ Thinking Panel | ❌ Blackbox | ❌ |
+| **Cost per month** | **$0** | $20–200 | $20–200 |
+| **Works in your language** | ✅ All languages | ✅ | ✅ |
+
+</div>
+
+---
+
+[Quick Start](#-quick-start) · [Why MiMi Nox?](#-why-mimi-nox) · [Screenshots](#-screenshots) · [API Docs](#-api-reference) · [Contributing](#-contributing)
 
 ---
 
@@ -27,21 +62,29 @@
 
 <img src="docs/screenshots/desktop.png" alt="MiMi Nox – Desktop Chat with AI Activity Panel" width="800">
 
-*Desktop: Dark Forest UI with real-time AI Activity Panel, Skills, and Long-Term Memory sidebar*
+*Dark Forest UI — AI Activity Panel, Thinking Mode, Skills, and Long-Term Memory*
 
 </div>
 
-> 🎥 **Full demo video coming soon.** Clone it, run `./install.sh`, and see for yourself in under 5 minutes.
+> 🎥 **Full demo video coming soon.** `docker compose up` and see for yourself in 30 seconds.
 
 ---
 
-## 🎯 What is MiMi Nox?
+## 🧠 Why MiMi Nox?
 
-MiMi Nox is a **fully local, autonomous AI agent** – no subscription, no API keys, no cloud lock-in. It runs as a web app with a premium browser interface and uses **Gemma 4 (E4B)** via [Ollama](https://ollama.com) directly on your machine.
+### Your Knowledge Stays on YOUR Device
 
-> *"Your machine never sleeps. Neither does MiMi."*
+Every time you chat with ChatGPT or Claude, **your conversations feed their models**. Your ideas, your code, your private questions — all stored on servers you don't control.
 
-Every other Ollama wrapper gives you RAG and a chat window. MiMi Nox gives you **a local agent that can see your screen, control your browser, pair with your phone, and run multi-agent swarms** – all without a single byte leaving your machine.
+MiMi Nox is different:
+
+> **MiMi builds YOUR personal knowledge base — on YOUR machine.**
+>
+> Every conversation, every correction, every preference is stored **locally** in your `~/.mimi-nox/` folder. MiMi learns your writing style, remembers your projects, and gets smarter over time — without sending a single byte to OpenAI, Google, or anyone else.
+>
+> *You own your AI. You own your knowledge. Delete the folder — it's gone. Forever.*
+
+MiMi Nox is a **fully local, autonomous AI agent** powered by **Gemma 4 (E4B)** via [Ollama](https://ollama.com). It runs as a premium web app with a browser interface, works in **any language**, and scales from your laptop to DGX.
 
 ---
 
@@ -87,9 +130,23 @@ MiMi spawns three parallel agents: Researcher → Writer → Social Media Expert
 
 ## ⚡ Quick Start
 
+### 🐳 Docker (recommended)
+
+```bash
+docker compose up
+```
+
+Then open: **http://localhost:8765** 🚀
+
+> The first run downloads Gemma4 E4B (~2.5 GB) — after that it starts in seconds.
+> Your knowledge, memory, and sessions are stored in Docker volumes on YOUR machine.
+
+<details>
+<summary><strong>📦 Manual setup (without Docker)</strong></summary>
+
 **Prerequisites:** Python 3.10+, [Ollama](https://ollama.com) installed
 
-### One-command setup
+#### One-command setup
 
 ```bash
 git clone https://github.com/MimiTechAi/mimi-nox.git
@@ -106,7 +163,7 @@ The script handles everything:
 
 > **Note:** Gemma4 E4B requires Ollama ≥ v0.20.0. The install script detects older versions and updates automatically.
 
-### Manual setup
+#### Manual setup
 
 ```bash
 git clone https://github.com/MimiTechAi/mimi-nox.git
@@ -116,7 +173,7 @@ pip install -e .
 ollama pull gemma4:e4b
 ```
 
-### Run
+#### Run
 
 ```bash
 # Web app (recommended)
@@ -133,15 +190,7 @@ mimi-nox --model llama3.3           # Different model
 
 Then open: **http://127.0.0.1:8765** 🚀
 
-<details>
-<summary><strong>🐳 Docker (coming soon)</strong></summary>
-
-A `docker-compose.yml` is in progress. In the meantime, the install script is **fully isolated**:
-
-- Everything installs inside the project folder (`.venv/`)
-- No global Python packages modified
-- No system-level changes
-- **To uninstall:** Delete the `mimi-nox/` folder. That's it. Gone. Zero traces.
+**To uninstall:** Delete the `mimi-nox/` folder. That's it. Gone. Zero traces.
 
 </details>
 

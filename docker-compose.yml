@@ -1,0 +1,45 @@
+# ◑ MiMi Nox – Docker Compose
+# One command: docker compose up → http://localhost:8765
+#
+# Your data stays on YOUR machine:
+# - Memory, sessions, skills, and profile are stored in named volumes
+# - Nothing leaves your computer. Ever.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mimi-nox:
+    build: .
+    ports:
+      - "8765:8765"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - mimi_data:/root/.mimi-nox
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8765/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+    # Ollama model cache (gemma4:e4b ≈ 2.5 GB, downloaded once)
+  mimi_data:
+    # YOUR personal knowledge: memory, sessions, skills, profile
+    # This is YOUR data. It never leaves your machine.

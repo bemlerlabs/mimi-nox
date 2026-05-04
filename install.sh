@@ -101,11 +101,11 @@ ok "Ollama läuft"
 
 # ── 4. Modell pullen ──────────────────────────────────────────────────────────
 step "Modell: ${MIMI_NOX_MODEL}"
-if ollama show "${MIMI_NOX_MODEL}" >/dev/null 2>&1; then
+if ollama show "${MIMI_NOX_MODEL}" > /dev/null 2>&1; then
   ok "${MIMI_NOX_MODEL} bereits vorhanden"
 else
-  info "Lade ${MIMI_NOX_MODEL} herunter..."
-  info "(einmalig ~2.5 GB – dauert je nach Internet 2-5 Min)"
+  info "Lade ${MIMI_NOX_MODEL} herunter (~2.5 GB — einmalig, dauert je nach Internet 3–8 Min)..."
+  info "☕ Guter Zeitpunkt für einen Kaffee."
   echo ""
   ollama pull "${MIMI_NOX_MODEL}"
   echo ""
@@ -136,13 +136,16 @@ ok "Dependencies installiert (ddgs, chromadb, textual, ollama)"
 
 # ── 5b. nomic-embed-text für Memory ──────────────────────────────────────────
 step "Embedding-Modell für Memory"
-if ollama show "nomic-embed-text" >/dev/null 2>&1; then
+if ollama show "nomic-embed-text" > /dev/null 2>&1; then
   ok "nomic-embed-text bereits vorhanden"
 else
   info "Lade nomic-embed-text (~274 MB) für persistentes Memory..."
   ollama pull nomic-embed-text
   ok "nomic-embed-text bereit"
 fi
+
+# Gesamt-Download-Info
+info "Gesamtdownload abgeschlossen (~2.8 GB — nur einmalig nötig)"
 
 # ── 6. Fertig ─────────────────────────────────────────────────────────────────
 echo ""
@@ -161,12 +164,33 @@ echo ""
 echo -e "${DIM}  🌲 No cloud. No tracking. Straight from the Black Forest.${NC}"
 echo ""
 
-# Optional: direkt starten?
+# Auto-Start: Server im Hintergrund starten + Browser öffnen
 if [[ -t 0 ]]; then
   read -rp "  Jetzt starten? [J/n] " REPLY
   REPLY="${REPLY:-J}"
   if [[ "$REPLY" =~ ^[JjYy]$ ]]; then
-    echo -e "\n  ${NEON}▶${NC} Öffne ${NEON}http://127.0.0.1:8765${NC} im Browser\n"
-    exec .venv/bin/python run_server.py
+    echo -e "\n  ${NEON}▶${NC} Server startet..."
+    .venv/bin/python run_server.py &
+    SERVER_PID=$!
+
+    # Warte bis Server antwortet (max 30s)
+    echo -e "  ⏳ Warte auf Server..."
+    for i in $(seq 1 30); do
+      if curl -s http://127.0.0.1:8765/api/health > /dev/null 2>&1; then
+        break
+      fi
+      sleep 1
+    done
+
+    # Browser automatisch öffnen
+    echo -e "  ${NEON}🌐${NC} Öffne ${NEON}http://127.0.0.1:8765${NC}..."
+    if [[ "$(uname)" == "Darwin" ]]; then
+      open http://127.0.0.1:8765
+    else
+      xdg-open http://127.0.0.1:8765 2>/dev/null || \
+      python3 -m webbrowser http://127.0.0.1:8765 2>/dev/null || true
+    fi
+
+    wait $SERVER_PID
   fi
 fi

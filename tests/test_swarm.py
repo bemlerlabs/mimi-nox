@@ -34,7 +34,7 @@ def mock_ollama_response(text: str):
 def patch_chat(return_texts: list[str]):
     """
     Context manager: patch ollama.AsyncClient().chat to return texts in order.
-    Each call returns the next text.
+    Each call returns the next text as a proper attribute-style response.
     """
     call_count = 0
     texts = list(return_texts)
@@ -43,8 +43,15 @@ def patch_chat(return_texts: list[str]):
         nonlocal call_count
         text = texts[min(call_count, len(texts) - 1)]
         call_count += 1
-        # Return dict-like object
-        return {"message": {"content": text}}
+        # Return attribute-style response (matching real ollama response)
+        msg = MagicMock()
+        msg.content = text
+        msg.tool_calls = None
+        response = MagicMock()
+        response.message = msg
+        # Also support dict-style access for backward compatibility
+        response.__getitem__ = lambda self, k: {"content": text} if k == "message" else None
+        return response
 
     return patch("core.swarm.ollama.AsyncClient", return_value=MagicMock(chat=AsyncMock(side_effect=fake_chat)))
 
@@ -175,7 +182,12 @@ async def test_run_swarm_parallel_execution():
         import time
         await asyncio.sleep(0.05)  # each specialist takes 50ms
         call_times.append(asyncio.get_event_loop().time())
-        return {"message": {"content": "result"}}
+        msg = MagicMock()
+        msg.content = "result"
+        msg.tool_calls = None
+        resp = MagicMock()
+        resp.message = msg
+        return resp
 
     with patch(
         "core.swarm.ollama.AsyncClient",

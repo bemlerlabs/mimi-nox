@@ -21,6 +21,40 @@
 </head>
 <body>
 
+  <!-- ── Language Selection Overlay (First Launch Only) ── -->
+  <div class="lang-overlay" id="lang-overlay" style="display:none" role="dialog" aria-label="Select Language">
+    <div class="lang-picker">
+      <div class="lang-picker-glow" aria-hidden="true">◑</div>
+      <h2 class="lang-picker-title">Choose your language</h2>
+      <p class="lang-picker-sub">Wähle deine Sprache · Choisissez votre langue</p>
+      <div class="lang-grid" id="lang-grid">
+        <button class="lang-btn" data-lang="de">
+          <span class="lang-flag">🇩🇪</span>
+          <span class="lang-name">Deutsch</span>
+        </button>
+        <button class="lang-btn" data-lang="en">
+          <span class="lang-flag">🇬🇧</span>
+          <span class="lang-name">English</span>
+        </button>
+        <button class="lang-btn" data-lang="es">
+          <span class="lang-flag">🇪🇸</span>
+          <span class="lang-name">Español</span>
+        </button>
+        <button class="lang-btn" data-lang="fr">
+          <span class="lang-flag">🇫🇷</span>
+          <span class="lang-name">Français</span>
+        </button>
+        <button class="lang-btn" data-lang="ja">
+          <span class="lang-flag">🇯🇵</span>
+          <span class="lang-name">日本語</span>
+        </button>
+        <button class="lang-btn" data-lang="zh">
+          <span class="lang-flag">🇨🇳</span>
+          <span class="lang-name">中文</span>
+        </button>
+      </div>
+    </div>
+  </div>
   <!-- ── Background Atmosphere (Tree Silhouettes + Glow) ── -->
   <div class="forest-bg" aria-hidden="true"></div>
 
@@ -31,7 +65,7 @@
 
     <!-- Logo -->
     <div class="logo" aria-label="MiMi Nox Home">
-      <button id="btn-hamburger" class="btn-hamburger" title="Menu" style="display: none; background: none; border: none; color: var(--green); font-size: 24px; cursor: pointer; padding-right: 8px;">☰</button>
+      <button id="btn-hamburger" class="btn-hamburger" title="Menu" aria-label="Menu">☰</button>
       <span class="logo-symbol" aria-hidden="true">◑</span>
       <div class="logo-text">
         <span class="logo-name">MiMi Nox</span>
@@ -92,23 +126,22 @@
       <!-- Chat Area (65%) -->
       <div class="chat-area" id="chat-area" role="log" aria-live="polite" data-i18n-aria="nav.chat">
 
-        <!-- Welcome Screen (when empty) -->
         <div class="welcome" id="welcome-screen">
           <div class="welcome-glow" aria-hidden="true">◑</div>
-          <h1 class="welcome-heading" data-i18n="welcome.heading">How can I help?</h1>
-          <p class="welcome-sub" data-i18n="welcome.sub">Type a question or choose a skill</p>
+          <h1 class="welcome-heading" data-i18n="welcome.heading">Wie kann ich helfen?</h1>
+          <p class="welcome-sub" data-i18n="welcome.sub">Ich laufe komplett auf deinem Computer — keine Cloud, keine Kosten.</p>
           <div class="welcome-cards" role="list">
-            <button class="welcome-card" data-prompt="Search the latest AI news from today" role="listitem">
+            <button class="welcome-card" data-prompt="Suche die neuesten Nachrichten zu KI und erkläre die wichtigsten Punkte" role="listitem">
               <span class="card-icon">🔍</span>
-              <span data-i18n="welcome.searchNews">Search latest news</span>
+              <span data-i18n="welcome.searchNews">Aktuelle News suchen</span>
             </button>
-            <button class="welcome-card" data-prompt="/files List all files on my Desktop" role="listitem">
-              <span class="card-icon">📁</span>
-              <span data-i18n="welcome.analyzeFile">Analyze a file</span>
-            </button>
-            <button class="welcome-card" data-prompt="/write Write a professional email about rescheduling a meeting" role="listitem">
+            <button class="welcome-card" data-prompt="/write Schreib mir eine professionelle E-Mail um einen Termin zu verschieben" role="listitem">
               <span class="card-icon">✏️</span>
-              <span data-i18n="welcome.writeText">Write a text</span>
+              <span data-i18n="welcome.writeText">E-Mail schreiben</span>
+            </button>
+            <button class="welcome-card" data-prompt="Erkläre mir Quantencomputer so einfach wie möglich" role="listitem">
+              <span class="card-icon">💡</span>
+              <span>Etwas erklären</span>
             </button>
           </div>
         </div>
@@ -323,6 +356,32 @@
 
 
   <!-- ══════════════════════════════════════════════════════
+       MOBILE BOTTOM NAVIGATION (nur auf Smartphone sichtbar)
+  ══════════════════════════════════════════════════════ -->
+  <nav class="mobile-bottomnav" id="mobile-bottomnav" role="tablist" aria-label="Navigation">
+    <button class="mbn-tab active" data-tab="chat" role="tab" aria-selected="true" aria-label="Chat">
+      <span class="mbn-icon">💬</span>
+      <span class="mbn-label">Chat</span>
+    </button>
+    <button class="mbn-tab" data-tab="skills" role="tab" aria-selected="false" aria-label="Skills">
+      <span class="mbn-icon">⚡</span>
+      <span class="mbn-label">Skills</span>
+    </button>
+    <button class="mbn-tab" data-tab="history" role="tab" aria-selected="false" aria-label="Verlauf">
+      <span class="mbn-icon">📚</span>
+      <span class="mbn-label">Verlauf</span>
+    </button>
+    <button class="mbn-tab" data-tab="memory" role="tab" aria-selected="false" aria-label="Memory">
+      <span class="mbn-icon">🧠</span>
+      <span class="mbn-label">Memory</span>
+    </button>
+    <button class="mbn-tab" data-tab="profile" role="tab" aria-selected="false" aria-label="Profil">
+      <span class="mbn-icon">👤</span>
+      <span class="mbn-label">Profil</span>
+    </button>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════
        BOTTOM BAR (fixed)
   ══════════════════════════════════════════════════════ -->
   <footer class="bottombar" role="contentinfo">
@@ -346,7 +405,7 @@
           id="chat-input"
           rows="1"
           data-i18n-placeholder="chat.placeholder"
-          placeholder="Type a message… or / for skills"
+          placeholder="Frag mich alles… oder / für Skills"
           data-i18n-aria="chat.placeholder"
           aria-label="Your message"
           autocomplete="off"
@@ -354,9 +413,13 @@
           spellcheck="true"
         ></textarea>
 
-        <!-- Image Attach Button (E4B Vision) -->
+        <!-- Image Attach Button (Galerie) -->
         <input type="file" id="img-input" accept="image/*" style="display:none" aria-label="Upload image" />
-        <button class="attach-btn" id="attach-btn" data-i18n-title="chat.attachImage" title="📎 Attach image (Gemma4 E4B Vision)" aria-label="Attach image">📎</button>
+        <button class="attach-btn" id="attach-btn" data-i18n-title="chat.attachImage" title="📎 Bild aus Galerie" aria-label="Bild anfügen">📎</button>
+
+        <!-- Kamera-Button: direkter Kamera-Zugriff (nur Mobile) -->
+        <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" aria-label="Kamera" />
+        <button class="camera-btn" id="camera-btn" title="📷 Foto aufnehmen" aria-label="Kamera öffnen" style="display:none">📷</button>
 
         <!-- Microphone Button + Waveform -->
         <div class="mic-container" id="mic-container">

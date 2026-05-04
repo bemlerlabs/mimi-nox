@@ -89,10 +89,10 @@ const SOURCES = [
     source: 'Bundesamt für Bevölkerungsschutz und Katastrophenhilfe'
   },
   {
-    id: 'bbk_cbrn',
+    id: 'bbk_gefahrenschutz',
     url: 'https://www.bbk.bund.de/DE/Themen/CBRN-Schutz/cbrn-schutz_node.html',
-    domain: 'cbrn',
-    title: 'BBK — CBRN-Schutz (Chemie, Bio, Radioaktiv, Nuklear)',
+    domain: 'life-skills',
+    title: 'BBK — Schutz bei gefährlichen Stoffen (Chemie, Bio, Radioaktiv)',
     source: 'Bundesamt für Bevölkerungsschutz und Katastrophenhilfe'
   },
 
@@ -181,14 +181,14 @@ const SOURCES = [
   {
     id: 'bfs_nuklearer_notfall',
     url: 'https://www.bfs.de/DE/themen/ion/notfallschutz/notfall/notfall_node.html',
-    domain: 'cbrn',
+    domain: 'life-skills',
     title: 'BfS — Verhalten bei einem nuklearen Notfall',
     source: 'Bundesamt für Strahlenschutz'
   },
   {
     id: 'bfs_jodtabletten',
     url: 'https://www.bfs.de/DE/themen/ion/notfallschutz/jod/jod_node.html',
-    domain: 'cbrn',
+    domain: 'life-skills',
     title: 'BfS — Jodtabletten bei nuklearem Notfall',
     source: 'Bundesamt für Strahlenschutz'
   },

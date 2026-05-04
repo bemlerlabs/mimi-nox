@@ -50,9 +50,8 @@ class TestWebSearch:
         """
         GIVEN  DuckDuckGo ist erreichbar (gemockt)
         WHEN   web_search("Python asyncio") aufgerufen
-        THEN   Rückgabe ist Liste mit ≥1 Einträgen
-        AND    Jeder Eintrag hat keys: title, url, body
-        AND    body ist nicht-leerer String
+        THEN   Rückgabe ist formatierter String mit URLs
+        AND    Enthält Titel und URLs der Ergebnisse
         """
         mock_results = [
             {"title": "Python asyncio docs", "href": "https://docs.python.org", "body": "Asyncio is..."},
@@ -66,14 +65,10 @@ class TestWebSearch:
         with patch("core.tools.DDGS", return_value=mock_instance):
             results = await web_search("Python asyncio")
 
-        assert isinstance(results, list)
-        assert len(results) >= 1
-        for entry in results:
-            assert "title" in entry
-            assert "url" in entry
-            assert "body" in entry
-            assert isinstance(entry["body"], str)
-            assert len(entry["body"]) > 0
+        assert isinstance(results, str)
+        assert "Python asyncio docs" in results
+        assert "https://docs.python.org" in results
+        assert "https://realpython.com" in results
 
     @pytest.mark.asyncio
     async def test_raises_web_search_error_on_connection_failure(self):

@@ -81,22 +81,54 @@ async def _call_model(
     system: str,
     user: str,
     model: str,
+    use_tools: bool = False,
 ) -> str:
-    """Single non-streaming model call. Returns the response text."""
+    """Single non-streaming model call. Returns the response text.
+
+    Args:
+        system:    System prompt
+        user:      User message
+        model:     Ollama model name
+        use_tools: If True, passes tool schemas and executes tool calls.
+    """
+    from core.tools import get_tool_schemas, execute_tool
+
     client = _make_client()
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+    kwargs: dict = {"model": model, "messages": messages, "stream": False}
+    if use_tools:
+        kwargs["tools"] = get_tool_schemas()
+
     try:
         response = await asyncio.wait_for(
-            client.chat(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                stream=False,
-            ),
-            timeout=45.0,
+            client.chat(**kwargs),
+            timeout=60.0,
         )
-        return str(response["message"]["content"]).strip()
+
+        # If LLM returned tool calls, execute them and feed results back
+        tool_calls = getattr(response.message, "tool_calls", None)
+        if use_tools and tool_calls:
+            messages.append({"role": "assistant", "content": "", "tool_calls": tool_calls})
+            for tc in tool_calls:
+                fn_name = tc.function.name
+                fn_args = tc.function.arguments or {}
+                try:
+                    result = await execute_tool(fn_name, fn_args)
+                except Exception as e:
+                    result = f"[Tool-Fehler: {e}]"
+                messages.append({"role": "tool", "content": str(result)})
+
+            # Second call to synthesize tool results
+            followup = await asyncio.wait_for(
+                client.chat(model=model, messages=messages, stream=False),
+                timeout=45.0,
+            )
+            return str(followup.message.content or "").strip()
+
+        return str(response.message.content or "").strip()
     except Exception as exc:
         raise _wrap_exc(exc) from exc
 
@@ -141,7 +173,7 @@ async def _run_specialist(
         on_progress(f"  [{index+1}] {subtask[:60]}…")
 
     context = f"Main task: {original_task}\n\nYour subtask: {subtask}"
-    result = await _call_model(SPECIALIST_SYSTEM, context, model)
+    result = await _call_model(SPECIALIST_SYSTEM, context, model, use_tools=True)
 
     if on_progress:
         on_progress(f"  [{index+1}] ✓ done")

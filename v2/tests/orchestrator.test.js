@@ -19,6 +19,7 @@ describe('Task 2.2: Hierarchie-Orchestrator', () => {
   let store, bus, kanban, skills, comm, journal, orch;
 
   beforeEach(() => {
+    global.fetch = () => Promise.reject(new Error('offline')); // no network in tests
     store   = new StateStore(':memory:');
     bus     = new ChatBus(store);
     kanban  = new KanbanEngine(store);
@@ -52,25 +53,25 @@ describe('Task 2.2: Hierarchie-Orchestrator', () => {
     }
   });
 
-  it('[D] GIVEN firma WHEN submitTask THEN creates tickets in kanban', () => {
+  it('[D] GIVEN firma WHEN submitTask THEN creates tickets in kanban', async () => {
     orch.initFirma();
-    const taskId = orch.submitTask('Baue eine Todo-App');
+    const taskId = await orch.submitTask('Baue eine Todo-App');
     expect(taskId).toBeDefined();
     const tickets = kanban.getAll();
     expect(tickets.length).toBeGreaterThanOrEqual(1);
     expect(tickets[0].status).toBe('backlog');
   });
 
-  it('[D] GIVEN firma WHEN submitTask THEN alice sends chat to bob', () => {
+  it('[D] GIVEN firma WHEN submitTask THEN alice sends chat to bob', async () => {
     orch.initFirma();
-    orch.submitTask('Baue eine Todo-App');
+    await orch.submitTask('Baue eine Todo-App');
     const history = bus.getHistory();
     expect(history.some(m => m.from === 'alice_ceo' && m.to === 'bob_cto')).toBe(true);
   });
 
-  it('[D] GIVEN firma with task WHEN getStatus THEN returns full state', () => {
+  it('[D] GIVEN firma with task WHEN getStatus THEN returns full state', async () => {
     orch.initFirma();
-    orch.submitTask('Baue eine API');
+    await orch.submitTask('Baue eine API');
     const status = orch.getStatus();
     expect(status.agents).toHaveLength(4);
     expect(status.kanban.backlog.length).toBeGreaterThanOrEqual(1);
@@ -152,8 +153,8 @@ describe('T-07: Orchestrator — LLM-Provider Interface', () => {
   // GIVEN kein LLM-Provider (Fallback)
   // WHEN submitTask aufgerufen
   // THEN direktes assignTask wie bisher (kein Crash, rückwärtskompatibel)
-  it('[T-07] GIVEN no LLM provider WHEN submitTask THEN fallback direct delegation', () => {
-    const taskId = orch.submitTask('Beliebiger Task');
+  it('[T-07] GIVEN no LLM provider WHEN submitTask THEN fallback direct delegation', async () => {
+    const taskId = await orch.submitTask('Beliebiger Task');
     expect(taskId).toBeDefined();
     expect(kanban.getAll().length).toBeGreaterThan(0);
   });

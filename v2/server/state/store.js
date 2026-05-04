@@ -14,6 +14,7 @@
  */
 
 import Database from 'better-sqlite3';
+import { encryptField, safeDecrypt, shouldEncrypt } from './memory-crypto.js';
 
 export class StateStore {
   /**
@@ -61,6 +62,14 @@ export class StateStore {
         was_rejected INTEGER NOT NULL DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS personal_memory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        category TEXT DEFAULT 'allgemein',
+        created_at TEXT DEFAULT (datetime('now'))
       );
     `);
   }
@@ -222,5 +231,85 @@ export class StateStore {
 
   close() {
     this._db?.close();
+  }
+  // ── Personal Memory (Feature #2) ──────────────────────────────
+
+  /**
+   * Store a personal fact.
+   * @param {{ key: string, value: string, category?: string }} data
+   * @returns {number} memory entry ID
+   */
+  addMemory({ key, value, category = 'allgemein' }) {
+    // #1 Verschlüsselung: Persönliche Gesundheitsdaten (name, blutgruppe, allergie)
+    // werden AES-256-GCM verschlüsselt gespeichert. System-Keys (__) im Klartext.
+    const storedValue = shouldEncrypt(key) ? encryptField(value) : value;
+
+    // UPSERT für System-Keys (__land__, __assistant_name__ etc.) — nie doppelt speichern.
+    // Persönliche Fakten des Nutzers: normales INSERT (Verlauf bleibt erhalten).
+    let lastInsertRowid;
+    if (key.startsWith('__')) {
+      const existing = this._db.prepare(
+        `SELECT id FROM personal_memory WHERE key = ? LIMIT 1`
+      ).get(key);
+      if (existing) {
+        this._db.prepare(
+          `UPDATE personal_memory SET value = ?, category = ? WHERE key = ?`
+        ).run(storedValue, category, key);
+        lastInsertRowid = existing.id;
+      } else {
+        const r = this._db.prepare(
+          `INSERT INTO personal_memory (key, value, category) VALUES (?, ?, ?)`
+        ).run(key, storedValue, category);
+        lastInsertRowid = r.lastInsertRowid;
+      }
+    } else {
+      const r = this._db.prepare(
+        `INSERT INTO personal_memory (key, value, category) VALUES (?, ?, ?)`
+      ).run(key, storedValue, category);
+      lastInsertRowid = r.lastInsertRowid;
+    }
+
+    this._notify({ type: 'memory_added', key, value, category }); // Notify with plaintext
+    return Number(lastInsertRowid);
+  }
+
+  /**
+   * Get all stored personal facts.
+   * @returns {Object[]}
+   */
+  getAllMemories() {
+    const rows = this._db.prepare(
+      `SELECT * FROM personal_memory ORDER BY created_at ASC`
+    ).all();
+    // Decrypt values transparently — system keys and legacy plaintext pass through
+    return rows.map(row => ({
+      ...row,
+      value: safeDecrypt(row.value),
+    }));
+  }
+
+  /**
+   * Delete a memory entry.
+   * @param {number} id
+   */
+  deleteMemory(id) {
+    this._db.prepare(`DELETE FROM personal_memory WHERE id = ?`).run(id);
+    this._notify({ type: 'memory_deleted', id });
+  }
+
+  /**
+   * Delete ALL personal memories.
+   */
+  clearAllMemories() {
+    this._db.prepare(`DELETE FROM personal_memory`).run();
+    this._notify({ type: 'memory_cleared' });
+  }
+
+  /**
+   * Delete ALL chat history.
+   */
+  clearChatHistory() {
+    this._db.prepare(`DELETE FROM chat_messages`).run();
+    this._notify({ type: 'chat_cleared' });
   }
 }

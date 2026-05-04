@@ -1,53 +1,31 @@
 {
-  "version": "2.0",
-  "description": "MiMiNox Offline-Wissensbasis — Offizielle deutsche Krisenratgeber",
+  "version": "2.1",
+  "description": "MiMiNox Offline-Wissensbasis — Offizielle deutsche Informationsquellen (BBK, DRK, BfS, THW)",
   "domains": [
     {
       "id": "medical",
-      "name": "Medizin & Erste Hilfe",
-      "agent": "medic_agent",
-      "sources": [
-        "DRK",
-        "BBK",
-        "DGUV"
-      ]
+      "name": "Gesundheit & Erste Hilfe",
+      "sources": ["DRK", "BBK", "DGUV"]
     },
     {
       "id": "engineering",
       "name": "Technik & Reparatur",
-      "agent": "engineer_agent",
-      "sources": [
-        "THW",
-        "BSI",
-        "VDE"
-      ]
+      "sources": ["THW", "BSI", "VDE"]
     },
     {
       "id": "survival",
-      "name": "Überleben & Vorsorge",
-      "agent": "navigator_agent",
-      "sources": [
-        "BBK",
-        "THW"
-      ]
+      "name": "Alltag & Vorsorge",
+      "sources": ["BBK", "THW"]
     },
     {
       "id": "system",
-      "name": "System & Energie",
-      "agent": "sensor_agent",
-      "sources": [
-        "BNetzA",
-        "BSI"
-      ]
+      "name": "Energie & Infrastruktur",
+      "sources": ["BNetzA", "BSI"]
     },
     {
-      "id": "cbrn",
-      "name": "ABC-Gefahren (Chemie, Bio, Radioaktiv)",
-      "agent": "medic_agent",
-      "sources": [
-        "BBK",
-        "BfS"
-      ]
+      "id": "life-skills",
+      "name": "Life Skills & Sicherheitswissen",
+      "sources": ["BBK", "BfS"]
     }
   ],
   "official_sources": [
@@ -86,9 +64,9 @@
     },
     {
       "id": "bfs_nuklear",
-      "name": "BfS Ratgeber Strahlenschutz (Nuklearer Notfall)",
+      "name": "BfS Ratgeber Strahlenschutz",
       "url": "https://www.bfs.de/SharedDocs/Downloads/BfS/DE/broschueren/str-notfallvorsorge.pdf",
-      "domain": "cbrn",
+      "domain": "life-skills",
       "license": "Amtliches Werk (§ 5 UrhG)",
       "language": "de"
     },

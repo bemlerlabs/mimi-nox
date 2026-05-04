@@ -7,6 +7,8 @@ Nutze /schedule im Chat, um wiederkehrende Aufgaben zu definieren.
 """
 from __future__ import annotations
 
+import os
+
 import asyncio
 import json
 import re
@@ -89,7 +91,7 @@ class NoxScheduler:
             day=day,
             month=month,
             day_of_week=day_of_week,
-            timezone="Europe/Berlin",
+            timezone=os.environ.get("MIMI_NOX_TIMEZONE", "Europe/Berlin"),
         )
 
         self._scheduler.add_job(
@@ -118,7 +120,7 @@ class NoxScheduler:
         try:
             result = await react_loop(
                 question=task_description,
-                model=None,  # uses default
+                model=os.environ.get("MIMI_NOX_MODEL", "gemma4:e4b"),
                 context=[],
             )
         except Exception as exc:

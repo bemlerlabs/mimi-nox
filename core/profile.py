@@ -37,22 +37,22 @@ class UserProfile:
         Gibt das Profil als System-Prompt-Kontext-String zurück.
         Wird vor jeder Antwort als zusätzlicher Kontext eingefügt.
         """
-        parts: list[str] = ["[Nutzerprofil]"]
+        parts: list[str] = ["[User Profile]"]
 
         if self.name:
             parts.append(f"Name: {self.name}")
         if self.expertise:
             parts.append(f"Expertise: {self.expertise}")
         if self.preferred_language:
-            parts.append(f"Bevorzugte Sprache: {self.preferred_language}")
+            parts.append(f"Preferred language: {self.preferred_language} — ALWAYS respond in this language!")
         if self.response_style:
-            parts.append(f"Antwort-Stil: {self.response_style}")
+            parts.append(f"Response style: {self.response_style}")
         if self.topics_of_interest:
-            parts.append(f"Interessengebiete: {', '.join(self.topics_of_interest)}")
+            parts.append(f"Topics of interest: {', '.join(self.topics_of_interest)}")
         if self.projects:
-            parts.append(f"Aktuelle Projekte: {', '.join(self.projects)}")
+            parts.append(f"Current projects: {', '.join(self.projects)}")
         if self.dislikes:
-            parts.append(f"Bitte vermeiden: {', '.join(self.dislikes)}")
+            parts.append(f"Please avoid: {', '.join(self.dislikes)}")
 
         if len(parts) == 1:
             return ""  # Nur der Header, kein Inhalt → leer zurückgeben

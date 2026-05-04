@@ -15,7 +15,7 @@ const STORE_KEY_HISTORY = 'mimi_nox_history';
 const DEFAULT_MODEL     = 'gemma4:e4b';
 
 import { ArtifactStore, ArtifactPanel } from './artifact.js';
-import { t, applyTranslations, setLanguage, currentLang } from './i18n.js';
+import { t, applyTranslations, setLanguage, currentLang, needsLanguageSelection } from './i18n.js';
 
 /* ── ◑ NoxApp ────────────────────────────────────────────── */
 class NoxApp {
@@ -49,28 +49,76 @@ class NoxApp {
   }
 
   // ── Initialisierung ─────────────────────────────────────
-  async init() {
+   async init() {
     window.noxApp = this;
     this._queryElements();
     this._bindEvents();
-    applyTranslations(); // i18n: translate all data-i18n elements
-    // Model is hardcoded (gemma4:e4b)
+    applyTranslations();
 
-    // Fix 1+7: await health check so status text updates immediately
+    // ── Language Picker (First Launch) ──────────────────────
+    if (needsLanguageSelection()) {
+      this._showLanguagePicker();
+    }
+
+    // SOFORT tab-chat setzen damit Bottombar sichtbar ist
+    document.body.classList.add('tab-chat');
+
     await this.checkHealth();
     this.loadSkillChips();
 
-    // Artifact Panel initialisieren (DOM muss bereit sein)
     this.artifactPanel = new ArtifactPanel(this.artifactStore);
 
-    // Mobile Ping & PWA Flag
+    // Mobile: PWA-Flag + iOS-Keyboard-Fix + Kamera-Button
     if (window.innerWidth <= 768) {
       document.body.classList.add('mobile-pwa-mode');
       this.isMobilePWA = true;
       fetch(`${API}/mobile/ping`, {method: 'POST'}).catch(() => {});
+
+      // iOS visualViewport Fix: Bottombar bleibt über Tastatur
+      if (window.visualViewport) {
+        const _fixViewport = () => {
+          const bar = document.querySelector('.bottombar');
+          const nav = document.querySelector('.mobile-bottomnav');
+          if (!bar) return;
+          const vv = window.visualViewport;
+          const keyboardH = window.innerHeight - vv.height;
+          if (keyboardH > 100) {
+            // Tastatur sichtbar: Bottombar direkt über Tastatur
+            bar.style.bottom = `${keyboardH}px`;
+            if (nav) nav.style.display = 'none';
+          } else {
+            // Tastatur weg: zurück auf Mobile-Nav
+            bar.style.bottom = '56px';
+            if (nav) nav.style.display = 'flex';
+          }
+        };
+        window.visualViewport.addEventListener('resize', _fixViewport);
+        window.visualViewport.addEventListener('scroll', _fixViewport);
+      }
+
+      // Kamera-Button: direkter Kamera-Zugriff
+      const camBtn = document.getElementById('camera-btn');
+      const camInput = document.getElementById('camera-input');
+      if (camBtn && camInput) {
+        camBtn.addEventListener('click', () => camInput.click());
+        camInput.addEventListener('change', (e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            // Gleicher Flow wie der normale attach-btn
+            document.getElementById('img-input').files; // reset
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            const imgInput = document.getElementById('img-input');
+            imgInput.files = dt.files;
+            imgInput.dispatchEvent(new Event('change'));
+          }
+          camInput.value = '';
+        });
+      }
     } else {
       this.isMobilePWA = false;
     }
+
     this.loadMemoryPanel();
     this._initOnboarding();
     this._initVoices();
@@ -237,7 +285,28 @@ class NoxApp {
     });
 
     // Auto-resize textarea
-    this.el.chatInput.addEventListener('input', () => this._autoResize());
+    this.el.chatInput.addEventListener('input', () => {
+      this._autoResize();
+      // Slash-Autocomplete
+      const val = this.el.chatInput.value;
+      if (val.startsWith('/')) {
+        this._showSlashMenu(val.slice(1));
+      } else {
+        this._hideSlashMenu();
+      }
+    });
+
+    // Escape schließt auch Slash-Menü
+    this.el.chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this._hideSlashMenu();
+    });
+
+    // Klick außerhalb schließt Slash-Menü
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#chat-input') && !e.target.closest('#slash-menu')) {
+        this._hideSlashMenu();
+      }
+    });
 
     // Fix 16: Drag-and-Drop Images on Chat Area
     if (this.el.chatArea) {
@@ -311,8 +380,13 @@ class NoxApp {
       }
     });
 
-    // Tabs
+    // Desktop Tabs (topnav)
     this.el.tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+    });
+
+    // Mobile Bottom Nav (mbn-tab)
+    document.querySelectorAll('.mbn-tab').forEach(btn => {
       btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
     });
 
@@ -514,36 +588,58 @@ class NoxApp {
       const data = await res.json();
 
       if (data.ollama) {
-        this._setStatus('connected');
+        this._setStatus('connected', data);
         this.el.offlineBanner.classList.add('hidden');
       } else {
-        this._setStatus('offline');
+        this._setStatus('offline', data);
         this.el.offlineBanner.classList.remove('hidden');
       }
 
-
     } catch {
-      this._setStatus('offline');
+      this._setStatus('offline', null);
       this.el.offlineBanner.classList.remove('hidden');
     }
   }
 
-  _setStatus(state) {
+  _setStatus(state, healthData = null) {
     const dot  = this.el.statusDot;
     const text = this.el.statusText;
-    // Remove data-i18n so applyTranslations() won't overwrite dynamic status
     text.removeAttribute('data-i18n');
+
+    // Tier-Badge bestimmen
+    const tierBadge = this._buildTierBadge(healthData);
+
     if (state === 'connected') {
       dot.className  = 'status-dot';
       text.className = 'status-text';
-      text.textContent = t('status.connected');
+      text.innerHTML = `${t('status.connected')}${tierBadge}`;
     } else {
       dot.className  = 'status-dot offline';
       text.className = 'status-text offline';
-      text.textContent = t('status.offline');
+      text.innerHTML = `${t('status.offline')}${tierBadge}`;
     }
   }
 
+  /** Baut den Tier-Badge HTML-String für die Statusleiste */
+  _buildTierBadge(healthData) {
+    if (!healthData) return '';
+    const tier = healthData.active_tier;
+    if (!tier) return '';
+
+    const configs = {
+      power:   { icon: '⚡', label: 'DGX Power', color: '#a855f7' },
+      fast:    { icon: '🚀', label: 'Fast',      color: '#22c55e' },
+      offline: { icon: '📴', label: 'Offline',   color: '#f59e0b' },
+    };
+    const cfg = configs[tier] || configs['fast'];
+    return ` <span id="tier-badge" style="
+      font-size:10px; padding:2px 7px; border-radius:20px;
+      background: ${cfg.color}22; color: ${cfg.color};
+      border: 1px solid ${cfg.color}44;
+      font-weight: 600; letter-spacing: 0.5px;
+      vertical-align: middle; margin-left: 6px;
+    ">${cfg.icon} ${cfg.label}</span>`;
+  }
 
 
   // ── Skills ──────────────────────────────────────────────
@@ -581,6 +677,97 @@ class NoxApp {
       .forEach(c => c.classList.remove('active'));
     activeChip.classList.add('active');
     setTimeout(() => activeChip.classList.remove('active'), 1500);
+  }
+
+  // ── Slash-Command Autocomplete ───────────────────────────
+  async _showSlashMenu(filter) {
+    // Menü-Element erstellen oder wiederverwenden (früh, für Loading-State)
+    let menu = document.getElementById('slash-menu');
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.id = 'slash-menu';
+      menu.style.cssText = `
+        position: absolute; bottom: 100%; left: 0; right: 0;
+        background: rgba(4, 12, 6, 0.97);
+        border: 1px solid rgba(34, 197, 94, 0.25);
+        border-radius: 12px 12px 0 0;
+        padding: 6px 0;
+        z-index: 200;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+        max-height: 240px;
+        overflow-y: auto;
+      `;
+      const inputWrap = document.getElementById('input-wrap');
+      if (inputWrap) {
+        inputWrap.style.position = 'relative';
+        inputWrap.appendChild(menu);
+      }
+    }
+
+    // Skills einmalig laden + cachen
+    if (!this._slashSkillCache) {
+      // Sofortiger Loading-State — kein leeres Schweigen
+      menu.innerHTML = `<div style="padding:10px 14px; color:var(--text-dim);
+        font-size:12px; display:flex; align-items:center; gap:8px;">
+        <span style="display:inline-block; animation:spin 1s linear infinite;">◑</span>
+        Lade Skills…
+      </div>`;
+      menu.style.display = 'block';
+
+      try {
+        const res = await fetch(`${API}/skills`);
+        const data = await res.json();
+        this._slashSkillCache = (data.skills || []).map(s => ({
+          trigger: s.trigger,
+          description: s.description || '',
+          icon: { '/research': '🔍', '/write': '✏️', '/review': '💻',
+                  '/files': '📁', '/shell': '>_', '/scan': '⚡',
+                  '/swarm': '🐝', '/learn': '🧠' }[s.trigger] || '⚡'
+        }));
+      } catch {
+        menu.style.display = 'none';
+        return;
+      }
+    }
+
+    const matches = this._slashSkillCache.filter(s =>
+      s.trigger.slice(1).startsWith(filter.toLowerCase())
+    );
+
+    if (matches.length === 0) { this._hideSlashMenu(); return; }
+
+    menu.innerHTML = matches.map((s, i) => `
+      <div class="slash-item" data-trigger="${s.trigger}" data-idx="${i}" style="
+        display: flex; align-items: center; gap: 10px;
+        padding: 8px 14px; cursor: pointer;
+        transition: background 0.15s;
+        font-size: 13px;
+      " onmouseover="this.style.background='rgba(34,197,94,0.08)'"
+         onmouseout="this.style.background=''"
+      >
+        <span style="font-size:15px; min-width:20px;">${s.icon}</span>
+        <span style="color:var(--green); font-family:var(--font-mono); font-weight:600;">${s.trigger}</span>
+        <span style="color:var(--text-dim); font-size:12px; margin-left:4px;">${s.description}</span>
+      </div>
+    `).join('');
+
+    // Click-Handler
+    menu.querySelectorAll('.slash-item').forEach(item => {
+      item.addEventListener('click', () => {
+        this.el.chatInput.value = item.dataset.trigger + ' ';
+        this.el.chatInput.focus();
+        this._hideSlashMenu();
+        this._autoResize();
+      });
+    });
+
+    menu.style.display = 'block';
+  }
+
+  _hideSlashMenu() {
+    const menu = document.getElementById('slash-menu');
+    if (menu) menu.style.display = 'none';
   }
 
   // ── Nachricht senden ────────────────────────────────────
@@ -772,8 +959,9 @@ class NoxApp {
     const msgId = this.currentMsgId;
     const wrap   = this._createAIBubbleWrap(msgId);
     let   bubble = wrap.querySelector('.bubble-ai');
-    let   thinkingBubble = wrap.querySelector('.bubble-thinking');
+    let   thinkingBubble = wrap.querySelector('.thinking-panel');
     let   full   = '';
+    let   thinkStartTime = 0;
 
     // Activity: Anfrage gestartet
     this._addActivity('cmd', `react_loop("${text.slice(0,40)}${text.length>40?'…':''}")`);
@@ -828,37 +1016,34 @@ class NoxApp {
           switch (evt.type) {
 
             case 'thinking_start':
-              // SOFORT anzeigen – User sieht, dass was passiert
               if (thinkingBubble) {
                 thinkingBubble.classList.remove('hidden');
-                thinkingBubble.classList.add('pulsing');
-                thinkingBubble.querySelector('.thinking-text').textContent = '';
-                this._addActivity('info', t('chat.thinking'));
+                thinkingBubble.classList.add('thinking-open');
+                const tc = thinkingBubble.querySelector('.thinking-content');
+                if (tc) tc.textContent = '';
+                thinkStartTime = Date.now();
               }
               this._scrollToBottom();
               break;
 
             case 'chunk':
-              // Token sofort anhängen — Cursor blinkt
+              // Token sofort anhängen via Markdown-Streaming
               full += evt.data;
-              bubble.textContent += evt.data;
-              // Thinking zuklappen + Pulsing stoppen sobald Antwort kommt
-              if (thinkingBubble && !thinkingBubble.classList.contains('collapsed')) {
-                thinkingBubble.classList.add('collapsed');
-                thinkingBubble.classList.remove('pulsing');
-              }
+              this._appendChunk(bubble, evt.data);
+              // Thinking-Bubble bleibt geöffnet während Antwort kommt!
+              // (User kann Gedanken noch lesen)
               this._scrollToBottom();
               break;
 
             case 'thinking':
-              // Natives Gemma4 Thinking – live in die Bubble streamen
               if (thinkingBubble) {
                 thinkingBubble.classList.remove('hidden');
-                thinkingBubble.classList.remove('pulsing');
-                const thinkText = thinkingBubble.querySelector('.thinking-text');
-                thinkText.textContent += evt.data;
-                // Auto-scroll thinking bubble
-                thinkText.scrollTop = thinkText.scrollHeight;
+                thinkingBubble.classList.add('thinking-open');
+                const tc2 = thinkingBubble.querySelector('.thinking-content');
+                if (tc2) {
+                  tc2.textContent += evt.data;
+                  tc2.scrollTop = tc2.scrollHeight;
+                }
               }
               break;
 
@@ -929,6 +1114,55 @@ class NoxApp {
                 setTimeout(() => this.loadSkillChips(), 2000);
               }
               break;
+
+            case 'file_result': {
+              // Chart/PDF/SVG Tool-Output → direkt in Bubble anzeigen
+              const fr = evt;
+              const fileName = fr.path.split('/').pop();
+
+              if (fr.file_type === 'chart') {
+                // Chart als Bild einbetten
+                const imgUrl = `/charts/${fileName}`;
+                const imgWrap = document.createElement('div');
+                imgWrap.className = 'file-result-chart';
+                imgWrap.innerHTML = `
+                  <img src="${imgUrl}" alt="${fr.label}" class="chart-img"
+                       style="max-width:100%; border-radius:12px; margin:12px 0; display:block;"
+                       onerror="this.style.display='none'" />
+                  <a href="${imgUrl}" download="${fileName}" class="file-result-dl">
+                    ⬇ Chart herunterladen
+                  </a>
+                `;
+                bubble.appendChild(imgWrap);
+                this._addActivity('done_inline', fr.label);
+
+              } else if (fr.file_type === 'pdf') {
+                // PDF als Download-Button
+                const dlBtn = document.createElement('a');
+                dlBtn.href = `/api/download?path=${encodeURIComponent(fr.path)}`;
+                dlBtn.download = fileName;
+                dlBtn.className = 'file-result-btn';
+                dlBtn.innerHTML = `<span>📄</span><span>${fileName}</span><span class="file-result-dl">⬇ PDF öffnen</span>`;
+                dlBtn.title = 'PDF in Downloads gespeichert: ' + fr.path;
+                // Fallback: Pfad im Activity Panel zeigen
+                bubble.appendChild(dlBtn);
+                this._addActivity('done_inline', `${fr.label} → ${fr.path}`);
+
+              } else if (fr.file_type === 'svg') {
+                // SVG als Inline-Preview + Download
+                const svgWrap = document.createElement('div');
+                svgWrap.className = 'file-result-chart';
+                svgWrap.innerHTML = `
+                  <a href="/api/download?path=${encodeURIComponent(fr.path)}" download="${fileName}"
+                     class="file-result-btn">
+                    <span>🎨</span><span>${fileName}</span><span class="file-result-dl">⬇ SVG speichern</span>
+                  </a>
+                `;
+                bubble.appendChild(svgWrap);
+                this._addActivity('done_inline', `${fr.label} → ${fr.path}`);
+              }
+              break;
+            }
 
             case 'replace_text':
               // Bubble-Text durch bereinigten Text ersetzen (Code durch Placeholder)
@@ -1123,9 +1357,8 @@ class NoxApp {
               btnDeny.onclick  = () => resolveSandbox(false);
               
               // Remove old loading UI (Cursor / Bubble) temp
-              if (thinkingBubble && !thinkingBubble.classList.contains('collapsed')) {
-                 thinkingBubble.classList.add('collapsed');
-                 thinkingBubble.classList.remove('pulsing');
+              if (thinkingBubble && !thinkingBubble.classList.contains('thinking-done')) {
+                // sandbox_confirm bricht Thinking nicht ab — Panel bleibt offen
               }
               
               this.el.messages.appendChild(wrapConf);
@@ -1133,6 +1366,26 @@ class NoxApp {
               break;
           }
         }
+      }
+
+      // Finaler synchroner Markdown-Render (löscht Debounce-Timer)
+      this._finalRender(bubble);
+      bubble.classList.remove('streaming-cursor');
+
+      // Thinking Panel: auf "Gedacht für Xs" umschalten
+      if (thinkingBubble && !thinkingBubble.classList.contains('hidden')) {
+        const secs = thinkStartTime
+          ? ((Date.now() - thinkStartTime) / 1000).toFixed(0)
+          : null;
+        const lbl = thinkingBubble.querySelector('.thinking-label');
+        const spinner = thinkingBubble.querySelector('.thinking-spinner');
+        if (lbl) lbl.textContent = secs ? `Gedacht für ${secs}s` : 'Gedacht';
+        if (spinner) spinner.style.display = 'none';
+        // Zugeklappt nach kurzer Pause (User kann noch lesen)
+        setTimeout(() => {
+          thinkingBubble.classList.remove('thinking-open');
+          thinkingBubble.classList.add('thinking-done');
+        }, 1500);
       }
 
       // Aktionen anzeigen
@@ -1173,6 +1426,43 @@ class NoxApp {
     if (this.el.welcome) this.el.welcome.style.display = 'none';
   }
 
+  _showLanguagePicker() {
+    const overlay = document.getElementById('lang-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+
+    const grid = document.getElementById('lang-grid');
+    if (!grid) return;
+
+    const LANG_NAMES = {
+      de: 'Deutsch', en: 'English', es: 'Español',
+      fr: 'Français', ja: '日本語', zh: '中文',
+    };
+
+    grid.addEventListener('click', (e) => {
+      const btn = e.target.closest('.lang-btn');
+      if (!btn) return;
+
+      const lang = btn.dataset.lang;
+      setLanguage(lang);
+      applyTranslations();
+
+      // Sync language to backend profile so MiMi responds in the right language
+      fetch(`${API}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preferred_language: LANG_NAMES[lang] || lang }),
+      }).catch(() => {}); // fire-and-forget
+
+      // Smooth fade-out
+      overlay.classList.add('fade-out');
+      overlay.addEventListener('animationend', () => {
+        overlay.style.display = 'none';
+        overlay.remove();
+      }, { once: true });
+    });
+  }
+
   renderUserBubble(text, imageB64 = null) {
     const el = document.createElement('div');
     el.className = 'bubble-user';
@@ -1192,21 +1482,35 @@ class NoxApp {
     return el;
   }
 
-  /** Erstellt leeren AI-Wrap + Thinking-Bubble + Antwort-Bubble mit Cursor */
+  /** Erstellt leeren AI-Wrap + Thinking-Panel (Claude-Style) + Antwort-Bubble */
   _createAIBubbleWrap(id) {
     const wrap = document.createElement('div');
     wrap.className    = 'bubble-ai-wrap';
     wrap.dataset.msgId = id;
 
-    // Thinking-Bubble (versteckt, bis Thinking-Events kommen)
+    // ── Thinking Panel (Claude/Grok Style) ──────────────────
     const thinkDiv = document.createElement('div');
-    thinkDiv.className = 'bubble-thinking hidden';
+    thinkDiv.className = 'thinking-panel hidden';
     thinkDiv.innerHTML = `
-      <div class="thinking-header">🧠 <span>${t('chat.thinking')}</span></div>
-      <div class="thinking-text"></div>
+      <button class="thinking-toggle" aria-expanded="true">
+        <span class="thinking-spinner"></span>
+        <span class="thinking-label">Nox denkt nach…</span>
+        <span class="thinking-chevron">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </button>
+      <div class="thinking-body">
+        <div class="thinking-content"></div>
+      </div>
     `;
-    thinkDiv.querySelector('.thinking-header').addEventListener('click', () => {
-      thinkDiv.classList.toggle('collapsed');
+
+    // Toggle expand/collapse
+    thinkDiv.querySelector('.thinking-toggle').addEventListener('click', () => {
+      const isOpen = thinkDiv.classList.toggle('thinking-open');
+      thinkDiv.querySelector('.thinking-toggle').setAttribute('aria-expanded', isOpen);
     });
 
     const bubble = document.createElement('div');
@@ -1226,8 +1530,38 @@ class NoxApp {
   }
 
   _appendChunk(bubble, chunk) {
-    bubble.textContent += chunk;
+    // Rohtext akkumulieren
+    bubble._rawText = (bubble._rawText || '') + chunk;
+
+    // Debounced Markdown-Render (80ms) — verhindert Layout-Thrashing
+    clearTimeout(bubble._renderTimer);
+    bubble._renderTimer = setTimeout(() => {
+      if (window.marked && window.DOMPurify) {
+        bubble.innerHTML = DOMPurify.sanitize(
+          marked.parse(bubble._rawText),
+          { USE_PROFILES: { html: true } }
+        );
+      } else {
+        // Fallback falls libs noch nicht geladen
+        bubble.textContent = bubble._rawText;
+      }
+    }, 80);
+
     this._scrollToBottom();
+  }
+
+  /** Finaler synchroner Render nach Stream-Ende */
+  _finalRender(bubble) {
+    clearTimeout(bubble._renderTimer);
+    if (!bubble._rawText) return;
+    if (window.marked && window.DOMPurify) {
+      bubble.innerHTML = DOMPurify.sanitize(
+        marked.parse(bubble._rawText),
+        { USE_PROFILES: { html: true } }
+      );
+    } else {
+      bubble.textContent = bubble._rawText;
+    }
   }
 
   _showBubbleActions(id, prompt, response) {
@@ -1272,21 +1606,97 @@ class NoxApp {
 
   // ── Feedback ────────────────────────────────────────────
   async handleFeedback(type, prompt, response, btnId) {
+    let reason = null;
+
+    // Bei Daumen-runter: Inline-Picker anzeigen
+    if (type === 'thumbs_down') {
+      reason = await this._showReasonPicker(btnId);
+    }
+
     try {
       await fetch(`${API}/feedback/${type}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ prompt, response }),
+        body:    JSON.stringify({ prompt, response, reason }),
       });
       const btn = document.getElementById(btnId);
       if (btn) {
-        btn.style.color = 'var(--green)';
+        btn.style.color = type === 'thumbs_up' ? 'var(--green)' : '#fca5a5';
         btn.textContent = type === 'thumbs_up' ? '👍 ✓' : '👎 ✓';
         btn.disabled = true;
       }
     } catch {
-      // Still show some feedback to user
+      // Feedback trotzdem im UI bestätigen
+      const btn = document.getElementById(btnId);
+      if (btn) { btn.textContent = type === 'thumbs_up' ? '👍 ✓' : '👎 ✓'; btn.disabled = true; }
     }
+  }
+
+  /** Zeigt Inline-Reason-Picker unter btnId, gibt Promise<string|null> zurück */
+  _showReasonPicker(btnId) {
+    return new Promise((resolve) => {
+      const btn = document.getElementById(btnId);
+      if (!btn) { resolve(null); return; }
+
+      // Entferne alten Picker falls vorhanden
+      document.getElementById('reason-picker')?.remove();
+
+      const reasons = ['Zu lang', 'Falsch', 'Unklar', 'Nicht hilfreich'];
+      const picker = document.createElement('div');
+      picker.id = 'reason-picker';
+      picker.style.cssText = `
+        display: flex; flex-wrap: wrap; gap: 6px;
+        padding: 8px 0 4px 0;
+        animation: slide-in 0.15s ease-out;
+      `;
+
+      const cleanup = (val) => {
+        picker.remove();
+        resolve(val);
+      };
+
+      reasons.forEach(r => {
+        const rb = document.createElement('button');
+        rb.textContent = r;
+        rb.style.cssText = `
+          background: rgba(239,68,68,0.08);
+          border: 1px solid rgba(239,68,68,0.25);
+          color: #fca5a5;
+          font-family: var(--font-main);
+          font-size: 11px;
+          padding: 3px 10px;
+          border-radius: 100px;
+          cursor: pointer;
+          transition: background 0.15s;
+        `;
+        rb.onmouseover = () => rb.style.background = 'rgba(239,68,68,0.18)';
+        rb.onmouseout  = () => rb.style.background = 'rgba(239,68,68,0.08)';
+        rb.onclick = () => cleanup(r);
+        picker.appendChild(rb);
+      });
+
+      // Überspringen
+      const skip = document.createElement('button');
+      skip.textContent = '—';
+      skip.title = 'Überspringen';
+      skip.style.cssText = `
+        background: transparent;
+        border: 1px solid var(--panel-border);
+        color: var(--text-dim);
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 100px;
+        cursor: pointer;
+      `;
+      skip.onclick = () => cleanup(null);
+      picker.appendChild(skip);
+
+      // Picker direkt nach dem Feedback-Button einfügen
+      const actionsDiv = btn.closest('.bubble-actions');
+      if (actionsDiv) {
+        actionsDiv.insertAdjacentElement('afterend', picker);
+      }
+    });
   }
 
   // ── Copy ────────────────────────────────────────────────
@@ -1410,10 +1820,23 @@ class NoxApp {
 
   // ── Tab Navigation ──────────────────────────────────────
   switchTab(tabName) {
+    // Desktop Tab-Buttons (topnav)
     this.el.tabBtns.forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tab === tabName);
       btn.setAttribute('aria-selected', btn.dataset.tab === tabName);
     });
+
+    // Mobile Bottom Nav Buttons
+    document.querySelectorAll('.mbn-tab').forEach(btn => {
+      const active = btn.dataset.tab === tabName;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', active);
+    });
+
+    // body.tab-X Klasse für CSS-Sichtbarkeit (z.B. Bottombar nur im Chat)
+    document.body.className = document.body.className
+      .replace(/\btab-\w+\b/g, '').trim();
+    document.body.classList.add(`tab-${tabName}`);
 
     this.el.tabViews.forEach(view => {
       const isActive = view.id === `view-${tabName}`;

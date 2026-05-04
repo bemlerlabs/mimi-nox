@@ -42,7 +42,8 @@ class StreamRequest(BaseModel):
     model: str = DEFAULT_MODEL
     history: list[dict] = []
     autonomous: bool = False
-    images: list[str] = []  # Base64-kodierte Bilder für E4B Multimodal
+    images: list[str] = []       # Base64-kodierte Bilder für E4B Multimodal
+    force_tier: str | None = None  # Optional: "offline" | "fast" | "power"
 
 
 class ApproveRequest(BaseModel):
@@ -125,7 +126,23 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
             if request.images:
                 user_msg["images"] = request.images
             messages.append(user_msg)
-            model = request.model
+
+            # ── Modell via Hybrid-Router ermitteln ────────────────────────
+            # Wenn force_tier gesetzt → Router gibt den erzwungenen Tier zurück
+            # Wenn model == DEFAULT_MODEL → Router entscheidet automatisch
+            # Wenn model explizit gesetzt → bleibt unverändert (Override)
+            if request.force_tier or request.model == DEFAULT_MODEL:
+                from core.model_router import get_router
+                active_config = await get_router().resolve(
+                    force_tier=request.force_tier
+                )
+                model = active_config.name
+                # Tier-Info an Frontend senden
+                emit({"type": "model_info",
+                      "tier": active_config.tier.value,
+                      "model": model})
+            else:
+                model = request.model
 
             _done_sent = False
             try:
@@ -271,7 +288,24 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     emit({"type": "activity", "cmd": f"{name}({json.dumps(args, ensure_ascii=False)[:60]})", "status": "running"})
 
                 def on_tool_done(name: str, result: str) -> None:
-                    emit({"type": "activity", "cmd": f"{name} → {result[:40]}", "status": "done"})
+                    # Datei-Outputs speziell behandeln → file_result Event
+                    if result.startswith("CHART_FILE:"):
+                        path = result[len("CHART_FILE:"):]
+                        emit({"type": "file_result", "file_type": "chart", "path": path,
+                              "label": f"📊 Chart erstellt"})
+                        emit({"type": "activity", "cmd": f"{name} → Chart gespeichert ✅", "status": "done"})
+                    elif result.startswith("PDF_FILE:"):
+                        path = result[len("PDF_FILE:"):]
+                        emit({"type": "file_result", "file_type": "pdf", "path": path,
+                              "label": f"📄 PDF: {path.split('/')[-1]}"})
+                        emit({"type": "activity", "cmd": f"{name} → PDF gespeichert ✅", "status": "done"})
+                    elif result.startswith("SVG_FILE:"):
+                        path = result[len("SVG_FILE:"):]
+                        emit({"type": "file_result", "file_type": "svg", "path": path,
+                              "label": f"🎨 SVG: {path.split('/')[-1]}"})
+                        emit({"type": "activity", "cmd": f"{name} → SVG gespeichert ✅", "status": "done"})
+                    else:
+                        emit({"type": "activity", "cmd": f"{name} → {result[:40]}", "status": "done"})
 
                 def on_phase(phase: str) -> None:
                     emit({"type": "activity", "cmd": phase, "status": "running"})

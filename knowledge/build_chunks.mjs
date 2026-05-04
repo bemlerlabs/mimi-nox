@@ -52,12 +52,12 @@ function detectPriority(text, heading) {
 // ── Domain-Konfiguration ─────────────────────────────────────────────
 
 const DOMAINS = {
-  medical:     { label: 'Medizin & Erste Hilfe',   agent: 'medic_agent' },
-  engineering: { label: 'Technik & Reparatur',      agent: 'engineer_agent' },
-  survival:    { label: 'Überleben & Vorsorge',     agent: 'navigator_agent' },
-  cbrn:        { label: 'ABC-Gefahren',             agent: 'medic_agent' },
-  navigation:  { label: 'Navigation & Orientierung', agent: 'navigator_agent' },
-  system:      { label: 'System & Energie',          agent: 'sensor_agent' },
+  medical:      { label: 'Gesundheit & Erste Hilfe',     agent: 'medic_agent' },
+  engineering:  { label: 'Technik & Reparatur',           agent: 'engineer_agent' },
+  survival:     { label: 'Alltag & Vorsorge',             agent: 'navigator_agent' },
+  'life-skills': { label: 'Life Skills & Sicherheitswissen', agent: 'medic_agent' },
+  navigation:   { label: 'Navigation & Orientierung',    agent: 'navigator_agent' },
+  system:       { label: 'Energie & Infrastruktur',       agent: 'sensor_agent' },
 };
 
 // ── Markdown-Chunker ─────────────────────────────────────────────────

@@ -671,35 +671,35 @@
     <div class="welcome-msg" id="welcome">
         <span class="icon">◑</span>
         <div class="title">Hey 👋</div>
-        <span id="mobile-welcome-text">Schreib mir – ich bin dein lokaler KI-Agent.</span>
-        <!-- Fix 10: Welcome Cards -->
+        <span id="mobile-welcome-text">Ich bin dein lokaler KI-Assistent. Keine Cloud, keine Kosten.</span>
+        <!-- Consumer-freundliche Welcome Cards -->
         <div class="welcome-cards" id="welcome-cards">
-          <button class="welcome-card" data-prompt="/medic Medizinischer Notfall - Was ist zu tun?">
-            <span class="card-icon">🚑</span>
-            <span data-i18n="crisis.medic_card">Medizinische Hilfe</span>
+          <button class="welcome-card" data-prompt="Was sind die wichtigsten Erste-Hilfe-Maßnahmen?">
+            <span class="card-icon">🩺</span>
+            <span data-i18n="welcome.health_card">Gesundheits-Info</span>
           </button>
           <button class="welcome-card" data-prompt="/repair Wie repariere ich ein technisches Gerät?">
             <span class="card-icon">🛠️</span>
-            <span data-i18n="crisis.repair_card">Reparatur & Tech</span>
+            <span data-i18n="crisis.repair_card">Technik-Hilfe</span>
           </button>
-          <button class="welcome-card" data-prompt="/map Wo befinde ich mich und wie ist das Gelände?">
-            <span class="card-icon">🗺️</span>
-            <span data-i18n="crisis.map_card">Navigation</span>
+          <button class="welcome-card" data-prompt="/write Schreib mir eine professionelle E-Mail">
+            <span class="card-icon">✏️</span>
+            <span>Texte schreiben</span>
           </button>
-          <button class="welcome-card" data-prompt="/power Wie ist der aktuelle System- und Energiestatus?">
-            <span class="card-icon">⚡</span>
-            <span data-i18n="crisis.power_card">Energie-Status</span>
+          <button class="welcome-card" data-prompt="/research Suche aktuelle Nachrichten zu">
+            <span class="card-icon">🔍</span>
+            <span>Im Web suchen</span>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Fix 11: Skill Chips -->
+    <!-- Skill Chips -->
     <div class="skill-chips" id="mobile-skill-chips">
-      <button class="skill-chip" data-trigger="/medic">🚑 /medic</button>
+      <button class="skill-chip" data-trigger="/research">🔍 /research</button>
+      <button class="skill-chip" data-trigger="/write">✏️ /write</button>
       <button class="skill-chip" data-trigger="/repair">🛠️ /repair</button>
       <button class="skill-chip" data-trigger="/map">🗺️ /map</button>
-      <button class="skill-chip" data-trigger="/power">⚡ /power</button>
       <button class="skill-chip" data-trigger="/swarm">🐝 /swarm</button>
     </div>
 

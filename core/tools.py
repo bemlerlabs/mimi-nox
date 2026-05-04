@@ -32,6 +32,18 @@ import ollama
 from ddgs import DDGS
 
 
+# Module-level shared Ollama client (reuse TCP connection)
+_shared_client: ollama.AsyncClient | None = None
+
+
+def _get_shared_client() -> ollama.AsyncClient:
+    """Lazy-initialized shared AsyncClient. Reuses TCP connection across calls."""
+    global _shared_client
+    if _shared_client is None:
+        _shared_client = ollama.AsyncClient()
+    return _shared_client
+
+
 # ===========================================================================
 # Custom Exceptions
 # ===========================================================================
@@ -135,12 +147,12 @@ def _is_path_allowed(path: Path) -> bool:
 # Tool: web_search
 # ===========================================================================
 
-async def web_search(query: str, max_results: int = 5) -> list[dict]:
+async def web_search(query: str, max_results: int = 5) -> str:
     """
     Sucht im Internet via DuckDuckGo (ddgs).
 
     Returns:
-        Liste von dicts mit keys: title, url, body
+        Formatierter String mit nummerierten Ergebnissen inkl. URLs.
 
     Raises:
         ValueError:      leerer Query
@@ -157,14 +169,22 @@ async def web_search(query: str, max_results: int = 5) -> list[dict]:
 
     try:
         raw = await asyncio.to_thread(_search)
-        return [
-            {
-                "title": r.get("title", ""),
-                "url":   r.get("href", ""),
-                "body":  r.get("body", ""),
-            }
-            for r in raw
-        ]
+        if not raw:
+            return "Keine Ergebnisse gefunden."
+
+        # Formatierte Ausgabe damit das Modell die URLs sieht und zitieren kann
+        formatted_parts = []
+        for i, r in enumerate(raw, 1):
+            title = r.get("title", "")
+            url   = r.get("href", "")
+            body  = r.get("body", "")
+            formatted_parts.append(
+                f"[{i}] {title}\n"
+                f"    URL: {url}\n"
+                f"    {body}"
+            )
+        return "\n\n".join(formatted_parts)
+
     except Exception as exc:
         raise WebSearchError(str(exc)) from exc
 
@@ -494,7 +514,7 @@ async def analyze_image(
     image_bytes = resolved.read_bytes()
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-    client = ollama.AsyncClient()
+    client = _get_shared_client()
     try:
         response = await client.chat(
             model=os.environ.get("MIMI_NOX_MODEL", "gemma4:e4b"),
@@ -518,20 +538,38 @@ async def analyze_image(
 
 async def take_screenshot() -> str:
     """
-    Erstellt einen nativen macOS Desktop-Screenshot und liefert die URL zurück.
-    Returns: Markdown-formatiertes Bild, das direkt im Chat-Verlauf als Remote URL gerendert wird.
+    Erstellt einen Desktop-Screenshot (Cross-Platform) und liefert die URL zurück.
+
+    Plattform-Support:
+      - macOS:   screencapture (nativ, beste Qualität)
+      - Linux:   mss (headless-kompatibel, kein X11 nötig für Wayland)
+      - Windows: mss
+
+    Returns: Markdown-formatiertes Bild für den Chat-Verlauf.
     """
     import time
-    
+
     image_dir = Path(os.environ.get("MIMI_NOX_IMAGE_DIR", str(Path.home() / ".mimi-nox" / "sessions" / "images")))
     image_dir.mkdir(parents=True, exist_ok=True)
-    
+
     filename = f"screenshot_{int(time.time())}.png"
     filepath = image_dir / filename
-    
+
     try:
-        await asyncio.to_thread(subprocess.run, ["screencapture", "-x", str(filepath)], check=True)
-        return f"Hier ist der Bildschirm:\n\n![Mac Screenshot](/images/{filename})"
+        if sys.platform == "darwin":
+            # macOS: Native screencapture (beste Qualität)
+            await asyncio.to_thread(
+                subprocess.run, ["screencapture", "-x", str(filepath)], check=True
+            )
+        else:
+            # Linux / Windows: mss (bereits in dependencies)
+            def _mss_capture():
+                import mss
+                with mss.mss() as sct:
+                    sct.shot(output=str(filepath))
+            await asyncio.to_thread(_mss_capture)
+
+        return f"Hier ist der Bildschirm:\n\n![Screenshot](/images/{filename})"
     except Exception as e:
         return f"[Screenshot fehlgeschlagen: {e}]"
 
@@ -585,6 +623,256 @@ async def browser_type(text: str) -> str:
 async def browser_press(key: str) -> str:
     return await browser_manager.press(key)
 
+
+# ===========================================================================
+# Tool: generate_chart  (matplotlib → PNG Base64)
+# ===========================================================================
+
+async def generate_chart(
+    chart_type: str,
+    title: str,
+    labels: list,
+    values: list,
+    xlabel: str = "",
+    ylabel: str = "",
+    color: str = "#22c55e",
+) -> str:
+    """
+    Erstellt einen Chart (bar / line / pie) mit matplotlib.
+    Gibt den Dateipfad zurück; das Frontend zeigt ihn als Bild an.
+
+    Args:
+        chart_type: "bar", "line" oder "pie"
+        title:      Titel des Charts
+        labels:     X-Achsen-Labels oder Pie-Segmente
+        values:     Numerische Werte
+        xlabel:     X-Achsen-Beschriftung (optional)
+        ylabel:     Y-Achsen-Beschriftung (optional)
+        color:      Hex-Farbe (default: MiMiNox-Grün)
+    """
+    try:
+        import matplotlib
+        matplotlib.use("Agg")  # kein Display nötig
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+        import tempfile, os
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        fig.patch.set_facecolor("#020504")
+        ax.set_facecolor("#040a04")
+        ax.tick_params(colors="#6b7280")
+        ax.spines["bottom"].set_color("#166534")
+        ax.spines["left"].set_color("#166534")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.title.set_color("#f0fdf4")
+        ax.xaxis.label.set_color("#6b7280")
+        ax.yaxis.label.set_color("#6b7280")
+
+        vals = [float(v) for v in values]
+        ct = chart_type.lower()
+
+        if ct == "bar":
+            bars = ax.bar(labels, vals, color=color, alpha=0.85, edgecolor="#166534", linewidth=0.5)
+            for bar, v in zip(bars, vals):
+                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(vals)*0.01,
+                        f"{v:g}", ha="center", va="bottom", color="#86efac", fontsize=9)
+        elif ct == "line":
+            ax.plot(labels, vals, color=color, linewidth=2.5, marker="o",
+                    markersize=6, markerfacecolor="#020504", markeredgecolor=color)
+            ax.fill_between(range(len(labels)), vals, alpha=0.12, color=color)
+            ax.set_xticks(range(len(labels)))
+            ax.set_xticklabels(labels, rotation=15 if len(labels) > 6 else 0)
+        elif ct == "pie":
+            greens = ["#22c55e","#16a34a","#15803d","#166534","#4ade80","#86efac","#bbf7d0"]
+            colors = [greens[i % len(greens)] for i in range(len(labels))]
+            wedges, texts, autotexts = ax.pie(
+                vals, labels=labels, autopct="%1.1f%%",
+                colors=colors, startangle=140,
+                textprops={"color": "#f0fdf4", "fontsize": 10},
+                wedgeprops={"edgecolor": "#020504", "linewidth": 2}
+            )
+            for at in autotexts:
+                at.set_color("#020504")
+                at.set_fontweight("bold")
+        else:
+            return f"[chart: Unbekannter Typ '{chart_type}'. Erlaubt: bar, line, pie]"
+
+        ax.set_title(title, fontsize=14, fontweight="bold", pad=16)
+        if xlabel: ax.set_xlabel(xlabel)
+        if ylabel: ax.set_ylabel(ylabel)
+        plt.tight_layout(pad=1.5)
+
+        # In /tmp speichern
+        out = Path(tempfile.gettempdir()) / f"nox_chart_{int(datetime.now().timestamp())}.png"
+        plt.savefig(str(out), dpi=130, bbox_inches="tight",
+                    facecolor=fig.get_facecolor())
+        plt.close(fig)
+
+        return f"CHART_FILE:{out}"
+
+    except ImportError:
+        return "[chart: matplotlib nicht installiert — 'pip install matplotlib']"
+    except Exception as e:
+        return f"[chart-Fehler: {e}]"
+
+
+# ===========================================================================
+# Tool: create_pdf  (reportlab → PDF-Datei)
+# ===========================================================================
+
+async def create_pdf(
+    title: str,
+    content: str,
+    filename: str = "nox_dokument.pdf",
+) -> str:
+    """
+    Erstellt ein formatiertes PDF-Dokument aus Text/Markdown-ähnlichem Inhalt.
+
+    Args:
+        title:    Dokumenttitel (erscheint als große Überschrift)
+        content:  Textinhalt (# = H1, ## = H2, - = Bullet, normaler Text = Absatz)
+        filename: Dateiname ohne Pfad (wird in ~/Downloads gespeichert)
+    """
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER
+        import re
+
+        downloads = Path.home() / "Downloads"
+        downloads.mkdir(exist_ok=True)
+        out = downloads / filename
+
+        doc = SimpleDocTemplate(
+            str(out), pagesize=A4,
+            rightMargin=20*mm, leftMargin=20*mm,
+            topMargin=24*mm, bottomMargin=20*mm
+        )
+
+        # Farben
+        BG      = colors.HexColor("#020504")
+        GREEN   = colors.HexColor("#22c55e")
+        GREEN_L = colors.HexColor("#4ade80")
+        TEXT    = colors.HexColor("#f0fdf4")
+        MUTED   = colors.HexColor("#6b7280")
+
+        styles = getSampleStyleSheet()
+        def S(name, **kw):
+            return ParagraphStyle(name, **kw)
+
+        s_title = S("T", fontSize=22, textColor=GREEN, spaceAfter=4, spaceBefore=0,
+                    fontName="Helvetica-Bold", alignment=TA_CENTER)
+        s_h1    = S("H1", fontSize=15, textColor=GREEN_L, spaceAfter=4, spaceBefore=12,
+                    fontName="Helvetica-Bold")
+        s_h2    = S("H2", fontSize=12, textColor=GREEN_L, spaceAfter=3, spaceBefore=8,
+                    fontName="Helvetica-Bold")
+        s_body  = S("B", fontSize=10, textColor=TEXT, spaceAfter=6, leading=16,
+                    fontName="Helvetica")
+        s_bullet= S("BL", fontSize=10, textColor=TEXT, spaceAfter=3, leading=15,
+                    leftIndent=12, fontName="Helvetica",
+                    bulletText="•", bulletIndent=4)
+        s_meta  = S("M", fontSize=8, textColor=MUTED, spaceAfter=8, alignment=TA_CENTER,
+                    fontName="Helvetica")
+
+        story = []
+        story.append(Paragraph(title, s_title))
+        story.append(Paragraph(f"Erstellt von ◑ MiMi Nox · {datetime.now().strftime('%d.%m.%Y %H:%M')}", s_meta))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=GREEN, spaceAfter=10))
+
+        for line in content.splitlines():
+            line = line.strip()
+            if not line:
+                story.append(Spacer(1, 4))
+            elif line.startswith("## "):
+                story.append(Paragraph(line[3:], s_h2))
+            elif line.startswith("# "):
+                story.append(Paragraph(line[2:], s_h1))
+            elif line.startswith("- ") or line.startswith("* "):
+                story.append(Paragraph(line[2:], s_bullet))
+            else:
+                # Inline Bold: **text** → <b>text</b>
+                line = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", line)
+                story.append(Paragraph(line, s_body))
+
+        doc.build(story)
+        return f"PDF_FILE:{out}"
+
+    except ImportError:
+        return "[pdf: reportlab nicht installiert — 'pip install reportlab']"
+    except Exception as e:
+        return f"[pdf-Fehler: {e}]"
+
+
+# ===========================================================================
+# Tool: create_svg  (SVG als String → Browser-Render)
+# ===========================================================================
+
+async def create_svg(
+    svg_code: str,
+    filename: str = "nox_grafik.svg",
+) -> str:
+    """
+    Speichert SVG-Code als Datei und gibt den Pfad zurück.
+    Gemma4 schreibt den SVG-Code selbst; dieses Tool speichert ihn.
+
+    Sicherheit:
+      - Entfernt <script> Tags (XSS-Prävention)
+      - Entfernt <foreignObject> (HTML-Injection)
+      - Entfernt on*-Event-Handler (onclick, onload etc.)
+      - Entfernt javascript: URLs
+
+    Args:
+        svg_code: Vollständiger SVG-XML-Code
+        filename: Dateiname (in ~/Downloads gespeichert)
+    """
+    import re
+
+    try:
+        downloads = Path.home() / "Downloads"
+        downloads.mkdir(exist_ok=True)
+        out = downloads / filename
+
+        # ── XSS-Sanitizer ──────────────────────────────────
+        # 1) <script>...</script> entfernen
+        svg_code = re.sub(
+            r"<script[^>]*>.*?</script>", "", svg_code,
+            flags=re.DOTALL | re.IGNORECASE
+        )
+        # 2) <foreignObject>...</foreignObject> entfernen
+        svg_code = re.sub(
+            r"<foreignObject[^>]*>.*?</foreignObject>", "", svg_code,
+            flags=re.DOTALL | re.IGNORECASE
+        )
+        # 3) on*-Event-Handler entfernen (onclick, onload, onerror etc.)
+        svg_code = re.sub(
+            r'\s+on\w+\s*=\s*"[^"]*"', "", svg_code,
+            flags=re.IGNORECASE
+        )
+        svg_code = re.sub(
+            r"\s+on\w+\s*=\s*'[^']*'", "", svg_code,
+            flags=re.IGNORECASE
+        )
+        # 4) javascript: URLs entfernen
+        svg_code = re.sub(
+            r'href\s*=\s*"javascript:[^"]*"', 'href="#"', svg_code,
+            flags=re.IGNORECASE
+        )
+
+        # Sicherstellen dass es gültiges SVG ist
+        if "<svg" not in svg_code:
+            svg_code = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">\n{svg_code}\n</svg>'
+
+        out.write_text(svg_code, encoding="utf-8")
+        return f"SVG_FILE:{out}"
+
+    except Exception as e:
+        return f"[svg-Fehler: {e}]"
+
+
 TOOL_MAP: dict[str, object] = {
     "web_search":       web_search,
     "file_search":      file_search,
@@ -602,6 +890,9 @@ TOOL_MAP: dict[str, object] = {
     "browser_click":      browser_click,
     "browser_type":       browser_type,
     "browser_press":      browser_press,
+    "generate_chart":     generate_chart,
+    "create_pdf":         create_pdf,
+    "create_svg":         create_svg,
 }
 
 
@@ -643,8 +934,8 @@ def get_tool_schemas() -> list[dict]:
                 "name": "browser_go",
                 "description": (
                     "Öffnet einen Headless-Browser und navigiert zu einer URL. "
-                    "Nutze dieses Tool (und die anderen browser_* Tools) statt der dummen web_search, um modern "
-                    "im Internet zu recherchieren. Es liefert dir den gerenderten Textauszug. "
+                    "Nutze dieses Tool nur wenn du eine Webseite visuell inspizieren, Formulare ausfüllen oder interagieren musst. "
+                    "Für schnelle Internet-Recherchen nutze stattdessen web_search (DuckDuckGo). "
                     "Wenn du auf Buttons (z.B. Cookie Banner) klicken musst, nutze nachfolgend browser_click()."
                 ),
                 "parameters": {
@@ -725,7 +1016,9 @@ def get_tool_schemas() -> list[dict]:
             "function": {
                 "name": "web_search",
                 "description": (
-                    "Einfache DuckDuckGo Text-Suche für triviale Queries."
+                    "Primäres Internet-Recherche-Tool. Durchsucht das Internet via DuckDuckGo und liefert echte, "
+                    "aktuelle Ergebnisse mit Titel, URL und Inhaltsauszug. Nutze dieses Tool IMMER wenn du "
+                    "aktuelle Informationen, Fakten, Nachrichten oder Dokumentation aus dem Internet benötigst."
                 ),
                 "parameters": {
                     "type": "object",
@@ -960,7 +1253,66 @@ def get_tool_schemas() -> list[dict]:
                     "required": [],
                 },
             },
-        }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "generate_chart",
+                "description": (
+                    "Erstellt einen Daten-Chart (bar/line/pie) als PNG-Bild im MiMiNox-Design. "
+                    "Nutze dies wenn der User Daten visualisieren will. Bild erscheint automatisch im Chat."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "chart_type": {"type": "string", "enum": ["bar","line","pie"]},
+                        "title":      {"type": "string"},
+                        "labels":     {"type": "array", "items": {"type": "string"}},
+                        "values":     {"type": "array", "items": {"type": "number"}},
+                        "xlabel":     {"type": "string"},
+                        "ylabel":     {"type": "string"},
+                    },
+                    "required": ["chart_type","title","labels","values"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "create_pdf",
+                "description": (
+                    "Erstellt ein formatiertes PDF-Dokument aus Markdown-ähnlichem Text "
+                    "und speichert es in ~/Downloads. Nutze dies für Berichte, Zusammenfassungen."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title":    {"type": "string"},
+                        "content":  {"type": "string"},
+                        "filename": {"type": "string"},
+                    },
+                    "required": ["title","content"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "create_svg",
+                "description": (
+                    "Speichert SVG-Grafik-Code als .svg Datei in ~/Downloads. "
+                    "Du schreibst den SVG-Code selbst. Für Logos, Icons, Diagramme."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "svg_code": {"type": "string"},
+                        "filename": {"type": "string"},
+                    },
+                    "required": ["svg_code"]
+                }
+            }
+        },
     ]
 
 

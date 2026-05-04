@@ -22,12 +22,19 @@ export class ChatBus {
   }
 
   /**
-   * Send a direct message.
-   * @param {{ from: string, to: string, content: string, type?: string }} msg
+   * Send a message. Streaming messages (type='streaming') are only sent to
+   * subscribers (Socket.io) and NOT persisted to DB. Final messages are persisted.
+   * @param {{ id?: string, from: string, to: string, content: string, type?: string }} msg
    */
-  send({ from, to, content, type = 'message' }) {
+  send({ id, from, to, content, type = 'message' }) {
+    if (type === 'streaming') {
+      // Stream updates → only notify subscribers (Socket.io / frontend), no DB write
+      this._notify({ id, from, to, content, type, timestamp: new Date().toISOString() });
+      return;
+    }
+    // Final or regular message → persist to DB + notify
     this._store.addChatMessage({ from, to, content, type });
-    this._notify({ from, to, content, type, timestamp: new Date().toISOString() });
+    this._notify({ id, from, to, content, type, timestamp: new Date().toISOString() });
   }
 
   /**

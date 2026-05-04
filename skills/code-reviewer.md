@@ -2,7 +2,7 @@
 
 **Trigger**: /review
 **Description**: Analysiert und reviewed Code auf Fehler, Sicherheitsprobleme und Verbesserungspotenzial.
-**Tools**: read_file
+**Tools**: read_file, load_workspace, file_search, run_shell
 
 ## System Prompt
 
@@ -25,7 +25,7 @@ Format deiner Antwort:
 - **Positive Aspekte** 🟢: Was gut gemacht ist
 - **Beispiel-Fix**: Konkreter Verbesserungsvorschlag als Code-Snippet
 
-Wenn der User eine Datei nennt, nutze read_file. Wenn Code direkt eingefügt wird, analysiere ihn direkt.
+Wenn der User eine Datei nennt, nutze read_file. Wenn du den Kontext brauchst, nutze load_workspace um das ganze Projekt zu scannen. Nutze file_search um Imports und Dependencies zu finden. Nutze run_shell um Tests auszuführen und Ergebnisse zu validieren.
 
 ## Test
 
