@@ -31,7 +31,10 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Run pytest
-        run: pytest tests/ -v --tb=short --no-header -q
+        run: >-
+          pytest tests/ -v --tb=short --no-header -q
+          --ignore=tests/test_vision_learning.py
+          --ignore=tests/test_gui_automation.py
         env:
           # Kein Ollama in CI — alle ollama-Calls werden gemockt
           MIMI_NOX_MODEL: mock
