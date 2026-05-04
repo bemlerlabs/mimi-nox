@@ -28,19 +28,30 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev]" 2>&1 | tee install-log.txt
 
-      - name: Debug - List installed packages
-        run: pip list | grep -iE "pyautogui|mss|pynput|mouseinfo" || echo "No GUI packages installed"
+      - name: Debug - Check key packages
+        run: |
+          echo "=== Installed packages ==="
+          pip list 2>&1 | tee packages.txt
+          echo ""
+          echo "=== Check pyautogui ==="
+          python -c "import pyautogui" 2>&1 || echo "pyautogui NOT available (expected)"
+          echo "=== Check mss ==="
+          python -c "import mss" 2>&1 || echo "mss NOT available (expected)"
+          echo "=== Check ollama ==="
+          python -c "import ollama; print('ollama OK')" 2>&1 || echo "ollama FAILED"
+          echo "=== Check core.tools ==="
+          python -c "from core.tools import get_tool_schemas; print('core.tools OK')" 2>&1 || echo "core.tools FAILED"
 
-      - name: Debug - Collect tests
+      - name: Collect tests (dry run)
         run: >-
           pytest tests/ --collect-only -q
           --ignore=tests/test_vision_learning.py
           --ignore=tests/test_gui_automation.py
           --ignore=tests/test_vision.py
           --ignore=tests/test_finding_01_screenshot_crossplatform.py
-          2>&1 || true
+          2>&1 | tee collect-log.txt || true
         env:
           MIMI_NOX_MODEL: mock
           MIMI_NOX_OFFLINE: "1"
@@ -53,15 +64,19 @@ jobs:
           --ignore=tests/test_gui_automation.py
           --ignore=tests/test_vision.py
           --ignore=tests/test_finding_01_screenshot_crossplatform.py
+          2>&1 | tee test-log.txt
         env:
           MIMI_NOX_MODEL: mock
           MIMI_NOX_OFFLINE: "1"
           MIMI_NOX_MEMORY_DIR: /tmp/mimi-nox-ci-memory
 
-      - name: Upload test results
-        if: failure()
+      - name: Upload debug logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-results-${{ matrix.python-version }}
+          name: ci-debug-${{ matrix.python-version }}
           path: |
-            .pytest_cache/
+            install-log.txt
+            packages.txt
+            collect-log.txt
+            test-log.txt
