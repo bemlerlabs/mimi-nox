@@ -273,7 +273,7 @@ async def build_skill(
 
     # ── Phase 1+2: Scan + Generierung ────────────────────────────────────
     if on_phase:
-        on_phase("📚 Code-Muster analysieren…")
+        on_phase("📚 Analyzing code patterns…")
 
     # Few-Shot Referenz laden
     reference = _load_reference_skill()
@@ -320,7 +320,7 @@ async def build_skill(
 
     # ── Phase 3: XML-Extraktion + Validierung + Speichern ────────────────
     if on_phase:
-        on_phase("💾 Skill speichern…")
+        on_phase("💾 Saving skill…")
 
     # Content aus XML-Tags extrahieren (kein Smalltalk!)
     skill_markdown = extract_skill_content(full_output)

@@ -440,7 +440,7 @@ async def chat_with_tools(
     MAX_RETRIES = 1
 
     if on_phase:
-        on_phase("Anfrage analysieren…")
+        on_phase("Analyzing request…")
 
     response = None
     for attempt in range(MAX_RETRIES + 1):
@@ -459,7 +459,7 @@ async def chat_with_tools(
         except asyncio.TimeoutError:
             if attempt < MAX_RETRIES:
                 if on_phase:
-                    on_phase("Modell laden… (Retry)")
+                    on_phase("Loading model… (Retry)")
                 continue  # Nochmal versuchen
             # Letzter Versuch auch Timeout → prüfen ob Ollama überhaupt lebt
             try:
@@ -492,7 +492,7 @@ async def chat_with_tools(
     ):
         iteration += 1
         if on_phase:
-            on_phase(f"Tool-Runde {iteration}…")
+            on_phase(f"Tool round {iteration}…")
 
         # Assistenten-Nachricht mit tool_calls zur History hinzufügen
         messages.append(response.message)
@@ -524,7 +524,7 @@ async def chat_with_tools(
 
         # Nächste Iteration: prüfen ob weitere Tool-Calls folgen
         if on_phase:
-            on_phase("Ergebnisse verarbeiten…")
+            on_phase("Processing results…")
         try:
             response = await client.chat(
                 model=model,
@@ -541,13 +541,13 @@ async def chat_with_tools(
 
     # Max Iterationen aufgebraucht?
     if iteration >= MAX_TOOL_ITERATIONS:
-        warning = f"[⚠ Maximale Tool-Iterationen ({MAX_TOOL_ITERATIONS}) erreicht]"
+        warning = f"[⚠ Max tool iterations ({MAX_TOOL_ITERATIONS}) reached]"
         on_chunk(warning)
         return warning
 
     # ── Schritt 3: Finale Antwort ausgeben (Thinking-Tags parsen) ──────────
     if on_phase:
-        on_phase("Antwort formulieren…")
+        on_phase("Generating response…")
     final_content: str = ""
 
     if hasattr(response, "message"):

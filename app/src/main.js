@@ -1057,9 +1057,9 @@ class NoxApp {
 
             case 'reflect':
               if (evt.status === 'running') {
-                this._addActivity('cmd', 'reflect: Qualität prüfen…');
+                this._addActivity('cmd', 'reflect: Quality check…');
               } else if (evt.needs_revision === false) {
-                this._addActivity('done', '✓ Qualität OK');
+                this._addActivity('done', '✓ Quality OK');
               }
               break;
 
@@ -1379,7 +1379,7 @@ class NoxApp {
           : null;
         const lbl = thinkingBubble.querySelector('.thinking-label');
         const spinner = thinkingBubble.querySelector('.thinking-spinner');
-        if (lbl) lbl.textContent = secs ? `Gedacht für ${secs}s` : 'Gedacht';
+        if (lbl) lbl.textContent = secs ? `Thought for ${secs}s` : 'Thought';
         if (spinner) spinner.style.display = 'none';
         // Zugeklappt nach kurzer Pause (User kann noch lesen)
         setTimeout(() => {
@@ -1390,7 +1390,7 @@ class NoxApp {
 
       // Aktionen anzeigen
       this._showBubbleActions(msgId, text, full);
-      this._addActivity('done', `✓ Fertig in ${((Date.now() - this._streamStart) / 1000).toFixed(1)}s`);
+      this._addActivity('done', `✓ Done in ${((Date.now() - this._streamStart) / 1000).toFixed(1)}s`);
 
       // Memory kurz danach aktualisieren
       setTimeout(() => this.loadMemoryPanel(), 1500);
@@ -1494,7 +1494,7 @@ class NoxApp {
     thinkDiv.innerHTML = `
       <button class="thinking-toggle" aria-expanded="true">
         <span class="thinking-spinner"></span>
-        <span class="thinking-label">Nox denkt nach…</span>
+        <span class="thinking-label">Nox is thinking…</span>
         <span class="thinking-chevron">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="1.5"
