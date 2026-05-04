@@ -921,8 +921,32 @@ async def create_svg(
     except Exception as e:
         return f"[svg-Fehler: {e}]"
 
+async def manage_tasks(action: str, title: str = None, task_id: str = None, status: str = None, project: str = None) -> str:
+    from core.tasks import task_manager
+    if action == "add":
+        if not title:
+            return "[Error: title required for add]"
+        tid = task_manager.add_task(title=title, project=project)
+        return f"Task erfolgreich hinzugefügt. ID: {tid}"
+    elif action == "update":
+        if not task_id:
+            return "[Error: task_id required for update]"
+        found = task_manager.update_task(task_id, status=status, title=title, project=project)
+        return f"Task {task_id} erfolgreich aktualisiert." if found else f"[Error: Task {task_id} nicht gefunden]"
+    elif action == "delete":
+        if not task_id:
+            return "[Error: task_id required for delete]"
+        found = task_manager.delete_task(task_id)
+        return f"Task {task_id} erfolgreich gelöscht." if found else f"[Error: Task {task_id} nicht gefunden]"
+    elif action == "list":
+        tasks = task_manager.get_tasks()
+        if not tasks:
+            return "Keine Aufgaben vorhanden."
+        return "\n".join(f"- [{t['status']}] {t['title']} (ID: {t['id']})" for t in tasks)
+    return f"[Error: unknown action '{action}']"
 
 TOOL_MAP: dict[str, object] = {
+    "manage_tasks":     manage_tasks,
     "web_search":       web_search,
     "file_search":      file_search,
     "read_file":        read_file,
@@ -977,6 +1001,27 @@ def get_tool_schemas() -> list[dict]:
     Wird an ollama.chat(tools=...) übergeben.
     """
     return [
+        {
+            "type": "function",
+            "function": {
+                "name": "manage_tasks",
+                "description": (
+                    "Verwaltet persönliche Aufgaben und To-Do Listen des Nutzers. "
+                    "Aktionen: 'add' (neu), 'update' (ändern/abschließen), 'delete' (löschen), 'list' (alle zeigen)."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "enum": ["add", "update", "delete", "list"]},
+                        "title": {"type": "string", "description": "Titel der Aufgabe (für add/update)"},
+                        "task_id": {"type": "string", "description": "ID der Aufgabe (für update/delete)"},
+                        "status": {"type": "string", "enum": ["open", "done", "in_progress"], "description": "Neuer Status (für update)"},
+                        "project": {"type": "string", "description": "Projektzugehörigkeit (optional)"}
+                    },
+                    "required": ["action"]
+                }
+            }
+        },
         {
             "type": "function",
             "function": {
