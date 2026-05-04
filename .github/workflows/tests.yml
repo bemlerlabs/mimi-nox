@@ -28,55 +28,16 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev]" 2>&1 | tee install-log.txt
-
-      - name: Debug - Check key packages
-        run: |
-          echo "=== Installed packages ==="
-          pip list 2>&1 | tee packages.txt
-          echo ""
-          echo "=== Check pyautogui ==="
-          python -c "import pyautogui" 2>&1 || echo "pyautogui NOT available (expected)"
-          echo "=== Check mss ==="
-          python -c "import mss" 2>&1 || echo "mss NOT available (expected)"
-          echo "=== Check ollama ==="
-          python -c "import ollama; print('ollama OK')" 2>&1 || echo "ollama FAILED"
-          echo "=== Check core.tools ==="
-          python -c "from core.tools import get_tool_schemas; print('core.tools OK')" 2>&1 || echo "core.tools FAILED"
-
-      - name: Collect tests (dry run)
-        run: >-
-          pytest tests/ --collect-only -q
-          --ignore=tests/test_vision_learning.py
-          --ignore=tests/test_gui_automation.py
-          --ignore=tests/test_vision.py
-          --ignore=tests/test_finding_01_screenshot_crossplatform.py
-          2>&1 | tee collect-log.txt || true
-        env:
-          MIMI_NOX_MODEL: mock
-          MIMI_NOX_OFFLINE: "1"
-          MIMI_NOX_MEMORY_DIR: /tmp/mimi-nox-ci-memory
+          pip install -e ".[dev]"
 
       - name: Run pytest
         run: >-
-          pytest tests/ -v --tb=long --no-header
+          pytest tests/ -v --tb=short --no-header -q
           --ignore=tests/test_vision_learning.py
           --ignore=tests/test_gui_automation.py
           --ignore=tests/test_vision.py
           --ignore=tests/test_finding_01_screenshot_crossplatform.py
-          2>&1 | tee test-log.txt
         env:
           MIMI_NOX_MODEL: mock
           MIMI_NOX_OFFLINE: "1"
           MIMI_NOX_MEMORY_DIR: /tmp/mimi-nox-ci-memory
-
-      - name: Upload debug logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-debug-${{ matrix.python-version }}
-          path: |
-            install-log.txt
-            packages.txt
-            collect-log.txt
-            test-log.txt
