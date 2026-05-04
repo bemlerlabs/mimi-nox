@@ -145,6 +145,7 @@ class NoxApp {
       btnMobile:    document.getElementById('btn-mobile-pairing'),
       btnHamburger: document.getElementById('btn-hamburger'),
       btnNewChat:   document.getElementById('btn-new-chat'),
+      btnExport:    document.getElementById('btn-export-chat'),
       // Tabs
       tabBtns:      document.querySelectorAll('.tab'),
       tabViews:     document.querySelectorAll('.tab-content'),
@@ -242,6 +243,11 @@ class NoxApp {
     // New Chat
     if (this.el.btnNewChat) {
       this.el.btnNewChat.addEventListener('click', () => this.clearSession());
+    }
+
+    // Export Chat
+    if (this.el.btnExport) {
+      this.el.btnExport.addEventListener('click', () => this.exportChat());
     }
 
     // Mobile Pairing Button
@@ -698,8 +704,45 @@ class NoxApp {
     ">${cfg.icon} ${cfg.label}</span>`;
   }
 
+  async exportChat() {
+    if (this.history.length === 0) {
+      alert("Es gibt noch keinen Chatverlauf zum Exportieren.");
+      return;
+    }
+    
+    // UI Feedback
+    const oldHtml = this.el.btnExport.innerHTML;
+    this.el.btnExport.innerHTML = '⏳ Export...';
+    this.el.btnExport.disabled = true;
 
-  // ── Skills ──────────────────────────────────────────────
+    try {
+      const res = await fetch(`${API}/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: this.history })
+      });
+      
+      if (!res.ok) throw new Error('API Fehler beim Export');
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MiMiNox_Chat_${new Date().toISOString().split('T')[0]}.md`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch(err) {
+      console.error("Export fehlgeschlagen:", err);
+      alert("Fehler beim Exportieren des Chats.");
+    } finally {
+      this.el.btnExport.innerHTML = oldHtml;
+      this.el.btnExport.disabled = false;
+    }
+  }
+
+  // ── Sitzung leeren ──────────────────────────────────────────────
   async loadSkillChips() {
     try {
       const res  = await fetch(`${API}/skills`);
