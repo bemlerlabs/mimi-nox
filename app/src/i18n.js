@@ -166,6 +166,12 @@ const translations = {
     'confirm.shell': 'Shell-Befehl ausführen?',
     'confirm.run': 'Ausführen',
     'confirm.cancel': 'Abbrechen',
+
+    'chat.camera': 'Foto aufnehmen',
+    'welcome.explainTopic': 'Etwas erklären',
+    'welcome.prompt.explain': 'Erkläre mir Quantencomputer so einfach wie möglich',
+    'welcome.prompt.search': 'Suche die neuesten Nachrichten zu KI und erkläre die wichtigsten Punkte',
+    'welcome.prompt.write': '/write Schreib mir eine professionelle E-Mail um einen Termin zu verschieben',
   },
 
   en: {
@@ -322,6 +328,12 @@ const translations = {
     'confirm.shell': 'Run shell command?',
     'confirm.run': 'Run',
     'confirm.cancel': 'Cancel',
+
+    'chat.camera': 'Take photo',
+    'welcome.explainTopic': 'Explain something',
+    'welcome.prompt.explain': 'Explain quantum computers as simply as possible',
+    'welcome.prompt.search': 'Search the latest AI news and explain the key points',
+    'welcome.prompt.write': '/write Write me a professional email to reschedule an appointment',
   },
 
   // ── Español ──────────────────────────────────────────────────────────────
@@ -454,6 +466,12 @@ const translations = {
     'skills.saved': '✅ ¡Guardado!',
     'skills.tools': 'Herramientas (separadas por coma)',
     'skills.trigger': 'Trigger',
+
+    'chat.camera': 'Tomar foto',
+    'welcome.explainTopic': 'Explicar algo',
+    'welcome.prompt.explain': 'Explícame los computadores cuánticos de la forma más sencilla posible',
+    'welcome.prompt.search': 'Busca las últimas noticias sobre IA y explica los puntos clave',
+    'welcome.prompt.write': '/write Escríbeme un correo profesional para reprogramar una cita',
   },
 
   // ── Français ─────────────────────────────────────────────────────────────
@@ -586,6 +604,12 @@ const translations = {
     'skills.saved': '✅ Enregistré !',
     'skills.tools': 'Outils (séparés par virgule)',
     'skills.trigger': 'Trigger',
+
+    'chat.camera': 'Prendre photo',
+    'welcome.explainTopic': 'Expliquer quelque chose',
+    'welcome.prompt.explain': 'Explique-moi les ordinateurs quantiques le plus simplement possible',
+    'welcome.prompt.search': 'Recherche les dernières actualités sur l\'IA et explique les points clés',
+    'welcome.prompt.write': '/write Rédige-moi un e-mail professionnel pour reporter un rendez-vous',
   },
 
   // ── 日本語 ───────────────────────────────────────────────────────────────
@@ -718,6 +742,12 @@ const translations = {
     'skills.saved': '✅ 保存完了！',
     'skills.tools': 'ツール（カンマ区切り）',
     'skills.trigger': 'トリガー',
+
+    'chat.camera': '写真を撮る',
+    'welcome.explainTopic': '何かを説明',
+    'welcome.prompt.explain': '量子コンピューターをできるだけ簡単に説明してください',
+    'welcome.prompt.search': '最新のAIニュースを検索して重要なポイントを説明してください',
+    'welcome.prompt.write': '/write 予約変更のプロフェッショナルなメールを書いてください',
   },
 
   // ── 中文 ─────────────────────────────────────────────────────────────────
@@ -850,6 +880,12 @@ const translations = {
     'skills.saved': '✅ 已保存！',
     'skills.tools': '工具（逗号分隔）',
     'skills.trigger': '触发器',
+
+    'chat.camera': '拍照',
+    'welcome.explainTopic': '解释一件事',
+    'welcome.prompt.explain': '用最简单的方式解释量子计算机',
+    'welcome.prompt.search': '搜索最新的AI新闻并解释关键要点',
+    'welcome.prompt.write': '/write 帮我写一封专业的邮件来改期',
   },
 };
 
@@ -921,6 +957,10 @@ export function applyTranslations() {
   });
   document.querySelectorAll('[data-i18n-html]').forEach(el => {
     el.innerHTML = t(el.dataset.i18nHtml);
+  });
+  // Resolve data-prompt from i18n keys (for welcome cards)
+  document.querySelectorAll('[data-i18n-prompt]').forEach(el => {
+    el.dataset.prompt = t(el.dataset.i18nPrompt);
   });
 }
 

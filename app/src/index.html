@@ -74,8 +74,8 @@
     </div>
 
     <!-- Navigation Tabs -->
-    <nav class="topnav" role="navigation" aria-label="Main Navigation" style="display:flex; align-items:center;">
-      <button class="btn-primary" id="btn-new-chat" data-i18n="nav.newChat" title="Start a fresh LLM context" style="font-size: 13px; padding: 4px 10px; margin-right: 12px; height: 28px; line-height: 1;">📝 New Chat</button>
+    <nav class="topnav" role="navigation" aria-label="Main Navigation">
+      <button class="btn-primary btn-new-chat" id="btn-new-chat" data-i18n="nav.newChat" title="Start a fresh LLM context">📝 New Chat</button>
       <button class="tab active" id="tab-chat"    data-tab="chat"    aria-selected="true"  data-i18n="nav.chat">💬 Chat</button>
       <span class="tab-sep" aria-hidden="true">|</span>
       <button class="tab"        id="tab-skills"  data-tab="skills"  aria-selected="false" data-i18n="nav.skills">⚡ Skills</button>
@@ -88,16 +88,15 @@
     </nav>
 
     <!-- Right: Model + Status -->
-    <div class="topbar-right" style="display:flex; align-items:center; gap:16px;">
+    <div class="topbar-right">
       
       <!-- Mobile Pairing Button -->
-      <!-- Mobile Pairing Button (Fix 13: improved contrast) -->
-      <button class="btn-secondary" id="btn-mobile-pairing" data-i18n="nav.mobilePairing" data-i18n-title="nav.mobilePairing" style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: var(--green-light); border-radius: 4px; cursor: pointer; font-size: 13px; padding: 4px 10px; height: 28px; line-height: 1; transition: all 0.2s;">📱 Connect Phone</button>
+      <button class="btn-topbar" id="btn-mobile-pairing" data-i18n="nav.mobilePairing" data-i18n-title="nav.mobilePairing">📱 Connect Phone</button>
 
       <!-- Autonomous Mode Toggle (Fix 9: tooltip) -->
-      <label class="autonom-mode-label" title="Im autonomen Modus führt die KI Shell-Befehle und Tool-Aufrufe ohne Rückfrage aus. ⚠️ Nur für erfahrene Nutzer empfohlen." style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--text-dim);">
-        <input type="checkbox" id="autonom-toggle" autocomplete="off" style="accent-color: var(--orange); cursor:pointer;">
-        <span style="user-select:none;" data-i18n="nav.autonom">🤖 Autonomous</span>
+      <label class="autonom-mode-label">
+        <input type="checkbox" id="autonom-toggle" autocomplete="off">
+        <span data-i18n="nav.autonom">🤖 Autonomous</span>
       </label>
 
       <div class="status-badge" id="status-badge" aria-live="polite">
@@ -131,17 +130,17 @@
           <h1 class="welcome-heading" data-i18n="welcome.heading">Wie kann ich helfen?</h1>
           <p class="welcome-sub" data-i18n="welcome.sub">Ich laufe komplett auf deinem Computer — keine Cloud, keine Kosten.</p>
           <div class="welcome-cards" role="list">
-            <button class="welcome-card" data-prompt="Suche die neuesten Nachrichten zu KI und erkläre die wichtigsten Punkte" role="listitem">
+            <button class="welcome-card" data-i18n-prompt="welcome.prompt.search" data-prompt="" role="listitem">
               <span class="card-icon">🔍</span>
               <span data-i18n="welcome.searchNews">Aktuelle News suchen</span>
             </button>
-            <button class="welcome-card" data-prompt="/write Schreib mir eine professionelle E-Mail um einen Termin zu verschieben" role="listitem">
+            <button class="welcome-card" data-i18n-prompt="welcome.prompt.write" data-prompt="" role="listitem">
               <span class="card-icon">✏️</span>
               <span data-i18n="welcome.writeText">E-Mail schreiben</span>
             </button>
-            <button class="welcome-card" data-prompt="Erkläre mir Quantencomputer so einfach wie möglich" role="listitem">
+            <button class="welcome-card" data-i18n-prompt="welcome.prompt.explain" data-prompt="" role="listitem">
               <span class="card-icon">💡</span>
-              <span>Etwas erklären</span>
+              <span data-i18n="welcome.explainTopic">Etwas erklären</span>
             </button>
           </div>
         </div>
@@ -359,25 +358,25 @@
        MOBILE BOTTOM NAVIGATION (nur auf Smartphone sichtbar)
   ══════════════════════════════════════════════════════ -->
   <nav class="mobile-bottomnav" id="mobile-bottomnav" role="tablist" aria-label="Navigation">
-    <button class="mbn-tab active" data-tab="chat" role="tab" aria-selected="true" aria-label="Chat">
+    <button class="mbn-tab active" data-tab="chat" role="tab" aria-selected="true" data-i18n-aria="nav.chat">
       <span class="mbn-icon">💬</span>
-      <span class="mbn-label">Chat</span>
+      <span class="mbn-label" data-i18n="nav.chat">💬 Chat</span>
     </button>
-    <button class="mbn-tab" data-tab="skills" role="tab" aria-selected="false" aria-label="Skills">
+    <button class="mbn-tab" data-tab="skills" role="tab" aria-selected="false" data-i18n-aria="nav.skills">
       <span class="mbn-icon">⚡</span>
-      <span class="mbn-label">Skills</span>
+      <span class="mbn-label" data-i18n="nav.skills">⚡ Skills</span>
     </button>
-    <button class="mbn-tab" data-tab="history" role="tab" aria-selected="false" aria-label="Verlauf">
+    <button class="mbn-tab" data-tab="history" role="tab" aria-selected="false" data-i18n-aria="nav.history">
       <span class="mbn-icon">📚</span>
-      <span class="mbn-label">Verlauf</span>
+      <span class="mbn-label" data-i18n="nav.history">📚 History</span>
     </button>
-    <button class="mbn-tab" data-tab="memory" role="tab" aria-selected="false" aria-label="Memory">
+    <button class="mbn-tab" data-tab="memory" role="tab" aria-selected="false" data-i18n-aria="nav.memory">
       <span class="mbn-icon">🧠</span>
-      <span class="mbn-label">Memory</span>
+      <span class="mbn-label" data-i18n="nav.memory">🧠 Memory</span>
     </button>
-    <button class="mbn-tab" data-tab="profile" role="tab" aria-selected="false" aria-label="Profil">
+    <button class="mbn-tab" data-tab="profile" role="tab" aria-selected="false" data-i18n-aria="nav.profile">
       <span class="mbn-icon">👤</span>
-      <span class="mbn-label">Profil</span>
+      <span class="mbn-label" data-i18n="nav.profile">👤 Profile</span>
     </button>
   </nav>
 
@@ -417,9 +416,9 @@
         <input type="file" id="img-input" accept="image/*" style="display:none" aria-label="Upload image" />
         <button class="attach-btn" id="attach-btn" data-i18n-title="chat.attachImage" title="📎 Bild aus Galerie" aria-label="Bild anfügen">📎</button>
 
-        <!-- Kamera-Button: direkter Kamera-Zugriff (nur Mobile) -->
-        <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" aria-label="Kamera" />
-        <button class="camera-btn" id="camera-btn" title="📷 Foto aufnehmen" aria-label="Kamera öffnen" style="display:none">📷</button>
+        <!-- Camera Button (Mobile only) -->
+        <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" data-i18n-aria="chat.camera" />
+        <button class="camera-btn" id="camera-btn" data-i18n-title="chat.camera" data-i18n-aria="chat.camera" style="display:none">📷</button>
 
         <!-- Microphone Button + Waveform -->
         <div class="mic-container" id="mic-container">

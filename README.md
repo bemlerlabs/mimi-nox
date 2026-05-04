@@ -13,8 +13,8 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Ollama](https://img.shields.io/badge/Powered%20by-Ollama-000?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PC9zdmc+)](https://ollama.com)
 [![Gemma4](https://img.shields.io/badge/Model-Gemma%204%20E4B-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/gemma)
-[![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-111%20passed-22c55e?style=for-the-badge&logo=pytest&logoColor=white)](#-testing)
+[![License](https://img.shields.io/badge/License-Apache%202.0-22c55e?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
+[![Tests](https://img.shields.io/badge/Tests-383%20passed-22c55e?style=for-the-badge&logo=pytest&logoColor=white)](#-testing)
 [![Docker](https://img.shields.io/badge/Docker-One%20Click-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#-docker)
 [![i18n](https://img.shields.io/badge/Languages-All-f59e0b?style=for-the-badge&logo=googletranslate&logoColor=white)](#-internationalization)
 
@@ -650,15 +650,56 @@ Contributions welcome! Please note:
 
 ## 📄 License
 
-MIT — [MiMi Tech AI UG](https://mimiai.de), Bad Liebenzell, Black Forest, Germany
-© 2026 MiMi Tech AI UG. Released under the [MIT License](LICENSE).
+**Apache License 2.0** — Open Source, Free Forever.
+
+Copyright © 2026 [MiMi Tech AI UG (haftungsbeschränkt)](https://mimiai.de), Bad Liebenzell, Black Forest, Germany.
+
+Licensed under the [Apache License, Version 2.0](LICENSE). You may use, modify, and distribute this software freely under the terms of the license. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🏗 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      MiMi Nox Architecture                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────┐ │
+│  │  Frontend    │  │  FastAPI     │  │  Ollama (Gemma 4 E4B)   │ │
+│  │  HTML/JS/CSS │──│  Server      │──│  100% Local Inference   │ │
+│  │  i18n (6 lang)│ │  SSE Stream  │  │  Vision + Thinking Mode │ │
+│  └─────────────┘  └──────┬───────┘  └─────────────────────────┘ │
+│                          │                                      │
+│  ┌───────────────────────┼──────────────────────────┐           │
+│  │             Core Engine (Python)                  │           │
+│  │  ┌──────────┐ ┌──────────┐ ┌────────────────────┐ │           │
+│  │  │  ReAct   │ │ Swarm    │ │ 15 Tools           │ │           │
+│  │  │  Agent   │ │ Pipeline │ │ Web, Shell, Files  │ │           │
+│  │  │  Loop    │ │ (Multi)  │ │ Vision, Browser    │ │           │
+│  │  └──────────┘ └──────────┘ └────────────────────┘ │           │
+│  │  ┌──────────┐ ┌──────────┐ ┌────────────────────┐ │           │
+│  │  │  Memory  │ │ Profile  │ │ Skill Loader       │ │           │
+│  │  │ ChromaDB │ │ Learning │ │ Markdown → Agent   │ │           │
+│  │  └──────────┘ └──────────┘ └────────────────────┘ │           │
+│  └───────────────────────────────────────────────────┘           │
+│                                                                 │
+│  Zero Cloud · Zero Telemetry · 383 Tests · Apache 2.0           │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 <div align="center">
 
-*Built with ❤️ in the Black Forest. No cloud. No tracking. 100% yours. 🌲*
+### Built with precision in the Black Forest 🌲
 
-**[⬆ Back to top](#-what-is-mimi-nox)**
+*Zero cloud dependencies. Zero telemetry. Zero compromise.*
+
+*From concept to production — engineered for the AI community.*
+
+[![Star History](https://img.shields.io/github/stars/MimiTechAi/mimi-nox?style=social)](https://github.com/MimiTechAi/mimi-nox)
+
+**[⬆ Back to top](#your-ai-your-knowledge-your-machine)**
 
 </div>
