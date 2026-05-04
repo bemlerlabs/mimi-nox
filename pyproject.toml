@@ -37,6 +37,7 @@ dependencies = [
     "qrcode[pil]>=7.4.2",
     "playwright>=1.40.0",
     "apscheduler>=3.10.0",
+    "edge-tts>=7.0.0",
 ]
 
 [project.optional-dependencies]
