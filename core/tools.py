@@ -31,6 +31,14 @@ from pathlib import Path
 import ollama
 from ddgs import DDGS
 
+# Lazy-import pdfplumber — nur wenn PDF tatsächlich gelesen wird
+try:
+    import pdfplumber as _pdfplumber
+    _PDF_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    _pdfplumber = None  # type: ignore[assignment]
+    _PDF_AVAILABLE = False
+
 
 # Module-level shared Ollama client (reuse TCP connection)
 _shared_client: ollama.AsyncClient | None = None
@@ -253,33 +261,74 @@ async def file_search(query: str, path: str | None = None) -> str:
 
 async def read_file(path: str) -> str:
     """
-    Liest eine Datei und gibt den Inhalt zurück.
+    Reads a file and returns its text content.
+    Supports: plain text, code files, Markdown, and PDF.
 
-    Sicherheit: Nur Dateien innerhalb der Whitelist erlaubt.
-    Große Dateien werden auf MAX_FILE_CHARS gekürzt.
+    Security: Only files within the whitelist are allowed.
+    Large files are truncated to MAX_FILE_CHARS.
 
     Raises:
-        FileNotAllowedError:  Pfad außerhalb Whitelist
-        FileNotFoundError:    Datei existiert nicht
+        FileNotAllowedError:  Path outside whitelist
+        FileNotFoundError:    File does not exist
     """
-    # Tilde expandieren
     resolved = Path(path).expanduser()
 
     if not _is_path_allowed(resolved):
         raise FileNotAllowedError(str(resolved))
 
     if not resolved.exists():
-        raise FileNotFoundError(
-            f"Datei nicht gefunden: '{resolved}'"
-        )
+        raise FileNotFoundError(f"File not found: '{resolved}'")
 
+    # ── PDF: extract text via pdfplumber ─────────────────────────────────────
+    if resolved.suffix.lower() == ".pdf":
+        return _extract_pdf_text(resolved)
+
+    # ── Plain text / code / Markdown ─────────────────────────────────────────
     content = resolved.read_text(encoding="utf-8", errors="replace")
 
     if len(content) > MAX_FILE_CHARS:
         content = content[:MAX_FILE_CHARS]
-        content += f"\n\n[Datei gekürzt: Original hatte mehr als {MAX_FILE_CHARS} Zeichen]"
+        content += f"\n\n[File truncated: original had more than {MAX_FILE_CHARS} chars]"
 
     return content
+
+
+def _extract_pdf_text(path: Path) -> str:
+    """
+    Extrahiert Text aus einer PDF-Datei mit pdfplumber.
+
+    GIVEN: Eine gültige PDF-Datei
+    THEN:  Text aller Seiten als String, getrennt durch Page-Marker
+
+    GIVEN: Eine beschädigte / unlesbare PDF
+    THEN:  Informativer Fehlertext (kein Crash)
+    """
+    if not _PDF_AVAILABLE:
+        return (
+            "[PDF reading requires 'pdfplumber'. "
+            "Install it with: pip install pdfplumber]"
+        )
+
+    try:
+        pages: list[str] = []
+        with _pdfplumber.open(str(path)) as pdf:
+            total = len(pdf.pages)
+            for i, page in enumerate(pdf.pages, 1):
+                text = page.extract_text() or ""
+                if text.strip():
+                    pages.append(f"--- Page {i}/{total} ---\n{text.strip()}")
+
+        if not pages:
+            return f"[PDF '{path.name}' contains no extractable text — may be scanned image]"
+
+        full = "\n\n".join(pages)
+        if len(full) > MAX_FILE_CHARS:
+            full = full[:MAX_FILE_CHARS]
+            full += f"\n\n[PDF truncated: original had more than {MAX_FILE_CHARS} chars]"
+        return full
+
+    except Exception as exc:  # pragma: no cover
+        return f"[Could not read PDF '{path.name}': {exc}]"
 
 
 # ===========================================================================
@@ -1066,16 +1115,18 @@ def get_tool_schemas() -> list[dict]:
             "function": {
                 "name": "read_file",
                 "description": (
-                    "Liest den Inhalt einer Datei. "
-                    "Nutze dieses Tool wenn der User eine Datei lesen, analysieren oder erklären möchte. "
-                    "Sicherheit: Nur Dateien im Home-Verzeichnis, Desktop, Documents, Downloads erlaubt."
+                    "Reads the contents of a file and returns its text. "
+                    "Supports plain text, code, Markdown, and PDF files. "
+                    "Use this tool when the user wants to read, analyze, summarize, or explain a file. "
+                    "For PDF files the text is automatically extracted page by page. "
+                    "Security: Only files in the home directory, Desktop, Documents, Downloads are allowed."
                 ),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "path": {
                             "type": "string",
-                            "description": "Absoluter oder ~-relativer Pfad z.B. '~/Desktop/vertrag.txt'",
+                            "description": "Absolute or ~-relative path, e.g. '~/Desktop/contract.pdf'",
                         },
                     },
                     "required": ["path"],

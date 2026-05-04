@@ -17,7 +17,10 @@ def mock_screenshot_b64():
 
 
 # 1. Integration Test: The Event Chain Listener
+import os
+
 @pytest.mark.asyncio
+@pytest.mark.skipif("DISPLAY" not in os.environ, reason="Requires X11 DISPLAY")
 async def test_capture_user_click_shuts_down():
     import pynput
     from unittest.mock import patch
@@ -102,7 +105,7 @@ async def test_succeses_hook_invocation(mock_screenshot_b64):
     """
     import core.vision
     from core.vision import vision_click
-    from unittest.mock import patch, AsyncMock
+    from unittest.mock import patch, AsyncMock, MagicMock
     
     # Mocking
     mock_success_cb = AsyncMock()
@@ -112,9 +115,11 @@ async def test_succeses_hook_invocation(mock_screenshot_b64):
          patch("core.vision._get_bounding_box", return_value="UNSURE"), \
          patch("core.vision._capture_user_click", return_value=(100, 100)), \
          patch("core.vision.check_sandbox", new_callable=AsyncMock), \
+         patch("core.vision.pyautogui", MagicMock()), \
          patch("core.vision_memory.save_vision_rule") as mock_save:
          
         res = await vision_click("Unknown Element")
+        print(f"DEBUG: vision_click returned {res}")
         
         # Verify persistence and success notification were called
         mock_save.assert_called_once()

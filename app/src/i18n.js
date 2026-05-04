@@ -34,6 +34,11 @@ const translations = {
     'offline.message': '⚠ Ollama nicht erreichbar — starte Ollama mit:',
     'offline.retry': '↻ Erneut versuchen',
 
+    // ── Modus-Toggle ──
+    'mode.toggle': 'Modus',
+    'mode.quick': '⚡ Schnell',
+    'mode.deep': '🧠 Gründlich',
+
     // ── Welcome Screen ──
     'welcome.heading': 'Womit kann ich helfen?',
     'welcome.sub': 'Tippe eine Frage oder wähle einen Skill',
@@ -202,6 +207,11 @@ const translations = {
     'offline.message': '⚠ Ollama not reachable — start with:',
     'offline.retry': '↻ Retry',
 
+    // ── Mode Toggle ──
+    'mode.toggle': 'Mode',
+    'mode.quick': '⚡ Quick',
+    'mode.deep': '🧠 Deep',
+
     // ── Welcome Screen ──
     'welcome.heading': 'How can I help?',
     'welcome.sub': 'Type a question or choose a skill',
@@ -365,6 +375,11 @@ const translations = {
     'status.offline': 'Sin conexión',
     'offline.message': '⚠ Ollama no accesible — inicia Ollama con:',
     'offline.retry': '↻ Reintentar',
+
+    // ── Modo Toggle ──
+    'mode.toggle': 'Modo',
+    'mode.quick': '⚡ Rápido',
+    'mode.deep': '🧠 Profundo',
     'welcome.heading': '¿En qué puedo ayudarte?',
     'welcome.sub': 'Escribe una pregunta o elige una habilidad',
     'welcome.searchNews': 'Buscar noticias',
@@ -503,6 +518,11 @@ const translations = {
     'status.offline': 'Hors ligne',
     'offline.message': '⚠ Ollama inaccessible — démarrez Ollama avec :',
     'offline.retry': '↻ Réessayer',
+
+    // ── Mode Toggle ──
+    'mode.toggle': 'Mode',
+    'mode.quick': '⚡ Rapide',
+    'mode.deep': '🧠 Profond',
     'welcome.heading': 'Comment puis-je vous aider ?',
     'welcome.sub': 'Tapez une question ou choisissez une compétence',
     'welcome.searchNews': 'Rechercher des actualités',
@@ -641,6 +661,11 @@ const translations = {
     'status.offline': 'オフライン',
     'offline.message': '⚠ Ollamaに接続できません — 起動してください:',
     'offline.retry': '↻ 再試行',
+
+    // ── モードトグル ──
+    'mode.toggle': 'モード',
+    'mode.quick': '⚡ 素早く',
+    'mode.deep': '🧠 じっくり',
     'welcome.heading': '何かお手伝いしましょうか？',
     'welcome.sub': '質問を入力するか、スキルを選んでください',
     'welcome.searchNews': 'ニュースを検索',
@@ -779,6 +804,11 @@ const translations = {
     'status.offline': '离线',
     'offline.message': '⚠ 无法连接Ollama — 请启动:',
     'offline.retry': '↻ 重试',
+
+    // ── 模式切换 ──
+    'mode.toggle': '模式',
+    'mode.quick': '⚡ 快速',
+    'mode.deep': '🧠 深度',
     'welcome.heading': '有什么可以帮你的？',
     'welcome.sub': '输入问题或选择一个技能',
     'welcome.searchNews': '搜索新闻',

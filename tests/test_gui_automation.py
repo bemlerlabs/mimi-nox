@@ -74,8 +74,6 @@ async def test_rule_3_failsafe_aborts(mock_config):
     """
     async def mock_approve(name, args): return True
     
-    import pyautogui
-    
     with patch("core.vision.ON_SANDBOX_CONFIRM", mock_approve), \
          patch("core.vision._take_screenshot", return_value="dummy_b64"), \
          patch("core.vision._get_bounding_box", new_callable=AsyncMock) as mock_bb:

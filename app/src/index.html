@@ -398,6 +398,28 @@
 
     <!-- Input Row -->
     <div class="input-row">
+      <!-- Mode Toggle -->
+      <div class="mode-toggle-row" id="mode-toggle-row">
+        <button
+          class="mode-btn active"
+          id="mode-toggle-quick"
+          data-mode="quick"
+          data-i18n-title="mode.quick"
+          title="⚡ Quick"
+          aria-label="Quick mode"
+          aria-pressed="true"
+        >⚡</button>
+        <button
+          class="mode-btn"
+          id="mode-toggle-deep"
+          data-mode="deep"
+          data-i18n-title="mode.deep"
+          title="🧠 Deep"
+          aria-label="Deep mode"
+          aria-pressed="false"
+        >🧠</button>
+      </div>
+
       <div class="input-wrap" id="input-wrap">
         <textarea
           class="chat-input"

@@ -199,12 +199,18 @@ class NoxApp {
       imgPreviewName: document.getElementById('img-preview-name'),
       imgPreviewThumb:document.getElementById('img-preview-thumb'),
       imgRemoveBtn:   document.getElementById('img-remove-btn'),
+      // Mode Toggle
+      modeToggleQuick: document.getElementById('mode-toggle-quick'),
+      modeToggleDeep:  document.getElementById('mode-toggle-deep'),
     };
   }
 
   _bindEvents() {
     // Send
     this.el.sendBtn.addEventListener('click', () => this.submitMessage());
+
+    // Mode Toggle
+    this._bindModeToggle();
 
     // Image Attach Button (E4B Vision)
     this._attachedImageB64 = null;
@@ -557,6 +563,7 @@ class NoxApp {
     }
   }
 
+
   /** Bild-Anhang entfernen (nach Send oder manuell) */
   _clearAttachedImage() {
     this._attachedImageB64 = null;
@@ -564,6 +571,54 @@ class NoxApp {
     if (this.el.imgPreviewBar) this.el.imgPreviewBar.style.display = 'none';
     if (this.el.imgPreviewThumb) this.el.imgPreviewThumb.src = '';
     if (this.el.imgPreviewName) this.el.imgPreviewName.textContent = '';
+  }
+
+  /**
+   * Bindet den Quick/Deep Modus-Toggle.
+   *
+   * GIVEN: User klickt auf ⚡ Quick oder 🧠 Deep
+   * WHEN:  Button-Click gefeuert wird
+   * THEN:  Aktiver Button wird visuell hervorgehoben,
+   *        Modus in localStorage gespeichert,
+   *        response_style per API ans Profil gesendet.
+   */
+  _bindModeToggle() {
+    // Zuletzt gewählten Modus aus localStorage laden
+    const saved = localStorage.getItem('mimi-nox-mode') || 'quick';
+    this._responseMode = saved;
+    this._applyModeUI(saved);
+
+    const handleModeClick = (mode) => {
+      this._responseMode = mode;
+      localStorage.setItem('mimi-nox-mode', mode);
+      this._applyModeUI(mode);
+      // Profil-API synchronisieren (non-blocking)
+      const styleValue = mode === 'deep'
+        ? 'detailed and thorough — think step by step'
+        : 'concise and direct';
+      fetch(`${API}/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response_style: styleValue }),
+      }).catch(() => {/* silently ignore */});
+    };
+
+    if (this.el.modeToggleQuick) {
+      this.el.modeToggleQuick.addEventListener('click', () => handleModeClick('quick'));
+    }
+    if (this.el.modeToggleDeep) {
+      this.el.modeToggleDeep.addEventListener('click', () => handleModeClick('deep'));
+    }
+  }
+
+  /** Setzt aktive CSS-Klasse auf den korrekten Mode-Button. */
+  _applyModeUI(mode) {
+    [this.el.modeToggleQuick, this.el.modeToggleDeep].forEach(btn => {
+      if (!btn) return;
+      const isActive = btn.dataset.mode === mode;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', String(isActive));
+    });
   }
 
   clearSession() {
