@@ -1,80 +1,99 @@
 # Contributing to MiMi Nox
 
-Danke für dein Interesse! MiMi Nox ist ein privates Projekt von MiMi Tech AI UG –  
-externe Contributions sind willkommen, solange sie zum Projekt-Spirit passen:  
-**Privat. Lokal. Kein Cloud-Overhead.**
+Thank you for your interest in contributing! MiMi Nox is built by [MiMi Tech AI UG](https://mimiai.de) — external contributions are welcome as long as they align with our core principles:
+
+> **Private. Local. Zero Cloud.**
 
 ---
 
-## Development Setup
+## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/mimiai/mimi-nox
+git clone https://github.com/MimiTechAi/mimi-nox.git
 cd mimi-nox
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,voice]"
-playwright install chromium   # für Headless-Browser-Tests
+playwright install chromium   # for headless browser tests
 ```
 
 ---
 
-## Coding Standards
+## 📏 Coding Standards
 
-- **Python:** PEP 8, Type Hints überall, `async/await` konsequent
-- **JavaScript:** ES2022+, ES-Module (`import/export`), kein Framework, kein Bundler
-- **CSS:** Custom Properties (`var(--green)` etc.), kein Tailwind, kein SCSS
-- **Tests:** TDD – Tests zuerst schreiben, BDD-Notation (Given-When-Then)
-- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`)
+| Area | Standard |
+|------|----------|
+| **Python** | PEP 8, type hints everywhere, `async/await` consistently |
+| **JavaScript** | ES2022+, ES Modules (`import/export`), no framework, no bundler |
+| **CSS** | Custom Properties (`var(--green)` etc.), no Tailwind, no SCSS |
+| **Tests** | TDD — write tests first, BDD notation (Given-When-Then) |
+| **Commits** | [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`) |
 
 ---
 
-## Tests
+## 🧪 Running Tests
 
 ```bash
-# Alle Tests
+# All tests
 pytest tests/ -v
 
-# Einzelnes Modul
+# Single module
 pytest tests/test_artifact_detector.py -v
 
-# Ohne Integrationstests (kein Ollama nötig)
+# Without integration tests (no Ollama needed)
 pytest tests/ -v -m "not integration"
 ```
 
-Neue Features **müssen** mit Tests kommen. Keine Tests → kein Merge.
+> **Rule:** New features **must** include tests. No tests → no merge.
 
 ---
 
-## Neue Features hinzufügen
+## 🛠 Adding Features
 
-### Neues Tool
+### New Tool
 
-1. Funktion in `core/tools.py` implementieren (async, type-annotiert)
-2. In `TOOLS`-Liste registrieren
-3. Tests in `tests/test_tools.py` schreiben
+1. Implement the function in `core/tools.py` (async, type-annotated)
+2. Register it in the `TOOLS` list
+3. Write tests in `tests/test_tools.py`
 
-### Neuer API-Endpunkt
+### New API Endpoint
 
-1. Route in `server/routes/<name>.py` anlegen
-2. In `server/main.py` registrieren
-3. Tests in `tests/test_api.py` erweitern
-4. README API-Referenz aktualisieren
+1. Create route in `server/routes/<name>.py`
+2. Register in `server/main.py`
+3. Add tests in `tests/test_api.py`
+4. Update README API reference
 
-### Neuer Skill
+### New Skill
 
-Einfach eine Markdown-Datei in `skills/` anlegen – kein Python nötig.
-
----
-
-## Projekt-Spirit
-
-- ✅ Lokale Ausführung, null Cloud-Dependencies
-- ✅ Privacy by design
-- ✅ Async everywhere (keine blocking calls im Hauptthread)
-- ❌ Keine API-Keys als Pflicht
-- ❌ Keine externen Analytics/Telemetry
-- ❌ Kein React/Vue/Angular im Frontend
+Simply add a Markdown file to `skills/` — no Python required.
 
 ---
 
-*MiMi Tech AI UG – Bad Liebenzell, Schwarzwald 🌲*
+## 🎯 Project Principles
+
+| ✅ Do | ❌ Don't |
+|-------|---------|
+| Local execution, zero cloud dependencies | Add mandatory API keys |
+| Privacy by design | Add external analytics/telemetry |
+| Async everywhere (no blocking calls in main thread) | Use React/Vue/Angular in frontend |
+| Support all platforms (macOS, Linux, Windows) | Break cross-platform compatibility |
+
+---
+
+## 📋 Pull Request Process
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feat/my-feature`)
+3. Write tests (Given-When-Then)
+4. Commit with Conventional Commits
+5. Ensure all tests pass (`pytest tests/ -v`)
+6. Open a Pull Request using our PR template
+
+---
+
+## 📜 License
+
+By contributing, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
+
+---
+
+*MiMi Tech AI UG — Bad Liebenzell, Black Forest, Germany 🌲*

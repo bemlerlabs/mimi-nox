@@ -14,7 +14,7 @@
 [![Ollama](https://img.shields.io/badge/Powered%20by-Ollama-000?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PC9zdmc+)](https://ollama.com)
 [![Gemma4](https://img.shields.io/badge/Model-Gemma%204%20E4B-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/gemma)
 [![License](https://img.shields.io/badge/License-Apache%202.0-22c55e?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-383%20passed-22c55e?style=for-the-badge&logo=pytest&logoColor=white)](#-testing)
+[![Tests](https://github.com/MimiTechAi/mimi-nox/actions/workflows/tests.yml/badge.svg)](https://github.com/MimiTechAi/mimi-nox/actions/workflows/tests.yml)
 [![Docker](https://img.shields.io/badge/Docker-One%20Click-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#-docker)
 [![i18n](https://img.shields.io/badge/Languages-All-f59e0b?style=for-the-badge&logo=googletranslate&logoColor=white)](#-internationalization)
 
