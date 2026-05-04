@@ -571,7 +571,7 @@ class NoxApp {
     this.sessionId = Date.now();
     this.el.messages.innerHTML = '';
     this.currentMsgId = 0;
-    this._addActivity('done_inline', '✨ Neuer LLM-Kontext bereit.');
+    this._addActivity('done_inline', t('activity.newContext'));
     if (this.el.welcome) this.el.welcome.style.display = 'flex';
     this.switchTab('chat');
     this.el.chatInput.focus();
@@ -1949,7 +1949,7 @@ class NoxApp {
       list.innerHTML = '';
 
       if (!data.entries || data.entries.length === 0) {
-        list.innerHTML = '<div class="history-empty">Noch keine Einträge gespeichert.</div>';
+        list.innerHTML = `<div class="history-empty">${t('memory.noEntries')}</div>`;
         return;
       }
 
@@ -2091,10 +2091,10 @@ class NoxApp {
       </div>
       <div class="skill-card-desc">${this._escHtml(skill.description)}</div>
       <div class="skill-card-footer">
-        <span class="skill-badge ${isBuiltin ? 'builtin' : 'user'}">${isBuiltin ? 'Built-in' : 'Eigener Skill'}</span>
+        <span class="skill-badge ${isBuiltin ? 'builtin' : 'user'}">${isBuiltin ? t('skills.builtIn') : t('skills.userSkill')}</span>
         <div class="skill-card-actions">
-          <button class="skill-action-btn edit-btn">✏️ Bearbeiten</button>
-          ${!isBuiltin ? '<button class="skill-action-btn delete delete-btn">🗑 Löschen</button>' : ''}
+          <button class="skill-action-btn edit-btn">${t('skills.editBtn')}</button>
+          ${!isBuiltin ? `<button class="skill-action-btn delete delete-btn">🗑 ${t('skills.delete')}</button>` : ''}
         </div>
       </div>
     `;

@@ -83,6 +83,8 @@ const translations = {
     'skills.saved': '✅ Gespeichert!',
     'skills.delete': 'Löschen',
     'skills.builtIn': 'Built-in',
+    'skills.editBtn': '✏️ Bearbeiten',
+    'skills.userSkill': 'Eigener Skill',
 
     // ── History Tab ──
     'history.title': '📚 Gespeicherte Unterhaltungen',
@@ -96,6 +98,10 @@ const translations = {
     'memory.sub': 'Die KI erinnert sich über mehrere Sessions an wichtige Informationen.',
     'memory.searchPlaceholder': 'Memory durchsuchen…',
     'memory.delete': 'Löschen',
+    'memory.noEntries': 'Noch keine Einträge gespeichert.',
+
+    // ── Activity ──
+    'activity.newContext': '✨ Neuer LLM-Kontext bereit.',
 
     // ── Profile Tab ──
     'profile.title': '👤 Dein Profil',
@@ -245,6 +251,8 @@ const translations = {
     'skills.saved': '✅ Saved!',
     'skills.delete': 'Delete',
     'skills.builtIn': 'Built-in',
+    'skills.editBtn': '✏️ Edit',
+    'skills.userSkill': 'Custom Skill',
 
     // ── History Tab ──
     'history.title': '📚 Saved Conversations',
@@ -258,6 +266,10 @@ const translations = {
     'memory.sub': 'The AI remembers important information across multiple sessions.',
     'memory.searchPlaceholder': 'Search memory…',
     'memory.delete': 'Delete',
+    'memory.noEntries': 'No entries saved yet.',
+
+    // ── Activity ──
+    'activity.newContext': '✨ New LLM context ready.',
 
     // ── Profile Tab ──
     'profile.title': '👤 Your Profile',

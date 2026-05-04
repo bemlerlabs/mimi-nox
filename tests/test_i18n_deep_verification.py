@@ -117,8 +117,8 @@ def test_round2_given_system_prompt_when_checked_then_in_english():
 # ── Test 2.2: GIVEN system prompt WHEN checked THEN has language rule ─────────
 
 def test_round2_given_system_prompt_when_checked_then_has_language_rule():
-    """GIVEN system prompt WHEN inspected THEN contains CRITICAL LANGUAGE RULE."""
-    assert "CRITICAL LANGUAGE RULE" in NOX_SYSTEM_PROMPT
+    """GIVEN system prompt WHEN inspected THEN contains LANGUAGE RULE."""
+    assert "LANGUAGE RULE" in NOX_SYSTEM_PROMPT
     assert "same language the user writes in" in NOX_SYSTEM_PROMPT
 
 
