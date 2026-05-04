@@ -166,6 +166,8 @@ class NoxApp {
       // History tab
       historyList:  document.getElementById('history-list'),
       clearHistory: document.getElementById('clear-history'),
+      // Tasks tab
+      tasksList:    document.getElementById('tasks-list'),
       // Skills tab
       viewSkills:     document.getElementById('view-skills'),
       skillsGrid:     document.getElementById('skills-grid'),
@@ -1901,6 +1903,7 @@ class NoxApp {
 
     // Tab-spezifische Aktion
     if (tabName === 'history')  this._renderHistoryList();
+    if (tabName === 'tasks')    this.loadTasks();
     if (tabName === 'memory')   this._loadMemoryList();
     if (tabName === 'profile')  this.loadProfile();
     if (tabName === 'skills')   this.loadSkillsTab();
@@ -2117,6 +2120,63 @@ class NoxApp {
   }
 
   // ── Skills Tab ──────────────────────────────────────────────
+  // ── Tasks ──────────────────────────────────────────────
+  async loadTasks() {
+    if (!this.el.tasksList) return;
+    try {
+      const res = await fetch(`${API}/tasks`);
+      if (!res.ok) throw new Error('Network error');
+      const tasks = await res.json();
+      
+      if (tasks.length === 0) {
+        this.el.tasksList.innerHTML = '<div class="history-empty">Keine Aufgaben vorhanden.</div>';
+        return;
+      }
+      
+      this.el.tasksList.innerHTML = tasks.map(t => {
+        const isDone = t.status === 'done';
+        const cbIcon = isDone ? '✅' : '⬜';
+        const cls = isDone ? 'task-done' : '';
+        return `
+          <div class="history-item ${cls}" style="display:flex; align-items:center; cursor:default;">
+            <div style="flex-grow:1;">
+              <div class="history-title" style="${isDone ? 'text-decoration:line-through; opacity:0.6;' : ''}">
+                ${this._escHtml(t.title)}
+              </div>
+              ${t.project ? `<div class="history-date">Project: ${this._escHtml(t.project)}</div>` : ''}
+            </div>
+            <button class="btn-icon" onclick="window.app.toggleTask('${t.id}', '${isDone ? 'open' : 'done'}')" style="font-size:1.2rem; margin-right:10px;" title="Toggle">
+              ${cbIcon}
+            </button>
+            <button class="btn-icon" onclick="window.app.deleteTask('${t.id}')" title="Delete">🗑</button>
+          </div>
+        `;
+      }).join('');
+    } catch(err) {
+      console.error('Failed to load tasks', err);
+      this.el.tasksList.innerHTML = '<div class="history-empty" style="color:#ef4444;">Laden fehlgeschlagen.</div>';
+    }
+  }
+
+  async toggleTask(id, newStatus) {
+    try {
+      await fetch(`${API}/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      this.loadTasks();
+    } catch(err) { console.error(err); }
+  }
+
+  async deleteTask(id) {
+    if(!confirm('Task wirklich löschen?')) return;
+    try {
+      await fetch(`${API}/tasks/${id}`, { method: 'DELETE' });
+      this.loadTasks();
+    } catch(err) { console.error(err); }
+  }
+
   async loadSkillsTab() {
     const grid = this.el.skillsGrid;
     grid.innerHTML = '<div class="history-empty">Skills werden geladen…</div>';

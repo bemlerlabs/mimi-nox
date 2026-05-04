@@ -81,7 +81,7 @@
       <button class="tab"        id="tab-skills"  data-tab="skills"  aria-selected="false" data-i18n="nav.skills">⚡ Skills</button>
       <span class="tab-sep" aria-hidden="true">|</span>
       <button class="tab"        id="tab-history" data-tab="history" aria-selected="false" data-i18n="nav.history">📚 History</button>
-      <span class="tab-sep" aria-hidden="true">|</span>
+      <button class="tab"        id="tab-tasks"   data-tab="tasks"   aria-selected="false" data-i18n="nav.tasks">✅ Tasks</button>
       <button class="tab"        id="tab-memory"  data-tab="memory"  aria-selected="false" data-i18n="nav.memory">🧠 Memory</button>
       <span class="tab-sep" aria-hidden="true">|</span>
       <button class="tab"        id="tab-profile" data-tab="profile" aria-selected="false" data-i18n="nav.profile">👤 Profile</button>
@@ -228,6 +228,14 @@
         <button class="btn-danger" id="clear-history" data-i18n="history.clear" aria-label="Clear history">🗑 Clear History</button>
       </div>
     </section>
+    <!-- ── TASKS TAB ──────────────────────────────── -->
+    <section class="tab-content" id="view-tasks" aria-label="Tasks" hidden>
+      <div class="tab-inner">
+        <h2 class="tab-heading" data-i18n="tasks.title">✅ Tasks & To-Dos</h2>
+        <p class="tab-sub" data-i18n="tasks.sub">Your personal tasks managed by MiMi.</p>
+        <div id="tasks-list" class="tasks-list" aria-label="Tasks list"></div>
+      </div>
+    </section>
 
     <!-- ── MEMORY TAB ─────────────────────────────── -->
     <section class="tab-content" id="view-memory" aria-label="Memory" hidden>
@@ -367,8 +375,12 @@
       <span class="mbn-label" data-i18n="nav.skills">⚡ Skills</span>
     </button>
     <button class="mbn-tab" data-tab="history" role="tab" aria-selected="false" data-i18n-aria="nav.history">
-      <span class="mbn-icon">📚</span>
+      <span class="mbn-icon" aria-hidden="true">📚</span>
       <span class="mbn-label" data-i18n="nav.history">📚 History</span>
+    </button>
+    <button class="mbn-tab" data-tab="tasks" role="tab" aria-selected="false" data-i18n-aria="nav.tasks">
+      <span class="mbn-icon" aria-hidden="true">✅</span>
+      <span class="mbn-label" data-i18n="nav.tasks">✅ Tasks</span>
     </button>
     <button class="mbn-tab" data-tab="memory" role="tab" aria-selected="false" data-i18n-aria="nav.memory">
       <span class="mbn-icon">🧠</span>
