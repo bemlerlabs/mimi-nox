@@ -149,6 +149,23 @@ def test_given_readme_demo_assets_when_checked_then_referenced_media_exists():
     assert missing == []
 
 
+def test_given_readme_when_phone_pairing_is_described_then_qr_flow_is_prominent_and_honest():
+    """
+    GIVEN phone pairing is a core differentiator
+    WHEN the README is scanned
+    THEN the QR flow is visible near the top and remains LAN-first with public access opt-in.
+    """
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    top = readme[:3000]
+
+    assert "Phone Via QR" in readme
+    assert "mimi-nox-mobile-qr-demo.gif" in top
+    assert "mimi-nox-mobile-qr-demo.mp4" in top
+    assert "LAN-first" in readme
+    assert "Public access is an optional online mode" in readme
+    assert "miminox start --lan" in readme
+
+
 def test_given_project_metadata_when_checked_then_repository_urls_match_public_remote():
     """
     GIVEN package metadata is shown on GitHub and package indexes
