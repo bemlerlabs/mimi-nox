@@ -66,9 +66,9 @@ miminox = "miminox_cli:main"
 clawdash  = "clawdash:main"
 
 [project.urls]
-Homepage   = "https://github.com/mimiai/mimi-nox"
-Repository = "https://github.com/mimiai/mimi-nox"
-Issues     = "https://github.com/mimiai/mimi-nox/issues"
+Homepage   = "https://github.com/MimiTechAi/mimi-nox"
+Repository = "https://github.com/MimiTechAi/mimi-nox"
+Issues     = "https://github.com/MimiTechAi/mimi-nox/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["core", "ui", "server"]

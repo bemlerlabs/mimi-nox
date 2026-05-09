@@ -18,7 +18,7 @@
 - [ ] All existing tests pass (`pytest tests/ -v`)
 - [ ] I have updated the documentation (if applicable)
 - [ ] My changes generate no new warnings
-- [ ] This change respects MiMi Nox's principles: **local-first, zero cloud, zero telemetry**
+- [ ] This change respects MiMi Nox's principles: **offline-first default, explicit opt-in for online features, no telemetry**
 
 ## Screenshots (if applicable)
 

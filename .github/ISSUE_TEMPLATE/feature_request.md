@@ -26,4 +26,4 @@ Add any mockups, screenshots, or examples from other tools.
 
 ### Checklist
 - [ ] I've searched existing issues to make sure this isn't a duplicate
-- [ ] This feature aligns with MiMi Nox's principles (local-first, privacy, no cloud)
+- [ ] This feature aligns with MiMi Nox's principles (offline-first defaults, privacy, explicit opt-in for online features)

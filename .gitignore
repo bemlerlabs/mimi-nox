@@ -20,6 +20,9 @@ build/
 .pytest_cache/
 .coverage
 
+# Generated README media work files
+docs/media/frames/
+
 # JavaScript dependencies
 node_modules/
 

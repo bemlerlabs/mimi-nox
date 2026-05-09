@@ -12,6 +12,18 @@ PUBLIC_FILES = [
     ROOT / "app" / "src" / "i18n.js",
 ]
 
+GITHUB_TRUST_FILES = [
+    ROOT / "README.md",
+    ROOT / "CONTRIBUTING.md",
+    ROOT / "SECURITY.md",
+    ROOT / "docs" / "MIMINOX_VISION_2026.md",
+    ROOT / "docs" / "TASK_LIST_TDD.md",
+    ROOT / "v2" / "README.md",
+    ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md",
+    ROOT / ".github" / "ISSUE_TEMPLATE" / "bug_report.md",
+    ROOT / ".github" / "ISSUE_TEMPLATE" / "feature_request.md",
+]
+
 
 def _public_text() -> str:
     return "\n".join(path.read_text(encoding="utf-8") for path in PUBLIC_FILES)
@@ -93,3 +105,56 @@ def test_given_root_pwa_when_dom_checked_then_provider_badge_and_offline_help_ex
     assert 'id="btn-provider-settings"' in html
     assert 'id="provider-modal"' in html
     assert 'value="openai_compatible"' in html
+
+
+def test_given_github_entrypoints_when_scanned_then_growth_copy_stays_factual():
+    """
+    GIVEN GitHub-facing entry points
+    WHEN trust-sensitive copy is checked
+    THEN README and contribution surfaces avoid unverifiable or over-broad claims.
+    """
+    text = "\n".join(path.read_text(encoding="utf-8") for path in GITHUB_TRUST_FILES)
+    banned = [
+        "doesn't exist anywhere else",
+        "Full demo video coming soon",
+        "see for yourself in 30 seconds",
+        "zero cloud",
+        "100% Local Inference",
+        "All languages",
+        "248 passed",
+        "32/32 passed",
+        "better than",
+        "OpenClaw",
+        "Open Claw",
+    ]
+    hits = [
+        term
+        for term in banned
+        if re.search(rf"(?<![A-Za-z0-9_]){re.escape(term)}(?![A-Za-z0-9_])", text, re.IGNORECASE)
+    ]
+    assert hits == []
+
+
+def test_given_readme_demo_assets_when_checked_then_referenced_media_exists():
+    """
+    GIVEN the GitHub README is the first product surface
+    WHEN it references screenshots or demo media
+    THEN those files exist in the repository.
+    """
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    refs = re.findall(r'(?:src|href)="(docs/[^"#]+\.(?:png|gif|mp4|webm))"', readme)
+    refs += re.findall(r"\((docs/[^)#]+\.(?:png|gif|mp4|webm))\)", readme)
+    assert refs
+    missing = [ref for ref in refs if not (ROOT / ref).exists()]
+    assert missing == []
+
+
+def test_given_project_metadata_when_checked_then_repository_urls_match_public_remote():
+    """
+    GIVEN package metadata is shown on GitHub and package indexes
+    WHEN URLs are checked
+    THEN they point to the actual public repository.
+    """
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "https://github.com/MimiTechAi/mimi-nox" in pyproject
+    assert "https://github.com/mimiai/mimi-nox" not in pyproject

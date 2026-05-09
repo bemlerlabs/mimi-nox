@@ -32,6 +32,7 @@ def test_given_git_tracked_files_when_checked_then_local_artifacts_are_not_track
         for path in tracked
         if "/node_modules/" in f"/{path}/"
         or re.search(r"\.(db|sqlite|sqlite3|db-wal|db-shm)$", path)
+        or re.search(r"(^|/)=\d", path)
     ]
     assert forbidden == []
 

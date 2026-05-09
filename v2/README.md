@@ -1,29 +1,24 @@
-# MiMiNox v2 — Node.js Preview
+# MiMi Nox v2 Preview
 
-> ⚠️ **Dies ist die experimentelle Node.js-Reimplementierung.**
-> Für die stabile Version: → [Haupt-README](../README.md)
+`v2/` is an experimental Node.js workspace. It is not the main product and is not part of the default user install path.
 
----
+For the supported offline-first PWA, use the root project:
 
-## Was ist v2?
+```bash
+cd ..
+./install.sh
+```
 
-`v2/` ist eine von Grund auf neu geschriebene Version des MiMiNox-Backends in **Node.js / Express**.
+## Current Scope
 
-Sie enthält das neue **Krisen-Team-Konzept** mit 4 spezialisierten Agenten (Medic, Engineer, Navigator, Sensor), einem eigenen Offline-RAG-System und einem React-Dashboard.
-
-## Status
-
-| Feature | Status |
+| Area | Status |
 |---|---|
-| Krisen-Orchestrator | ✅ Fertig |
-| Offline RAG (TF-IDF) | ✅ Fertig |
-| Streaming (SSE) | ✅ Fertig |
-| Dashboard (React) | ✅ Fertig |
-| Memory-Kommandos | ✅ Fertig |
-| Vision / PyAutoGUI | ❌ Nur in v1 |
-| 248 Unit Tests | ❌ In Arbeit (vitest) |
+| Node.js server experiments | Experimental |
+| React dashboard experiments | Experimental |
+| Offline retrieval prototypes | Experimental |
+| Root PWA release path | Use the repository root |
 
-## Quick Start (v2)
+## Development
 
 ```bash
 cd v2
@@ -31,6 +26,4 @@ npm install
 npm run dev
 ```
 
-Öffne `http://localhost:3000`
-
-> **Für alle anderen:** `./install.sh` im Haupt-Verzeichnis ist der richtige Einstieg.
+Keep v2 documentation clearly marked as experimental. Public positioning, installer guidance, security defaults, and GitHub README copy belong to the root project.

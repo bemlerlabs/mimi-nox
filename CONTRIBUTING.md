@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing! MiMi Nox is built by [MiMi Tech AI UG](https://mimiai.de) — external contributions are welcome as long as they align with our core principles:
 
-> **Private. Local. Zero Cloud.**
+> **Offline-first by default. Online integrations only by explicit opt-in.**
 
 ---
 
@@ -72,7 +72,7 @@ Simply add a Markdown file to `skills/` — no Python required.
 
 | ✅ Do | ❌ Don't |
 |-------|---------|
-| Local execution, zero cloud dependencies | Add mandatory API keys |
+| Local execution and offline-first defaults | Add mandatory API keys |
 | Privacy by design | Add external analytics/telemetry |
 | Async everywhere (no blocking calls in main thread) | Use React/Vue/Angular in frontend |
 | Support all platforms (macOS, Linux, Windows) | Break cross-platform compatibility |

@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.0.x   | ✅ Active |
-| < 1.0   | ❌ End of life |
+| 4.x     | Active |
+| < 4.0   | Best-effort only |
 
 ## Reporting a Vulnerability
 
@@ -34,14 +34,14 @@ Include:
 
 MiMi Nox is designed with **privacy and security as core principles**:
 
-- **Zero Telemetry** — No tracking, no analytics, no external logging
-- **Local-First** — All AI inference runs on your device
+- **Zero Telemetry in this repository** — No analytics or tracking pipeline is included
+- **Local-First Default** — Default AI inference uses local Ollama; optional providers are opt-in
 - **Shell Sandbox** — Commands always require explicit user approval
 - **File Whitelist** — Access restricted to safe directories only
 - **XSS Protection** — All output sanitized via DOMPurify
 - **SVG Sanitizer** — Blocks script injection in generated graphics
-- **No API Keys Required** — No external service dependencies for core functionality
-- **Full Isolation** — Runs in a virtual environment; delete the folder to remove completely
+- **No API Keys Required for Core Use** — External providers are optional
+- **Virtual Environment Isolation** — Python dependencies run from the project environment
 
 ## Scope
 
