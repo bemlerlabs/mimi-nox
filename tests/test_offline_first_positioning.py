@@ -117,6 +117,8 @@ def test_given_github_entrypoints_when_scanned_then_growth_copy_stays_factual():
     banned = [
         "doesn't exist anywhere else",
         "Full demo video coming soon",
+        "Download desktop MP4",
+        "Download mobile QR MP4",
         "see for yourself in 30 seconds",
         "zero cloud",
         "100% Local Inference",
@@ -142,8 +144,8 @@ def test_given_readme_demo_assets_when_checked_then_referenced_media_exists():
     THEN those files exist in the repository.
     """
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    refs = re.findall(r'(?:src|href)="(docs/[^"#]+\.(?:png|gif|mp4|webm))"', readme)
-    refs += re.findall(r"\((docs/[^)#]+\.(?:png|gif|mp4|webm))\)", readme)
+    refs = re.findall(r'(?:src|href)="(docs/[^"#]+\.(?:png|gif))"', readme)
+    refs += re.findall(r"\((docs/[^)#]+\.(?:png|gif))\)", readme)
     assert refs
     missing = [ref for ref in refs if not (ROOT / ref).exists()]
     assert missing == []
@@ -160,10 +162,20 @@ def test_given_readme_when_phone_pairing_is_described_then_qr_flow_is_prominent_
 
     assert "Phone Via QR" in readme
     assert "mimi-nox-mobile-qr-demo.gif" in top
-    assert "mimi-nox-mobile-qr-demo.mp4" in top
     assert "LAN-first" in readme
     assert "Public access is an optional online mode" in readme
     assert "miminox start --lan" in readme
+
+
+def test_given_readme_media_when_checked_then_no_video_artifacts_are_promoted():
+    """
+    GIVEN documentation media is a public trust surface
+    WHEN README media references are checked
+    THEN unstable generated videos are not promoted until reviewed.
+    """
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert ".mp4" not in readme
+    assert ".webm" not in readme
 
 
 def test_given_project_metadata_when_checked_then_repository_urls_match_public_remote():

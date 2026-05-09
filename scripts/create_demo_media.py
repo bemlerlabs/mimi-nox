@@ -3,8 +3,6 @@ from __future__ import annotations
 import contextlib
 import base64
 import json
-import shutil
-import subprocess
 import threading
 import time
 from io import BytesIO
@@ -12,7 +10,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from playwright.sync_api import sync_playwright
 import qrcode
 
@@ -100,13 +98,13 @@ class DemoHandler(SimpleHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/api/chat/stream":
+            events = [
+                {"type": "chunk", "data": "MiMi Nox läuft lokal mit gemma4:e4b. "},
+                {"type": "chunk", "data": "Du kannst chatten, Bilder analysieren, Dateien prüfen und Skills starten."},
+                {"type": "done"},
+            ]
             body = "\n".join(
-                [
-                    'data: {"type":"chunk","data":"MiMi Nox laeuft lokal mit gemma4:e4b. "}',
-                    'data: {"type":"chunk","data":"Du kannst chatten, Bilder analysieren, Dateien pruefen und Skills starten."}',
-                    'data: {"type":"done"}',
-                    "",
-                ]
+                [f"data: {json.dumps(event, ensure_ascii=False)}" for event in events] + [""]
             ).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
@@ -159,36 +157,46 @@ def build_gif(frames: list[Path], name: str, durations: list[int]) -> Path:
     return gif_path
 
 
-def build_mp4(frames: list[Path], name: str) -> Path | None:
-    if not shutil.which("ffmpeg"):
-        return None
-    list_file = FRAME_DIR / "frames.txt"
-    with list_file.open("w", encoding="utf-8") as handle:
-        for frame in frames:
-            handle.write(f"file '{frame.name}'\n")
-            handle.write("duration 1.1\n")
-        handle.write(f"file '{frames[-1].name}'\n")
-    mp4_path = OUT_DIR / f"{name}.mp4"
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(list_file),
-            "-vf",
-            "fps=12,format=yuv420p",
-            str(mp4_path),
-        ],
-        cwd=FRAME_DIR,
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    return mp4_path
+def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    for candidate in [
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/System/Library/Fonts/Supplemental/Helvetica.ttf",
+        "/Library/Fonts/Arial.ttf",
+    ]:
+        try:
+            return ImageFont.truetype(candidate, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
+def create_qr_intro_frame() -> Path:
+    width, height = 780, 1688
+    bg = Image.new("RGB", (width, height), "#020705")
+    draw = ImageDraw.Draw(bg)
+    title_font = _font(58)
+    body_font = _font(34)
+    small_font = _font(28)
+
+    draw.text((64, 110), "MiMi Nox", fill="#f4fff6", font=title_font)
+    draw.ellipse((64, 212, 94, 242), fill="#22c55e")
+    draw.text((116, 208), "Lokal verbunden", fill="#22c55e", font=body_font)
+    draw.text((64, 330), "QR am Desktop scannen", fill="#f4fff6", font=title_font)
+    draw.text((64, 425), "Dein Handy öffnet die mobile PWA im selben WLAN.", fill="#96a09c", font=small_font)
+
+    qr_png = Image.open(BytesIO(base64.b64decode(qr_base64(LAN_MOBILE_URL)))).convert("RGB")
+    qr_png = qr_png.resize((420, 420), Image.Resampling.NEAREST)
+    qr_box = Image.new("RGB", (500, 500), "#f7fff9")
+    qr_box.paste(qr_png, (40, 40))
+    bg.paste(qr_box, (140, 585))
+
+    draw.rounded_rectangle((64, 1180, 716, 1328), radius=36, outline="#14532d", width=3, fill="#03140a")
+    draw.text((104, 1218), "Standard: lokales Netzwerk", fill="#22c55e", font=body_font)
+    draw.text((104, 1268), "Public Zugriff bleibt optional.", fill="#96a09c", font=small_font)
+
+    path = FRAME_DIR / "mobile_00_qr_intro.png"
+    bg.save(path)
+    return path
 
 
 def capture_desktop_demo(browser, url: str) -> list[Path]:
@@ -250,17 +258,11 @@ def capture_mobile_demo(browser, url: str) -> list[Path]:
     frames.append(capture(page, "mobile_03_prompt"))
 
     page.locator("#send-btn").click()
-    page.wait_for_function("() => document.body.innerText.includes('MiMi Nox laeuft lokal')")
+    page.wait_for_function("() => document.body.innerText.includes('MiMi Nox läuft lokal')")
     frames.append(capture(page, "mobile_04_answer"))
 
-    page.locator('#mobile-skill-chips .skill-chip[data-trigger="/research"]').click()
-    page.locator("#input").fill("/research aktuelle lokale KI news")
-    page.locator("#send-btn").click()
-    page.wait_for_selector("#online-confirm:not(.hidden)")
-    frames.append(capture(page, "mobile_05_online_optin"))
-
     page.close()
-    return frames
+    return [create_qr_intro_frame(), *frames]
 
 
 def main() -> None:
@@ -276,15 +278,9 @@ def main() -> None:
         browser.close()
 
     gif = build_gif(desktop_frames, "mimi-nox-demo", [1000, 900, 1200, 1200, 1200, 1400])
-    mp4 = build_mp4(desktop_frames, "mimi-nox-demo")
-    mobile_gif = build_gif(mobile_frames, "mimi-nox-mobile-qr-demo", [1100, 1000, 1000, 1500, 1500])
-    mobile_mp4 = build_mp4(mobile_frames, "mimi-nox-mobile-qr-demo")
+    mobile_gif = build_gif(mobile_frames, "mimi-nox-mobile-qr-demo", [1400, 1100, 1000, 1000, 1500])
     print(f"GIF: {gif.relative_to(ROOT)}")
-    if mp4:
-        print(f"MP4: {mp4.relative_to(ROOT)}")
     print(f"Mobile GIF: {mobile_gif.relative_to(ROOT)}")
-    if mobile_mp4:
-        print(f"Mobile MP4: {mobile_mp4.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
