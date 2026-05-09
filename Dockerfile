@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ libffi-dev libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 COPY core/ core/
 COPY server/ server/
 COPY ui/ ui/
@@ -18,7 +18,7 @@ COPY app/ app/
 COPY knowledge/ knowledge/
 COPY run_server.py clawdash.py ./
 
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir .
 
 # ── Runtime Stage ────────────────────────────────────────────────
 FROM python:3.12-slim
@@ -27,7 +27,7 @@ WORKDIR /app
 
 # Runtime deps only
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libsqlite3-0 curl \
+    libsqlite3-0 curl openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages + app

@@ -51,12 +51,12 @@ class TestReflect:
         AND    reason ist String (kann leer sein)
         AND    Kein Crash
         """
-        with patch("core.react.ollama.AsyncClient") as MockClient:
+        with patch("core.react.build_provider_client") as mock_build_client:
             client = AsyncMock()
             client.chat = AsyncMock(return_value=MagicMock(
                 message=MagicMock(content="Die Antwort ist vollständig und korrekt. REVISION: NEIN")
             ))
-            MockClient.return_value = client
+            mock_build_client.return_value = client
 
             result = await reflect(
                 response=GOOD_ANSWER,
@@ -76,14 +76,14 @@ class TestReflect:
         THEN   Rückgabe: needs_revision=True
         AND    reason enthält Begründung (nicht-leerer String)
         """
-        with patch("core.react.ollama.AsyncClient") as MockClient:
+        with patch("core.react.build_provider_client") as mock_build_client:
             client = AsyncMock()
             client.chat = AsyncMock(return_value=MagicMock(
                 message=MagicMock(
                     content="Die Antwort ist unvollständig. REVISION: JA\nGrund: Keine konkreten Informationen."
                 )
             ))
-            MockClient.return_value = client
+            mock_build_client.return_value = client
 
             result = await reflect(
                 response=BAD_ANSWER,
@@ -104,12 +104,12 @@ class TestReflect:
         THEN   Rückgabe ist ReflexionResult (kein Crash)
         AND    needs_revision ist bool
         """
-        with patch("core.react.ollama.AsyncClient") as MockClient:
+        with patch("core.react.build_provider_client") as mock_build_client:
             client = AsyncMock()
             client.chat = AsyncMock(return_value=MagicMock(
                 message=MagicMock(content="Ich bin ein Sprachmodell.")
             ))
-            MockClient.return_value = client
+            mock_build_client.return_value = client
 
             result = await reflect(
                 response="Test-Antwort",
@@ -173,7 +173,7 @@ class TestReactLoop:
 
         revision_count = [0]
 
-        async def mock_reflect(response, question, model):
+        async def mock_reflect(response, question, model, provider_config=None):
             revision_count[0] += 1
             if revision_count[0] == 1:
                 return ReflexionResult(needs_revision=True, reason="Unvollständig")

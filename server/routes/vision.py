@@ -18,7 +18,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
-import ollama
+from core.model_provider import ProviderSetupError, build_provider_client, get_active_provider
 
 router = APIRouter(tags=["Vision"])
 
@@ -90,7 +90,9 @@ async def analyze_uploaded_image(
     image_b64 = base64.b64encode(raw).decode("utf-8")
 
     try:
-        client = ollama.AsyncClient()
+        provider = get_active_provider()
+        client = build_provider_client(provider)
+        model = provider.model if model == DEFAULT_MODEL else model
         response = await client.chat(
             model=model,
             messages=[
@@ -103,6 +105,8 @@ async def analyze_uploaded_image(
             stream=False,
         )
         analysis = str(response.message.content or "Keine Beschreibung generiert.")
+    except ProviderSetupError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Vision-Fehler: {exc}")
     finally:
@@ -140,9 +144,11 @@ async def analyze_base64_image(req: VisionBase64Request):
         raise HTTPException(status_code=400, detail="Bild zu klein oder leer.")
 
     try:
-        client = ollama.AsyncClient()
+        provider = get_active_provider()
+        client = build_provider_client(provider)
+        model = provider.model if req.model == DEFAULT_MODEL else req.model
         response = await client.chat(
-            model=req.model,
+            model=model,
             messages=[
                 {
                     "role": "user",
@@ -153,11 +159,13 @@ async def analyze_base64_image(req: VisionBase64Request):
             stream=False,
         )
         analysis = str(response.message.content or "Keine Beschreibung generiert.")
+    except ProviderSetupError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Vision-Fehler: {exc}")
 
     return {
         "analysis": analysis,
-        "model": req.model,
+        "model": model,
         "question": req.question,
     }

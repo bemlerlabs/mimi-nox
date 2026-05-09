@@ -23,6 +23,12 @@ from collections.abc import Callable
 
 import ollama
 
+from core.model_provider import (
+    ModelProviderConfig,
+    ProviderSetupError,
+    build_provider_client,
+    get_active_provider,
+)
 from core.types import Message
 from core.tools import (
     ShellConfirmationRequired,
@@ -39,6 +45,14 @@ FIRST_CHUNK_TIMEOUT: float = 15.0
 
 # Maximum tool-calling iterations to prevent infinite loops
 MAX_TOOL_ITERATIONS: int = 5
+
+# Native Ollama thinking is model-specific. Gemma 4 E4B exposes completion and
+# vision, but rejects `think=True`; explicit <|think|> tags are still parsed.
+NATIVE_THINKING_MODELS = (
+    "qwen3",
+    "deepseek-r1",
+    "gpt-oss",
+)
 
 # ── Nox Persönlichkeit ─────────────────────────────────────────────────────
 NOX_SYSTEM_PROMPT = """You are MiMi Nox – a smart, friendly AI assistant running 100% locally on the user's device (no cloud, no tracking).
@@ -74,9 +88,18 @@ Rules:
 
 
 
-# ── Thinking Mode (Gemma4 E4B nativ) ───────────────────────────────────────
+# ── Thinking Mode (tag parser plus native support for selected models) ──────
 THINK_OPEN  = "<|think|>"
 THINK_CLOSE = "<|/think|>"
+
+
+def supports_native_thinking(model: str) -> bool:
+    normalized = (model or "").lower()
+    return any(normalized.startswith(prefix) for prefix in NATIVE_THINKING_MODELS)
+
+
+def _native_thinking_kwargs(model: str) -> dict[str, bool]:
+    return {"think": True} if supports_native_thinking(model) else {}
 
 
 class ThinkingStreamParser:
@@ -208,6 +231,7 @@ async def stream_response(
     on_chunk: Callable[[str], None],
     on_thinking: Callable[[str], None] | None = None,
     on_loading_hint: Callable[[], None] | None = None,
+    provider_config: ModelProviderConfig | None = None,
 ) -> str:
     """
     Stream a response from Ollama token by token.
@@ -222,7 +246,8 @@ async def stream_response(
         OllamaModelNotFoundError: if the model is not pulled.
         asyncio.CancelledError: propagates cleanly for Textual worker shutdown.
     """
-    client = ollama.AsyncClient()
+    provider = provider_config or get_active_provider()
+    client = build_provider_client(provider)
     full_response = ""
     hint_sent = False
 
@@ -270,6 +295,7 @@ async def send_message_safe(
     on_chunk: Callable[[str], None],
     on_fallback: Callable[[], None] | None = None,
     on_loading_hint: Callable[[], None] | None = None,
+    provider_config: ModelProviderConfig | None = None,
 ) -> str:
     """
     Safe wrapper: tries streaming first, falls back to non-streaming on failure.
@@ -286,6 +312,7 @@ async def send_message_safe(
             history=history,
             on_chunk=on_chunk,
             on_loading_hint=on_loading_hint,
+            provider_config=provider_config,
         )
     except (OllamaNotReachableError, OllamaModelNotFoundError, asyncio.CancelledError):
         raise
@@ -295,7 +322,8 @@ async def send_message_safe(
         if on_fallback is not None:
             on_fallback()
 
-        client = ollama.AsyncClient()
+        provider = provider_config or get_active_provider()
+        client = build_provider_client(provider)
         try:
             response = await client.chat(
                 model=model,
@@ -369,6 +397,7 @@ async def chat_with_tools(
     on_tool_done: Callable[[str, str], None] | None = None,
     on_phase: Callable[[str], None] | None = None,
     on_loading_hint: Callable[[], None] | None = None,
+    provider_config: ModelProviderConfig | None = None,
 ) -> str:
     """
     Tool-enabled chat mit automatischer Tool-Ausführung.
@@ -394,7 +423,8 @@ async def chat_with_tools(
         OllamaModelNotFoundError:   Modell nicht lokal vorhanden
         ShellConfirmationRequired:  Shell-Tool braucht User-Bestätigung
     """
-    client = ollama.AsyncClient()
+    provider = provider_config or get_active_provider()
+    client = build_provider_client(provider)
     messages: list = list(history)
     tools = get_tool_schemas()
 
@@ -457,7 +487,7 @@ async def chat_with_tools(
                     messages=messages,
                     tools=tools,
                     stream=False,
-                    think=True,
+                    **_native_thinking_kwargs(model),
                 ),
                 timeout=TOOL_DETECT_TIMEOUT,
             )
@@ -537,7 +567,7 @@ async def chat_with_tools(
                 messages=messages,
                 tools=tools,
                 stream=False,
-                think=True,
+                **_native_thinking_kwargs(model),
             )
         except Exception as exc:
             exc_str = str(exc).lower()
@@ -560,7 +590,7 @@ async def chat_with_tools(
         msg = response.message
 
         # ── Thinking aus Ollama's nativem Feld extrahieren ──────────────
-        # Gemma4 mit think=True gibt Denk-Inhalt in msg.thinking zurück
+        # Only models with native Ollama thinking enabled populate msg.thinking.
         if on_thinking and hasattr(msg, "thinking") and msg.thinking:
             thinking_text = str(msg.thinking)
             # Wort-für-Wort emittieren für smooth streaming feel
@@ -584,4 +614,3 @@ async def chat_with_tools(
             final_content = parser.answer
 
     return final_content
-

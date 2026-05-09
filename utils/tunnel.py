@@ -3,6 +3,17 @@ import threading
 import re
 import time
 import atexit
+import shutil
+
+def _extract_public_tunnel_url(line: str) -> str | None:
+    match = re.search(r"https://([a-zA-Z0-9-]+\.(?:lhr\.life|localhost\.run))", line)
+    if not match:
+        return None
+    host = match.group(1)
+    if host == "admin.localhost.run":
+        return None
+    return f"https://{host}"
+
 
 class TunnelManager:
     _instance = None
@@ -31,8 +42,14 @@ class TunnelManager:
     def start_tunnel(self, port: int):
         if self.process is not None:
             return
-            
-        print(f"🌍 Starting public remote tunnel for port {port}...")
+
+        ssh_path = shutil.which("ssh")
+        if not ssh_path:
+            print("⚠️  ssh client not found — tunnel unavailable, falling back to local IP. "
+                  "Install openssh-client for remote access.")
+            return
+
+        print(f"🌍 Starting public remote tunnel for port {port} (via {ssh_path})...")
         self.process = subprocess.Popen(
             ["ssh", "-o", "StrictHostKeyChecking=no", "-R", f"80:localhost:{port}", "nokey@localhost.run", "-T"],
             stdout=subprocess.PIPE,
@@ -42,11 +59,12 @@ class TunnelManager:
 
         def monitor():
             for line in self.process.stdout:
-                # Suche nach https://(.*).lhr.life
-                match = re.search(r"https://[a-zA-Z0-9-]+\.lhr\.life", line)
-                if match:
-                    self.public_url = match.group(0)
+                public_url = _extract_public_tunnel_url(line)
+                if public_url:
+                    self.public_url = public_url
                     print(f"✅ Public Tunnel established: {self.public_url}")
+                elif self.process.poll() is not None:
+                    print(f"⚠️  Tunnel process exited with code {self.process.returncode}")
 
         thread = threading.Thread(target=monitor, daemon=True)
         thread.start()

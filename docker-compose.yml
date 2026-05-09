@@ -1,9 +1,9 @@
 # ◑ MiMi Nox – Docker Compose
-# One command: docker compose up → http://localhost:8765
+# Advanced option: docker compose up → http://localhost:8765
 #
-# Your data stays on YOUR machine:
+# Offline-first by default:
 # - Memory, sessions, skills, and profile are stored in named volumes
-# - Nothing leaves your computer. Ever.
+# - Web search, public mobile access, and external APIs are optional opt-in paths
 
 services:
   ollama:
@@ -12,11 +12,21 @@ services:
       - ollama_data:/root/.ollama
     ports:
       - "11434:11434"
+    environment:
+      - OLLAMA_MODELS=/root/.ollama
+    entrypoint: >
+      /bin/sh -c "
+        ollama serve &
+        until ollama list >/dev/null 2>&1; do sleep 1; done &&
+        ollama pull gemma4:e4b &&
+        wait
+      "
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      test: ["CMD", "sh", "-c", "ollama list >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 60s
     restart: unless-stopped
 
   mimi-nox:
@@ -27,7 +37,10 @@ services:
       ollama:
         condition: service_healthy
     environment:
-      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - MIMI_LOCAL_OLLAMA_BASE_URL=${MIMI_LOCAL_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - MIMI_NOX_DOCKER=1
+      - MIMI_NOX_MOBILE_HOST=${MIMI_NOX_MOBILE_HOST:-}
     volumes:
       - mimi_data:/root/.mimi-nox
     healthcheck:
@@ -39,7 +52,7 @@ services:
 
 volumes:
   ollama_data:
-    # Ollama model cache (gemma4:e4b ≈ 2.5 GB, downloaded once)
+    # Ollama model cache (gemma4:e4b ≈ 9.6 GB, downloaded once)
   mimi_data:
     # YOUR personal knowledge: memory, sessions, skills, profile
-    # This is YOUR data. It never leaves your machine.
+    # This is local app data; optional online features must be enabled explicitly.

@@ -7,7 +7,7 @@
  *   - Alles andere: Network-First mit Cache-Fallback
  */
 
-const CACHE_VERSION = 'v14'; // tactical offline update
+const CACHE_VERSION = 'v24'; // refresh restricted-browser and file-protocol frontend assets
 const CACHE_NAME = `mimi-nox-${CACHE_VERSION}`;
 
 // Statische Assets die pre-gecached werden
@@ -35,6 +35,16 @@ const NETWORK_ONLY_PATTERNS = [
   '/audio/',
 ];
 
+// Release-critical files prefer the network, then fall back to cache offline.
+const NETWORK_FIRST_ASSETS = [
+  '/',
+  '/index.html',
+  '/main.js',
+  '/i18n.js',
+  '/style.css',
+  '/service-worker.js',
+];
+
 // ── Install: Pre-cache statische Assets ────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -46,14 +56,30 @@ self.addEventListener('install', (event) => {
 
 // ── Activate: Alte Caches löschen ──────────────────────────────────────────
 self.addEventListener('activate', (event) => {
+  let deletedOldCache = false;
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
         keys
           .filter((key) => key.startsWith('mimi-nox-') && key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+          .map((key) => caches.delete(key).then((deleted) => {
+            deletedOldCache = deletedOldCache || deleted;
+            return deleted;
+          }))
       ))
       .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then((clients) => {
+        if (!deletedOldCache) return undefined;
+        return Promise.all(
+          clients.map((client) => {
+            if ('navigate' in client && client.url) {
+              return client.navigate(client.url);
+            }
+            return undefined;
+          })
+        );
+      })
   );
 });
 
@@ -70,6 +96,25 @@ self.addEventListener('fetch', (event) => {
           JSON.stringify({ error: 'offline', message: 'Server nicht erreichbar' }),
           { status: 503, headers: { 'Content-Type': 'application/json' } }
         )
+      )
+    );
+    return;
+  }
+
+  const isDocument = event.request.mode === 'navigate' || event.request.destination === 'document';
+  const isNetworkFirstAsset = NETWORK_FIRST_ASSETS.includes(url.pathname);
+  if (isDocument || isNetworkFirstAsset) {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response && response.status === 200 && event.request.method === 'GET') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() =>
+        caches.match(event.request)
+          .then((cached) => cached || caches.match('/index.html'))
+          .then((fallback) => fallback || new Response('', { status: 503 }))
       )
     );
     return;

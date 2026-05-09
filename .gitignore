@@ -20,6 +20,16 @@ build/
 .pytest_cache/
 .coverage
 
+# JavaScript dependencies
+node_modules/
+
+# Local databases and SQLite sidecars
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+
 # Session data (user-specific)
 ~/.clawdash/
 

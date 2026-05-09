@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from core import __version__
 from core.chat import check_ollama_connection
 from core.connectivity_probe import ConnectivityProbe
+from core.model_provider import get_active_provider
 from core.model_router import get_router
 
 router = APIRouter(tags=["Health"])
@@ -27,6 +28,9 @@ class HealthResponse(BaseModel):
     active_tier:  str
     active_model: str
     dgx_online:   bool
+    active_provider: str
+    offline_capable: bool
+    requires_internet: bool
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -61,6 +65,7 @@ async def health_check() -> HealthResponse:
     # Lokales Ollama prüfen (für Legacy-Feld)
     connected, _, all_models = await check_ollama_connection(model="")
     nox_models = [m for m in all_models if active_config.name in m]
+    provider = get_active_provider()
 
     return HealthResponse(
         status="ok",
@@ -68,6 +73,9 @@ async def health_check() -> HealthResponse:
         ollama=connected,
         models=nox_models if nox_models else ([active_config.name] if connected else []),
         active_tier=active_config.tier.value,
-        active_model=active_config.name,
+        active_model=provider.model or active_config.name,
         dgx_online=dgx_online,
+        active_provider=provider.provider,
+        offline_capable=provider.offline_capable,
+        requires_internet=provider.requires_internet,
     )

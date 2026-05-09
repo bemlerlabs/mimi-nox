@@ -14,8 +14,70 @@ const API = (window.location.protocol === 'file:' || window.location.protocol ==
 const STORE_KEY_HISTORY = 'mimi_nox_history';
 const DEFAULT_MODEL     = 'gemma4:e4b';
 
-import { ArtifactStore, ArtifactPanel } from './artifact.js';
-import { t, applyTranslations, setLanguage, currentLang, needsLanguageSelection } from './i18n.js';
+import { ArtifactStore, ArtifactPanel } from './artifact.js?v=20260507-frontend1';
+import { t, applyTranslations, setLanguage, currentLang, needsLanguageSelection } from './i18n.js?v=20260507-frontend1';
+
+const safeStorage = Object.freeze({
+  get(key, fallback = null) {
+    try {
+      return window.localStorage.getItem(key) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  },
+  set(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // Some embedded browsers intentionally disable storage.
+    }
+  },
+  remove(key) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Some embedded browsers intentionally disable storage.
+    }
+  },
+});
+
+function getServiceWorker() {
+  try {
+    return navigator.serviceWorker || null;
+  } catch {
+    return null;
+  }
+}
+
+const SKILL_ICONS = Object.freeze({
+  '/chart': '📊',
+  '/review': '💻',
+  '/files': '📁',
+  '/help': '⚡',
+  '/pdf': '📄',
+  '/shell': '>_',
+  '/svg': '◇',
+  '/scan': '📷',
+  '/research': '🔍',
+  '/write': '✏️',
+  '/learn': '🧠'
+});
+
+const SKILL_SCOPES = Object.freeze({
+  '/research': { scope: 'online', badge: 'Online optional' },
+  '/shell': { scope: 'approval', badge: 'Approval' },
+  '/scan': { scope: 'approval', badge: 'Approval' },
+});
+
+const serviceWorker = getServiceWorker();
+if (serviceWorker) {
+  let reloadedForFreshServiceWorker = false;
+  serviceWorker.addEventListener('controllerchange', () => {
+    if (reloadedForFreshServiceWorker) return;
+    reloadedForFreshServiceWorker = true;
+    window.location.reload();
+  });
+}
 
 /* ── ◑ NoxApp ────────────────────────────────────────────── */
 class NoxApp {
@@ -128,11 +190,14 @@ class NoxApp {
   _queryElements() {
     this.el = {
       chatInput:    document.getElementById('chat-input'),
+      inputWrap:    document.getElementById('input-wrap'),
+      selectedSkillPill: document.getElementById('selected-skill-pill'),
       sendBtn:      document.getElementById('send-btn'),
       messages:     document.getElementById('messages'),
       welcome:      document.getElementById('welcome-screen'),
       statusDot:    document.getElementById('status-dot'),
       statusText:   document.getElementById('status-text'),
+      providerBadge:document.getElementById('provider-badge'),
       offlineBanner:document.getElementById('offline-banner'),
       offlineRetry: document.getElementById('offline-retry'),
 
@@ -143,6 +208,14 @@ class NoxApp {
       skillChips:   document.getElementById('skill-chips'),
       autonomToggle:document.getElementById('autonom-toggle'),
       btnMobile:    document.getElementById('btn-mobile-pairing'),
+      mobileQrOverlay: document.getElementById('mobile-qr-overlay'),
+      mobileQrCloseBtn: document.getElementById('mobile-qr-close-btn'),
+      mobileQrImg: document.getElementById('mobile-qr-img'),
+      mobileQrLoader: document.getElementById('mobile-qr-loader'),
+      mobileQrUrl: document.getElementById('mobile-qr-url'),
+      mobileQrWarning: document.getElementById('mobile-qr-warning'),
+      mobileQrPublicBtn: document.getElementById('mobile-qr-public-btn'),
+      btnProviderSettings: document.getElementById('btn-provider-settings'),
       btnHamburger: document.getElementById('btn-hamburger'),
       btnNewChat:   document.getElementById('btn-new-chat'),
       btnExport:    document.getElementById('btn-export-chat'),
@@ -205,6 +278,16 @@ class NoxApp {
       // Mode Toggle
       modeToggleQuick: document.getElementById('mode-toggle-quick'),
       modeToggleDeep:  document.getElementById('mode-toggle-deep'),
+      providerModal: document.getElementById('provider-modal'),
+      providerForm: document.getElementById('provider-form'),
+      providerCloseBtn: document.getElementById('provider-close-btn'),
+      providerCancelBtn: document.getElementById('provider-cancel-btn'),
+      providerModelInput: document.getElementById('provider-model-input'),
+      providerBaseUrlInput: document.getElementById('provider-base-url-input'),
+      providerOnlineWarning: document.getElementById('provider-online-warning'),
+      providerOnlineConfirm: document.getElementById('provider-online-confirm'),
+      providerStatus: document.getElementById('provider-status'),
+      providerSaveBtn: document.getElementById('provider-save-btn'),
     };
   }
 
@@ -227,6 +310,9 @@ class NoxApp {
           // Base64 ohne Data-URL-Prefix
           const b64 = ev.target.result.split(',')[1];
           this._attachedImageB64 = b64;
+          this.el.attachBtn.classList.add('has-image');
+          this.el.inputWrap?.classList.add('has-image');
+          this.el.inputWrap?.setAttribute('aria-label', 'Nachricht schreiben, Bild angefuegt');
           if (this.el.imgPreviewBar) {
             this.el.imgPreviewBar.style.display = 'flex';
             this.el.imgPreviewName.textContent = file.name;
@@ -253,6 +339,44 @@ class NoxApp {
     // Mobile Pairing Button
     if (this.el.btnMobile) {
       this.el.btnMobile.addEventListener('click', () => this._showMobileModal());
+    }
+    if (this.el.mobileQrCloseBtn) {
+      this.el.mobileQrCloseBtn.addEventListener('click', () => this._hideMobileModal());
+    }
+    if (this.el.mobileQrPublicBtn) {
+      this.el.mobileQrPublicBtn.addEventListener('click', () => {
+        const ok = confirm('Public QR ist online und kann Daten ueber einen Tunnel erreichbar machen. Fortfahren?');
+        if (ok) this._showMobileModal('public');
+      });
+    }
+    if (this.el.mobileQrOverlay) {
+      this.el.mobileQrOverlay.addEventListener('click', (e) => {
+        if (e.target === this.el.mobileQrOverlay) this._hideMobileModal();
+      });
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.el.mobileQrOverlay && !this.el.mobileQrOverlay.classList.contains('hidden')) {
+        this._hideMobileModal();
+      }
+    });
+
+    if (this.el.btnProviderSettings) {
+      this.el.btnProviderSettings.addEventListener('click', () => this._showProviderModal());
+    }
+    if (this.el.providerCloseBtn) {
+      this.el.providerCloseBtn.addEventListener('click', () => this._hideProviderModal());
+    }
+    if (this.el.providerCancelBtn) {
+      this.el.providerCancelBtn.addEventListener('click', () => this._hideProviderModal());
+    }
+    if (this.el.providerModal) {
+      this.el.providerModal.addEventListener('click', (e) => {
+        if (e.target === this.el.providerModal) this._hideProviderModal();
+      });
+    }
+    if (this.el.providerForm) {
+      this.el.providerForm.addEventListener('change', () => this._syncProviderModeFields());
+      this.el.providerForm.addEventListener('submit', (e) => this._saveProviderSettings(e));
     }
 
     // Mobile Menu Toggle
@@ -287,6 +411,7 @@ class NoxApp {
           e.preventDefault();
         } else {
           this.el.chatInput.value = '';
+          this._clearSelectedSkill();
           this._autoResize();
         }
       } else if (e.key === 'ArrowUp' && this.el.chatInput.value === '') {
@@ -303,6 +428,14 @@ class NoxApp {
       this._autoResize();
       // Slash-Autocomplete
       const val = this.el.chatInput.value;
+      if (
+        this._selectedSkillTrigger &&
+        val.startsWith('/') &&
+        val.trim() !== this._selectedSkillTrigger &&
+        !val.startsWith(`${this._selectedSkillTrigger} `)
+      ) {
+        this._clearSelectedSkill();
+      }
       if (val.startsWith('/')) {
         this._showSlashMenu(val.slice(1));
       } else {
@@ -362,9 +495,7 @@ class NoxApp {
       const chip = e.target.closest('.skill-chip');
       if (!chip) return;
       const trigger = chip.dataset.trigger;
-      this.el.chatInput.value = trigger + ' ';
-      this.el.chatInput.focus();
-      this._highlightChip(chip);
+      this._selectSkillTrigger(trigger, chip);
     });
 
     // Willkommens-Karten & interne Links
@@ -404,7 +535,8 @@ class NoxApp {
       btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
     });
 
-    // Autonom Toggle
+    // Experimental tool auto-approval toggle is intentionally absent in the
+    // public UI. Keep this guarded handler for old local builds.
     if (this.el.autonomToggle) {
       this.el.autonomToggle.addEventListener('change', async (e) => {
         const enabled = e.target.checked;
@@ -414,7 +546,7 @@ class NoxApp {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled })
           });
-          this._addActivity(enabled ? 'warning' : 'info', `🤖 Autonomer Modus ${enabled ? 'AKTIVIERT' : 'DEAKTIVIERT'}`);
+          this._addActivity(enabled ? 'warning' : 'info', `Tool auto-approval ${enabled ? 'enabled' : 'disabled'}`);
           const chatInputWrap = this.el.chatInput.closest('.chat-input-wrap');
           if (chatInputWrap) chatInputWrap.classList.toggle('danger-mode-glow', enabled);
         } catch (err) {
@@ -425,7 +557,9 @@ class NoxApp {
     }
 
     // Offline Retry
-    this.el.offlineRetry.addEventListener('click', () => this.checkHealth());
+    this.el.offlineBanner?.addEventListener('click', (e) => {
+      if (e.target.closest('#offline-retry')) this.checkHealth();
+    });
 
     // Profil-Formular
     this.el.profileForm.addEventListener('submit', (e) => {
@@ -442,7 +576,7 @@ class NoxApp {
     // Clear history
     this.el.clearHistory?.addEventListener('click', () => {
       if (confirm(t('history.confirmClear'))) {
-        localStorage.removeItem(STORE_KEY_HISTORY);
+        safeStorage.remove(STORE_KEY_HISTORY);
         this._renderHistoryList();
       }
     });
@@ -456,8 +590,12 @@ class NoxApp {
     this.el.obCategories.addEventListener('click', (e) => {
       const cat = e.target.closest('.ob-cat');
       if (!cat) return;
-      this.el.obCategories.querySelectorAll('.ob-cat').forEach(c => c.classList.remove('selected'));
+      this.el.obCategories.querySelectorAll('.ob-cat').forEach(c => {
+        c.classList.remove('selected');
+        c.setAttribute('aria-pressed', 'false');
+      });
       cat.classList.add('selected');
+      cat.setAttribute('aria-pressed', 'true');
       this._selectedCategory = cat.dataset.cat;
       this.el.obStartBtn.disabled = false;
     });
@@ -485,7 +623,7 @@ class NoxApp {
         { uri: 'en-US-GuyNeural', name: 'Guy (Lebensecht, Männlich, Englisch)' }
       ];
       
-      const savedUri = localStorage.getItem('mimi_nox_voice') || 'de-DE-KillianNeural';
+      const savedUri = safeStorage.get('mimi_nox_voice', 'de-DE-KillianNeural');
       this.el.pfVoice.innerHTML = '';
       
       neuralVoices.forEach(v => {
@@ -531,7 +669,7 @@ class NoxApp {
       return;
     }
 
-    const savedUri = localStorage.getItem('mimi_nox_voice') || 'de-DE-KillianNeural';
+    const savedUri = safeStorage.get('mimi_nox_voice', 'de-DE-KillianNeural');
 
     try {
       const res = await fetch(`${API}/audio/synthesize`, {
@@ -579,6 +717,11 @@ class NoxApp {
     if (this.el.imgPreviewBar) this.el.imgPreviewBar.style.display = 'none';
     if (this.el.imgPreviewThumb) this.el.imgPreviewThumb.src = '';
     if (this.el.imgPreviewName) this.el.imgPreviewName.textContent = '';
+    if (this.el.attachBtn) this.el.attachBtn.classList.remove('has-image');
+    if (this.el.inputWrap) {
+      this.el.inputWrap.classList.remove('has-image');
+      this.el.inputWrap.setAttribute('aria-label', 'Nachricht schreiben');
+    }
   }
 
   /**
@@ -592,13 +735,13 @@ class NoxApp {
    */
   _bindModeToggle() {
     // Zuletzt gewählten Modus aus localStorage laden
-    const saved = localStorage.getItem('mimi-nox-mode') || 'quick';
+    const saved = safeStorage.get('mimi-nox-mode', 'quick');
     this._responseMode = saved;
     this._applyModeUI(saved);
 
     const handleModeClick = (mode) => {
       this._responseMode = mode;
-      localStorage.setItem('mimi-nox-mode', mode);
+      safeStorage.set('mimi-nox-mode', mode);
       this._applyModeUI(mode);
       // Profil-API synchronisieren (non-blocking)
       const styleValue = mode === 'deep'
@@ -650,18 +793,63 @@ class NoxApp {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
 
-      if (data.ollama) {
+      const modelMissing = data.model_installed === false || /modell|model/i.test(data.detail || '') && /nicht installiert|not installed|missing/i.test(data.detail || '');
+
+      if (data.ollama && !modelMissing) {
         this._setStatus('connected', data);
+        this._updateProviderBadge(data);
         this.el.offlineBanner.classList.add('hidden');
       } else {
         this._setStatus('offline', data);
-        this.el.offlineBanner.classList.remove('hidden');
+        this._updateProviderBadge(data);
+        this._showOfflineBanner(data);
       }
 
     } catch {
       this._setStatus('offline', null);
-      this.el.offlineBanner.classList.remove('hidden');
+      this._updateProviderBadge(null);
+      this._showOfflineBanner(null);
     }
+  }
+
+  _showOfflineBanner(healthData = null) {
+    const banner = this.el.offlineBanner;
+    if (!banner) return;
+    const detail = String(healthData?.detail || '');
+    const model = healthData?.active_model || this.model || DEFAULT_MODEL;
+    const modelMissing = healthData?.model_installed === false || /modell|model/i.test(detail) && /nicht installiert|not installed|missing/i.test(detail);
+
+    if (modelMissing) {
+      banner.innerHTML = `
+        <span>⚠ Modell <strong>${this._escHtml(model)}</strong> fehlt oder ist nicht ladbar.</span>
+        <span>Starte die Reparatur mit <code>miminox doctor</code> und danach <code>miminox start</code>.</span>
+        <button class="offline-retry" id="offline-retry" aria-label="Retry">↻ Retry</button>
+      `;
+    } else {
+      banner.innerHTML = `
+        <span>${t('offline.message')}</span> <code>ollama serve</code>
+        <button class="offline-retry" id="offline-retry" aria-label="Retry">${t('offline.retry')}</button>
+      `;
+    }
+    banner.classList.remove('hidden');
+  }
+
+  _isMissingModelError(message) {
+    const text = String(message || '');
+    return /gemma4:e4b/i.test(text) && /modell|model/i.test(text) && /nicht installiert|not installed|missing|not found/i.test(text);
+  }
+
+  _modelRecoveryHtml(message) {
+    const detail = this._escHtml(String(message || `Modell '${DEFAULT_MODEL}' nicht installiert`));
+    return `
+      <div class="model-recovery">
+        <strong>⚠ Lokales Modell fehlt</strong>
+        <p>${detail}</p>
+        <p>Auf dem Mac im Terminal ausführen:</p>
+        <code>miminox doctor</code>
+        <code>miminox start</code>
+      </div>
+    `;
   }
 
   _setStatus(state, healthData = null) {
@@ -702,6 +890,125 @@ class NoxApp {
       font-weight: 600; letter-spacing: 0.5px;
       vertical-align: middle; margin-left: 6px;
     ">${cfg.icon} ${cfg.label}</span>`;
+  }
+
+  _updateProviderBadge(healthData) {
+    const badge = this.el.providerBadge;
+    if (!badge) return;
+    const provider = healthData?.active_provider || 'local_ollama';
+    const model = healthData?.active_model || this.model || DEFAULT_MODEL;
+    const online = healthData?.requires_internet === true;
+    const labels = {
+      local_ollama: 'Local',
+      custom_ollama: 'LAN',
+      openai_compatible: 'Online API',
+    };
+    badge.textContent = `${labels[provider] || 'Local'} · ${model}`;
+    badge.classList.toggle('online', online);
+    badge.title = online
+      ? 'Optional online provider. Data goes to your configured endpoint.'
+      : 'Offline-capable local provider.';
+  }
+
+  _selectedProviderMode() {
+    return this.el.providerForm?.querySelector('input[name="provider"]:checked')?.value || 'local_ollama';
+  }
+
+  _setProviderMode(provider) {
+    if (!this.el.providerForm) return;
+    const radio = this.el.providerForm.querySelector(`input[name="provider"][value="${provider}"]`);
+    if (radio) radio.checked = true;
+    this._syncProviderModeFields();
+  }
+
+  _syncProviderModeFields() {
+    const provider = this._selectedProviderMode();
+    const isApi = provider === 'openai_compatible';
+    if (this.el.providerOnlineWarning) {
+      this.el.providerOnlineWarning.classList.toggle('hidden', !isApi);
+    }
+    if (!isApi && this.el.providerOnlineConfirm) {
+      this.el.providerOnlineConfirm.checked = false;
+    }
+    if (this.el.providerBaseUrlInput) {
+      this.el.providerBaseUrlInput.placeholder = provider === 'openai_compatible'
+        ? 'https://api.example.com/v1'
+        : 'http://localhost:11434';
+    }
+  }
+
+  async _showProviderModal() {
+    if (!this.el.providerModal) return;
+    this.el.providerModal.classList.remove('hidden');
+    if (this.el.providerStatus) this.el.providerStatus.textContent = 'Loading provider status...';
+
+    try {
+      const res = await fetch(`${API}/model/providers`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const active = data.active || {};
+      this._setProviderMode(active.provider || 'local_ollama');
+      if (this.el.providerModelInput) this.el.providerModelInput.value = active.model || DEFAULT_MODEL;
+      if (this.el.providerBaseUrlInput) this.el.providerBaseUrlInput.value = active.base_url || '';
+      if (this.el.providerStatus) this.el.providerStatus.textContent = active.requires_internet
+        ? 'Online/API provider selected. Data goes to your configured provider.'
+        : 'Offline-capable provider selected.';
+    } catch {
+      this._setProviderMode('local_ollama');
+      if (this.el.providerModelInput) this.el.providerModelInput.value = DEFAULT_MODEL;
+      if (this.el.providerStatus) this.el.providerStatus.textContent = 'Provider API not reachable. Local Ollama remains the default.';
+    }
+  }
+
+  _hideProviderModal() {
+    if (this.el.providerModal) this.el.providerModal.classList.add('hidden');
+  }
+
+  async _saveProviderSettings(e) {
+    e.preventDefault();
+    const provider = this._selectedProviderMode();
+    const isApi = provider === 'openai_compatible';
+    if (isApi && !this.el.providerOnlineConfirm?.checked) {
+      if (this.el.providerStatus) {
+        this.el.providerStatus.textContent = 'Confirm the Online/API warning before saving.';
+      }
+      return;
+    }
+
+    const payload = {
+      provider,
+      model: this.el.providerModelInput?.value.trim() || DEFAULT_MODEL,
+      base_url: this.el.providerBaseUrlInput?.value.trim() || null,
+      confirm_online: isApi,
+    };
+
+    if (this.el.providerStatus) this.el.providerStatus.textContent = 'Saving...';
+    if (this.el.providerSaveBtn) this.el.providerSaveBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${API}/model/provider`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Provider could not be saved.');
+      const active = data.active || {};
+      this._updateProviderBadge({
+        active_provider: active.provider,
+        active_model: active.model,
+        requires_internet: active.requires_internet,
+      });
+      if (this.el.providerStatus) this.el.providerStatus.textContent = active.requires_internet
+        ? 'Saved. Online/API requests go to your configured provider.'
+        : 'Saved. Offline-capable local provider active.';
+      setTimeout(() => this._hideProviderModal(), 700);
+      this.checkHealth();
+    } catch (err) {
+      if (this.el.providerStatus) this.el.providerStatus.textContent = err.message;
+    } finally {
+      if (this.el.providerSaveBtn) this.el.providerSaveBtn.disabled = false;
+    }
   }
 
   async exportChat() {
@@ -750,33 +1057,103 @@ class NoxApp {
       const chips = this.el.skillChips;
       chips.innerHTML = '';
 
-      const icons = {
-        '/research': '🔍',
-        '/files':    '📁',
-        '/write':    '✏️',
-        '/review':   '💻',
-        '/shell':    '>_',
-      };
-
       (data.skills || []).forEach(skill => {
+        if (!/^\/[a-z0-9_-]+$/i.test(skill.trigger || '')) return;
         const btn = document.createElement('button');
-        btn.className = 'skill-chip';
-        btn.dataset.trigger = skill.trigger;
-        btn.title = skill.description;
-        btn.textContent = (icons[skill.trigger] || '⚡') + ' ' + skill.trigger;
-        btn.setAttribute('role', 'listitem');
+        const description = skill.description || '';
+        this._prepareSkillChip(btn, skill.trigger, {
+          description,
+          skillName: skill.name || skill.trigger,
+          tools: Array.isArray(skill.tools) ? skill.tools.join(',') : '',
+        });
         chips.appendChild(btn);
       });
     } catch {
       // Behalte die statischen HTML-Chips als Fallback
+      this.el.skillChips?.querySelectorAll('.skill-chip').forEach((chip) => {
+        this._prepareSkillChip(chip, chip.dataset.trigger || chip.textContent?.trim().split(/\s+/).pop() || '');
+      });
     }
+  }
+
+  _skillIcon(trigger) {
+    return SKILL_ICONS[trigger] || '⚡';
+  }
+
+  _skillScope(trigger) {
+    return SKILL_SCOPES[trigger] || { scope: 'local', badge: '' };
+  }
+
+  _prepareSkillChip(btn, trigger, meta = {}) {
+    if (!btn || !/^\/[a-z0-9_-]+$/i.test(trigger || '')) return;
+    const description = meta.description || btn.title || '';
+    const scopeMeta = this._skillScope(trigger);
+    btn.className = btn.className || 'skill-chip';
+    btn.type = 'button';
+    btn.dataset.trigger = trigger;
+    btn.dataset.scope = scopeMeta.scope;
+    if (meta.skillName) btn.dataset.skillName = meta.skillName;
+    if (meta.tools) btn.dataset.tools = meta.tools;
+    btn.title = description || trigger;
+    btn.setAttribute('aria-label', `${trigger} Skill auswaehlen. ${description}`.trim());
+    btn.setAttribute('aria-pressed', 'false');
+    btn.replaceChildren(document.createTextNode(`${this._skillIcon(trigger)} ${trigger}`));
+    if (scopeMeta.badge) {
+      const badge = document.createElement('span');
+      badge.className = 'skill-chip-badge';
+      badge.textContent = scopeMeta.badge;
+      btn.appendChild(badge);
+    }
+  }
+
+  _selectSkillTrigger(trigger, chip = null) {
+    if (!/^\/[a-z0-9_-]+$/i.test(trigger || '')) return false;
+
+    this._selectedSkillTrigger = trigger;
+    this.el.chatInput.value = '';
+    this.el.chatInput.placeholder = `Frage für ${trigger}...`;
+    this.el.chatInput.focus();
+    this.el.chatInput.setSelectionRange(this.el.chatInput.value.length, this.el.chatInput.value.length);
+    this.el.inputWrap?.classList.add('has-selected-skill');
+    if (this.el.inputWrap) this.el.inputWrap.dataset.selectedSkill = trigger;
+    if (this.el.selectedSkillPill) {
+      this.el.selectedSkillPill.textContent = trigger;
+      this.el.selectedSkillPill.classList.remove('hidden');
+    }
+    this._hideSlashMenu();
+    this._autoResize();
+    const matchingChip = chip || Array.from(this.el.skillChips.querySelectorAll('.skill-chip'))
+      .find(candidate => candidate.dataset.trigger === trigger);
+    this._highlightChip(matchingChip);
+    return true;
+  }
+
+  _clearSelectedSkill() {
+    this._selectedSkillTrigger = null;
+    this.el.inputWrap?.classList.remove('has-selected-skill');
+    if (this.el.inputWrap) delete this.el.inputWrap.dataset.selectedSkill;
+    if (this.el.selectedSkillPill) {
+      this.el.selectedSkillPill.textContent = '';
+      this.el.selectedSkillPill.classList.add('hidden');
+    }
+    if (!this.isRecording) this.el.chatInput.placeholder = t('chat.placeholder');
+    this.el.skillChips?.querySelectorAll('.skill-chip')
+      .forEach(c => {
+        c.classList.remove('active');
+        c.setAttribute('aria-pressed', 'false');
+      });
   }
 
   _highlightChip(activeChip) {
     this.el.skillChips.querySelectorAll('.skill-chip')
-      .forEach(c => c.classList.remove('active'));
+      .forEach(c => {
+        c.classList.remove('active');
+        c.setAttribute('aria-pressed', 'false');
+      });
+    if (!activeChip) return;
     activeChip.classList.add('active');
-    setTimeout(() => activeChip.classList.remove('active'), 1500);
+    activeChip.setAttribute('aria-pressed', 'true');
+    activeChip.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
   }
 
   // ── Slash-Command Autocomplete ───────────────────────────
@@ -821,9 +1198,7 @@ class NoxApp {
         this._slashSkillCache = (data.skills || []).map(s => ({
           trigger: s.trigger,
           description: s.description || '',
-          icon: { '/research': '🔍', '/write': '✏️', '/review': '💻',
-                  '/files': '📁', '/shell': '>_', '/scan': '⚡',
-                  '/swarm': '🐝', '/learn': '🧠' }[s.trigger] || '⚡'
+          icon: this._skillIcon(s.trigger)
         }));
       } catch {
         menu.style.display = 'none';
@@ -855,10 +1230,7 @@ class NoxApp {
     // Click-Handler
     menu.querySelectorAll('.slash-item').forEach(item => {
       item.addEventListener('click', () => {
-        this.el.chatInput.value = item.dataset.trigger + ' ';
-        this.el.chatInput.focus();
-        this._hideSlashMenu();
-        this._autoResize();
+        this._selectSkillTrigger(item.dataset.trigger);
       });
     });
 
@@ -877,8 +1249,11 @@ class NoxApp {
       return;
     }
     
-    const text = this.el.chatInput.value.trim();
-    if (!text) return;
+    const rawText = this.el.chatInput.value.trim();
+    if (!rawText) return;
+    const text = this._selectedSkillTrigger && !rawText.startsWith('/')
+      ? `${this._selectedSkillTrigger} ${rawText}`
+      : rawText;
 
     if (text === '/mobile') {
       this.el.chatInput.value = '';
@@ -892,6 +1267,14 @@ class NoxApp {
       this._autoResize();
       this._handleScheduleCommand(text);
       return;
+    }
+
+    if (this._requiresOnlineConfirmation(text) && this._onlineConfirmApprovedText !== text) {
+      this._showDesktopOnlineConfirm(text);
+      return;
+    }
+    if (this._onlineConfirmApprovedText === text) {
+      this._onlineConfirmApprovedText = null;
     }
 
     // Bei manueller Tastatur-Eingabe: Stummschaltung der Auto-Voice
@@ -909,6 +1292,7 @@ class NoxApp {
     this.cmdIndex = -1;
 
     this.el.chatInput.value = '';
+    this._clearSelectedSkill();
     this._autoResize();
     this._hideWelcome();
     this._streamStart = Date.now();
@@ -919,23 +1303,82 @@ class NoxApp {
     this._startStreaming(text, imageToSend);              // Gesichertes Bild senden
   }
 
-  async _showMobileModal() {
-    const modal = document.getElementById('mobile-qr-overlay');
-    const img = document.getElementById('mobile-qr-img');
-    const loader = document.getElementById('mobile-qr-loader');
+  _requiresOnlineConfirmation(text) {
+    return /^\/research(\s|$)/i.test(text || '');
+  }
+
+  _showDesktopOnlineConfirm(text) {
+    let box = document.getElementById('desktop-online-confirm');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'desktop-online-confirm';
+      box.className = 'desktop-online-confirm';
+      box.setAttribute('role', 'alert');
+      box.innerHTML = `
+        <div class="desktop-online-confirm-text">
+          <strong>Online optional</strong>
+          <span>Websuche kann externe Quellen anfragen. Lokal bleibt Standard.</span>
+        </div>
+        <button type="button" class="desktop-online-cancel" id="desktop-online-cancel">Abbrechen</button>
+        <button type="button" id="desktop-online-start">Online starten</button>
+      `;
+      this.el.inputWrap?.parentElement?.insertBefore(box, this.el.inputWrap);
+      box.querySelector('#desktop-online-cancel')?.addEventListener('click', () => this._hideDesktopOnlineConfirm());
+      box.querySelector('#desktop-online-start')?.addEventListener('click', () => {
+        this._onlineConfirmApprovedText = text;
+        this._hideDesktopOnlineConfirm();
+        this.submitMessage();
+      });
+    }
+    box.classList.remove('hidden');
+    this.el.chatInput.focus();
+  }
+
+  _hideDesktopOnlineConfirm() {
+    document.getElementById('desktop-online-confirm')?.classList.add('hidden');
+  }
+
+  async _showMobileModal(mode = 'lan') {
+    const modal = this.el.mobileQrOverlay;
+    const img = this.el.mobileQrImg;
+    const loader = this.el.mobileQrLoader;
+    const urlText = this.el.mobileQrUrl;
+    const warning = this.el.mobileQrWarning;
+    if (!modal || !img || !loader) return;
     
     // Show modal immediately with loading state
     img.classList.add('hidden');
     img.style.display = 'none';
+    if (urlText) {
+      urlText.classList.add('hidden');
+      urlText.textContent = '';
+    }
+    if (warning) {
+      warning.classList.add('hidden');
+      warning.textContent = '';
+    }
     loader.classList.remove('hidden');
     loader.style.display = 'flex';
     modal.classList.remove('hidden');
 
     try {
-      const res = await fetch(`${API}/mobile/qr`);
+      const query = mode === 'public' ? '?mode=public' : '';
+      const res = await fetch(`${API}/mobile/qr${query}`);
       const data = await res.json();
       
       img.src = `data:image/png;base64,${data.qr_base64}`;
+      if (urlText && data.url) {
+        urlText.textContent = data.url;
+        urlText.classList.remove('hidden');
+      }
+      if (warning && (data.lan_reachable === false || data.is_public || data.message)) {
+        warning.textContent = data.message || (
+          data.is_public
+            ? 'Public QR ist online aktiv. MiMi Nox muss auf deinem Mac weiterlaufen.'
+            : 'Smartphone pairing needs LAN mode. Restart with: miminox start --lan'
+        );
+        warning.classList.remove('hidden');
+      }
       
       // Hide loader, show img
       loader.classList.add('hidden');
@@ -950,19 +1393,26 @@ class NoxApp {
           const statusRes = await fetch(`${API}/mobile/status`);
           const statusData = await statusRes.json();
           if (statusData.connected) {
-            clearInterval(this.mobilePollInterval);
-            modal.classList.add('hidden');
+            this._hideMobileModal();
             const bubble = this.renderAIBubble(Date.now());
-            bubble.innerHTML = '<p style="color:var(--green-light)">📱 Smartphone erfolgreich via verschlüsseltem PWA-Tunnel verbunden!</p>';
-            this.history.push({role: "assistant", content: "Smartphone erfolgreich via verschlüsseltem PWA-Tunnel verbunden!"});
+            bubble.innerHTML = '<p style="color:var(--green-light)">📱 Smartphone erfolgreich im lokalen Netzwerk verbunden.</p>';
+            this.history.push({role: "assistant", content: "Smartphone erfolgreich im lokalen Netzwerk verbunden."});
           }
         } catch (e) {}
       }, 1500);
 
     } catch (err) {
       alert("Fehler beim Laden des QR Codes. Server offline?");
-      modal.classList.add('hidden');
+      this._hideMobileModal();
     }
+  }
+
+  _hideMobileModal() {
+    if (this.mobilePollInterval) {
+      clearInterval(this.mobilePollInterval);
+      this.mobilePollInterval = null;
+    }
+    if (this.el.mobileQrOverlay) this.el.mobileQrOverlay.classList.add('hidden');
   }
 
   // ── /schedule Command ───────────────────────────────────
@@ -1047,7 +1497,7 @@ class NoxApp {
     </div>`;
   }
 
-  async _startStreaming(text, imageB64 = null) {
+  async _startStreaming(text, imageB64 = null, visibleUserText = null) {
     this.isStreaming = true;
     
     this.el.sendBtn.textContent = '⏹';
@@ -1064,7 +1514,8 @@ class NoxApp {
     let   thinkStartTime = 0;
 
     // Activity: Anfrage gestartet
-    this._addActivity('cmd', `react_loop("${text.slice(0,40)}${text.length>40?'…':''}")`);
+    const activityText = visibleUserText || text;
+    this._addActivity('cmd', `react_loop("${activityText.slice(0,40)}${activityText.length>40?'…':''}")`);
     this._addActivity('progress', t('chat.generating'));
 
     try {
@@ -1081,7 +1532,7 @@ class NoxApp {
           message: text, 
           model: this.model, 
           history: this.history,
-          autonomous: this.isMobilePWA === true,
+          autonomous: false,
           images: imageB64 ? [imageB64] : [],
         }),
         signal:  this._abortController.signal,
@@ -1118,7 +1569,10 @@ class NoxApp {
             case 'thinking_start':
               if (thinkingBubble) {
                 thinkingBubble.classList.remove('hidden');
-                thinkingBubble.classList.add('thinking-open');
+                thinkingBubble.classList.remove('thinking-open');
+                thinkingBubble.querySelector('.thinking-toggle')?.setAttribute('aria-expanded', 'false');
+                const lbl = thinkingBubble.querySelector('.thinking-label');
+                if (lbl) lbl.textContent = 'MiMi denkt...';
                 const tc = thinkingBubble.querySelector('.thinking-content');
                 if (tc) tc.textContent = '';
                 thinkStartTime = Date.now();
@@ -1138,12 +1592,8 @@ class NoxApp {
             case 'thinking':
               if (thinkingBubble) {
                 thinkingBubble.classList.remove('hidden');
-                thinkingBubble.classList.add('thinking-open');
-                const tc2 = thinkingBubble.querySelector('.thinking-content');
-                if (tc2) {
-                  tc2.textContent += evt.data;
-                  tc2.scrollTop = tc2.scrollHeight;
-                }
+                thinkingBubble.classList.remove('thinking-open');
+                thinkingBubble.querySelector('.thinking-toggle')?.setAttribute('aria-expanded', 'false');
               }
               break;
 
@@ -1176,7 +1626,12 @@ class NoxApp {
 
             case 'error':
               bubble.classList.remove('streaming-cursor');
-              bubble.textContent = `⚠ ${evt.msg}`;
+              if (this._isMissingModelError(evt.msg)) {
+                bubble.innerHTML = this._modelRecoveryHtml(evt.msg);
+                full = `Lokales Modell ${DEFAULT_MODEL} fehlt. Reparatur: miminox doctor, dann miminox start.`;
+              } else {
+                bubble.textContent = `⚠ ${evt.msg}`;
+              }
               this._addActivity('error', evt.msg);
               this._setStatus('offline');
               break;
@@ -1479,13 +1934,11 @@ class NoxApp {
           : null;
         const lbl = thinkingBubble.querySelector('.thinking-label');
         const spinner = thinkingBubble.querySelector('.thinking-spinner');
-        if (lbl) lbl.textContent = secs ? `Thought for ${secs}s` : 'Thought';
+        if (lbl) lbl.textContent = secs ? `Gedacht ${secs}s` : 'Gedacht';
         if (spinner) spinner.style.display = 'none';
-        // Zugeklappt nach kurzer Pause (User kann noch lesen)
-        setTimeout(() => {
-          thinkingBubble.classList.remove('thinking-open');
-          thinkingBubble.classList.add('thinking-done');
-        }, 1500);
+        thinkingBubble.classList.remove('thinking-open');
+        thinkingBubble.classList.add('thinking-done');
+        thinkingBubble.querySelector('.thinking-toggle')?.setAttribute('aria-expanded', 'false');
       }
 
       // Aktionen anzeigen
@@ -1507,9 +1960,9 @@ class NoxApp {
         this._setStatus('offline');
       }
     } finally {
-      this.history.push({ role: 'user',      content: text });
+      this.history.push({ role: 'user',      content: visibleUserText || text });
       this.history.push({ role: 'assistant', content: full });
-      this._saveToHistory(text, full);
+      this._saveToHistory(visibleUserText || text, full);
 
       this.isStreaming = false;
       this.el.sendBtn.textContent = '➤';
@@ -1559,6 +2012,7 @@ class NoxApp {
       overlay.addEventListener('animationend', () => {
         overlay.style.display = 'none';
         overlay.remove();
+        this._initOnboarding();
       }, { once: true });
     });
   }
@@ -1592,9 +2046,9 @@ class NoxApp {
     const thinkDiv = document.createElement('div');
     thinkDiv.className = 'thinking-panel hidden';
     thinkDiv.innerHTML = `
-      <button class="thinking-toggle" aria-expanded="true">
+      <button class="thinking-toggle" aria-expanded="false">
         <span class="thinking-spinner"></span>
-        <span class="thinking-label">Nox is thinking…</span>
+        <span class="thinking-label">MiMi denkt...</span>
         <span class="thinking-chevron">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="1.5"
@@ -1668,35 +2122,38 @@ class NoxApp {
     const wrap = document.querySelector(`.bubble-ai-wrap[data-msg-id="${id}"]`);
     if (!wrap) return;
 
+    wrap.querySelector('.bubble-actions')?.remove();
+
     const actions = document.createElement('div');
     actions.className = 'bubble-actions';
+    actions.dataset.msgId = String(id);
+    actions.setAttribute('data-testid', 'bubble-actions');
+    actions.setAttribute('role', 'group');
+    actions.setAttribute('aria-label', 'Antwortaktionen');
     actions.innerHTML = `
-      <button class="bubble-action-btn" id="speak-${id}" aria-label="${t('chat.readAloud')}">🔊 ${t('chat.readAloud')}</button>
+      <button class="bubble-action-btn" id="speak-${id}" data-action="speak" data-msg-id="${id}" type="button" aria-label="${t('chat.readAloud')}">🔊 ${t('chat.readAloud')}</button>
       <span class="action-sep">·</span>
-      <button class="bubble-action-btn" id="copy-${id}" aria-label="${t('chat.copy')}">📋 ${t('chat.copy')}</button>
+      <button class="bubble-action-btn" id="copy-${id}" data-action="copy" data-msg-id="${id}" type="button" aria-label="${t('chat.copy')}">📋 ${t('chat.copy')}</button>
       <span class="action-sep">·</span>
-      <button class="bubble-action-btn" id="up-${id}"   aria-label="Hilfreiche Antwort">👍</button>
+      <button class="bubble-action-btn" id="up-${id}" data-action="thumbs_up" data-msg-id="${id}" type="button" aria-label="Hilfreiche Antwort">👍</button>
       <span class="action-sep">·</span>
-      <button class="bubble-action-btn" id="down-${id}" aria-label="Nicht hilfreiche Antwort">👎</button>
+      <button class="bubble-action-btn" id="down-${id}" data-action="thumbs_down" data-msg-id="${id}" type="button" aria-label="Nicht hilfreiche Antwort">👎</button>
       <span class="action-sep">·</span>
-      <button class="bubble-action-btn" id="deep-${id}" aria-label="${t('chat.deepen')}">↩ ${t('chat.deepen')}</button>
+      <button class="bubble-action-btn" id="deep-${id}" data-action="deepen" data-msg-id="${id}" type="button" aria-label="${t('chat.deepen')}">↩ ${t('chat.deepen')}</button>
     `;
 
     wrap.appendChild(actions);
 
-    document.getElementById(`speak-${id}`)
+    actions.querySelector('[data-action="speak"]')
       .addEventListener('click', () => this._speakText(response, `speak-${id}`));
-    document.getElementById(`copy-${id}`)
+    actions.querySelector('[data-action="copy"]')
       .addEventListener('click', () => this.handleCopy(response, `copy-${id}`));
-    document.getElementById(`up-${id}`)
+    actions.querySelector('[data-action="thumbs_up"]')
       .addEventListener('click', () => this.handleFeedback('thumbs_up', prompt, response, `up-${id}`));
-    document.getElementById(`down-${id}`)
+    actions.querySelector('[data-action="thumbs_down"]')
       .addEventListener('click', () => this.handleFeedback('thumbs_down', prompt, response, `down-${id}`));
-    document.getElementById(`deep-${id}`)
-      .addEventListener('click', () => {
-        this.el.chatInput.value = 'Erkläre das genauer: ';
-        this.el.chatInput.focus();
-      });
+    actions.querySelector('[data-action="deepen"]')
+      .addEventListener('click', () => this.handleDeepen(prompt, response, `deep-${id}`));
   }
 
   _scrollToBottom() {
@@ -1714,22 +2171,73 @@ class NoxApp {
     }
 
     try {
-      await fetch(`${API}/feedback/${type}`, {
+      const res = await fetch(`${API}/feedback/${type}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ prompt, response, reason }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const btn = document.getElementById(btnId);
       if (btn) {
         btn.style.color = type === 'thumbs_up' ? 'var(--green)' : '#fca5a5';
         btn.textContent = type === 'thumbs_up' ? '👍 ✓' : '👎 ✓';
         btn.disabled = true;
       }
-    } catch {
-      // Feedback trotzdem im UI bestätigen
+    } catch (err) {
       const btn = document.getElementById(btnId);
-      if (btn) { btn.textContent = type === 'thumbs_up' ? '👍 ✓' : '👎 ✓'; btn.disabled = true; }
+      if (btn) {
+        btn.textContent = '⚠';
+        btn.title = `Feedback konnte nicht gespeichert werden: ${err.message}`;
+        btn.disabled = false;
+      }
     }
+  }
+
+  handleDeepen(prompt, response, btnId) {
+    if (this.isStreaming) return;
+
+    const btn = document.getElementById(btnId);
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = `↩ ${t('chat.deepen')}`;
+    }
+
+    const visibleText = `↩ ${t('chat.deepenFollowup')}`;
+    const modelPrompt = [
+      'Vertiefe die vorherige Antwort fuer Josef.',
+      'Nutze den folgenden Kontext exakt, damit klar ist, welche Antwort vertieft werden soll.',
+      '',
+      `Urspruengliche Frage:\n${prompt || '(nicht bekannt)'}`,
+      '',
+      `Antwort, die vertieft werden soll:\n${response || '(nicht bekannt)'}`,
+      '',
+      'Ergaenze konkrete Beispiele, naechste Schritte, wichtige Details und moegliche Fallstricke. Wiederhole nicht nur dieselbe Antwort.'
+    ].join('\n');
+
+    this._submitSyntheticMessage(visibleText, modelPrompt);
+  }
+
+  _submitSyntheticMessage(visibleText, modelPrompt) {
+    if (this.isStreaming) {
+      if (this._abortController) this._abortController.abort();
+      return;
+    }
+
+    this._isVoiceConversation = false;
+    if (this._currentAudio) this._currentAudio.pause();
+    if (this._currentSpeakingBtn) this._resetSpeakBtn(this._currentSpeakingBtn);
+
+    this.cmdHistory.unshift(visibleText);
+    if (this.cmdHistory.length > 50) this.cmdHistory.pop();
+    this.cmdIndex = -1;
+
+    this.el.chatInput.value = '';
+    this._autoResize();
+    this._hideWelcome();
+    this._streamStart = Date.now();
+
+    this.renderUserBubble(visibleText);
+    this._startStreaming(modelPrompt, null, visibleText);
   }
 
   /** Zeigt Inline-Reason-Picker unter btnId, gibt Promise<string|null> zurück */
@@ -1802,16 +2310,43 @@ class NoxApp {
   // ── Copy ────────────────────────────────────────────────
   async handleCopy(text, btnId) {
     try {
-      await navigator.clipboard.writeText(text);
+      await this._copyTextToClipboard(text);
       const btn = document.getElementById(btnId);
       if (btn) {
         const orig = btn.textContent;
         btn.textContent = t('chat.copied');
         setTimeout(() => { btn.textContent = orig; }, 2000);
       }
-    } catch {
-      // Fallback: select the text
+    } catch (err) {
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        btn.textContent = '⚠';
+        btn.title = `Kopieren fehlgeschlagen: ${err.message}`;
+      }
     }
+  }
+
+  async _copyTextToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return;
+      } catch {
+        // Some PWA/browser contexts expose clipboard but reject writes.
+        // Fall through to the selection-based copy path.
+      }
+    }
+
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const copied = document.execCommand('copy');
+    ta.remove();
+    if (!copied) throw new Error('Clipboard unavailable');
   }
 
   // ── Aktivitäts-Panel Terminal ────────────────────────────
@@ -1954,7 +2489,7 @@ class NoxApp {
 
   // ── Verlauf (localStorage) ──────────────────────────────
   _saveToHistory(prompt, response) {
-    const all = JSON.parse(localStorage.getItem(STORE_KEY_HISTORY) || '[]');
+    const all = JSON.parse(safeStorage.get(STORE_KEY_HISTORY, '[]') || '[]');
     let session = all.find(s => s.id === this.sessionId);
     if (!session) {
       session = {
@@ -1968,11 +2503,11 @@ class NoxApp {
     session.history = JSON.parse(JSON.stringify(this.history));
     
     if (all.length > 100) all.splice(100);
-    localStorage.setItem(STORE_KEY_HISTORY, JSON.stringify(all));
+    safeStorage.set(STORE_KEY_HISTORY, JSON.stringify(all));
   }
 
   _renderHistoryList() {
-    const all  = JSON.parse(localStorage.getItem(STORE_KEY_HISTORY) || '[]');
+    const all  = JSON.parse(safeStorage.get(STORE_KEY_HISTORY, '[]') || '[]');
     const list = this.el.historyList;
     list.innerHTML = '';
 
@@ -2002,7 +2537,7 @@ class NoxApp {
         e.stopPropagation();
         if(!confirm(currentLang() === 'de' ? 'Möchtest du diesen Chat wirklich dauerhaft löschen?' : 'Delete this chat permanently?')) return;
         const filtered = all.filter(s => s.id !== item.id);
-        localStorage.setItem(STORE_KEY_HISTORY, JSON.stringify(filtered));
+        safeStorage.set(STORE_KEY_HISTORY, JSON.stringify(filtered));
         this._renderHistoryList();
         if (this.sessionId === item.id) this.clearSession();
       });
@@ -2129,7 +2664,7 @@ class NoxApp {
     };
     
     // Voice im LocalStorage sichern
-    localStorage.setItem('mimi_nox_voice', this.el.pfVoice.value);
+    safeStorage.set('mimi_nox_voice', this.el.pfVoice.value);
     
     try {
       const res = await fetch(`${API}/profile`, {
@@ -2172,7 +2707,7 @@ class NoxApp {
       const tasks = await res.json();
       
       if (tasks.length === 0) {
-        this.el.tasksList.innerHTML = '<div class="history-empty">Keine Aufgaben vorhanden.</div>';
+        this.el.tasksList.innerHTML = `<div class="history-empty">${t('tasks.empty')}</div>`;
         return;
       }
       
@@ -2197,7 +2732,7 @@ class NoxApp {
       }).join('');
     } catch(err) {
       console.error('Failed to load tasks', err);
-      this.el.tasksList.innerHTML = '<div class="history-empty" style="color:#ef4444;">Laden fehlgeschlagen.</div>';
+      this.el.tasksList.innerHTML = `<div class="history-empty" style="color:#ef4444;">${t('tasks.error')}</div>`;
     }
   }
 
@@ -2251,7 +2786,7 @@ class NoxApp {
       <div class="skill-card-footer">
         <span class="skill-badge ${isBuiltin ? 'builtin' : 'user'}">${isBuiltin ? t('skills.builtIn') : t('skills.userSkill')}</span>
         <div class="skill-card-actions">
-          <button class="skill-action-btn edit-btn">${t('skills.editBtn')}</button>
+          <button class="skill-action-btn edit-btn">${isBuiltin ? t('skills.inspectBtn') : t('skills.editBtn')}</button>
           ${!isBuiltin ? `<button class="skill-action-btn delete delete-btn">🗑 ${t('skills.delete')}</button>` : ''}
         </div>
       </div>
@@ -2344,7 +2879,8 @@ class NoxApp {
 
   // ── Onboarding Wizard ───────────────────────────────────────
   _initOnboarding() {
-    const done = localStorage.getItem('mimi_nox_onboarded');
+    const done = safeStorage.get('mimi_nox_onboarded');
+    if (needsLanguageSelection()) return;
     if (!done) {
       this.el.onboardingOverlay.classList.remove('hidden');
     }
@@ -2362,14 +2898,16 @@ class NoxApp {
     };
 
     const preferred = skillMap[category] || skillMap.allround;
-    localStorage.setItem('mimi_nox_preferred_skills', JSON.stringify(preferred));
-    localStorage.setItem('mimi_nox_onboarded', '1');
+    safeStorage.set('mimi_nox_preferred_skills', JSON.stringify(preferred));
+    safeStorage.set('mimi_nox_onboarded', '1');
     this.el.onboardingOverlay.classList.add('hidden');
 
     // Welcome-Text anpassen
     const sub = document.querySelector('.welcome-sub');
     const catLabels = { dev: 'Entwickler', research: 'Forscher', writer: 'Schreiber', analyst: 'Analyst', medic: 'Medizin/Pflege', allround: 'Allgemein' };
-    if (sub) sub.textContent = `Modus: ${catLabels[category] || 'Allgemein'} — Tippe eine Frage oder wähle einen Skill`;
+    if (sub) {
+      sub.textContent = `Offline-first auf deinem Computer · Modus: ${catLabels[category] || 'Allgemein'} · Online-Funktionen sind optional.`;
+    }
 
     this._addActivity('info', `⚡ Modus: ${catLabels[category] || category} aktiviert`);
     this.loadSkillChips();
@@ -2626,18 +3164,24 @@ class NoxApp {
 
 
 // ── Start ────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+function bootNoxApp() {
   const app = new NoxApp();
   app.init();
   window._nox = app; // Debug-Zugriff in DevTools
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootNoxApp);
+} else {
+  bootNoxApp();
+}
 
 
 // ── PWA Service Worker ──────────────────────────────────────────────────────
-if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+if (serviceWorker && window.location.protocol !== 'file:') {
   window.addEventListener('load', async () => {
     try {
-      const reg = await navigator.serviceWorker.register('/service-worker.js');
+      const reg = await serviceWorker.register('/service-worker.js');
 
       // Check for updates periodically
       setInterval(() => reg.update(), 60 * 60 * 1000); // every 1h
@@ -2647,7 +3191,7 @@ if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
         const newSW = reg.installing;
         if (!newSW) return;
         newSW.addEventListener('statechange', () => {
-          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          if (newSW.state === 'installed' && serviceWorker.controller) {
             _showUpdateToast(newSW);
           }
         });

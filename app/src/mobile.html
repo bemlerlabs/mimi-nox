@@ -10,7 +10,6 @@
   <meta name="description" content="◑ MiMi Nox – Chat" />
   <title>◑ MiMi Nox</title>
   <link rel="manifest" href="manifest.json" />
-  <script src="/socket.io/socket.io.js"></script>
   <style>
     /* ── Design Tokens (aus Schwarzwald Edition) ── */
     :root {
@@ -29,7 +28,7 @@
       --topbar-h: 52px;
     }
 
-    /* ── Tactical Mode (Crisis Mode) ── */
+    /* ── Local Mode ── */
     [data-theme='tactical'] {
       --bg: #050705;
       --panel: #0a0f0a;
@@ -50,9 +49,9 @@
     }
     
     [data-theme='tactical'] .logo-name::after {
-      content: " [CRISIS MODE]";
+      content: " [LOCAL MODE]";
       font-size: 10px;
-      color: #ef4444;
+      color: var(--green-light);
       vertical-align: top;
       margin-left: 4px;
     }
@@ -152,6 +151,7 @@
     /* ── Chat Area ── */
     .chat {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       padding: 12px 14px;
       display: flex;
@@ -165,9 +165,10 @@
     /* Willkommen */
     .welcome-msg {
       text-align: center;
-      padding: 60px 20px 30px;
+      padding: 28px 10px 20px;
       color: var(--text-muted);
       font-size: 14px;
+      flex-shrink: 0;
     }
     .welcome-msg .icon { font-size: 40px; display: block; margin-bottom: 12px; color: var(--green); filter: drop-shadow(0 0 12px rgba(34,197,94,0.6)); }
     .welcome-msg .title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
@@ -294,7 +295,8 @@
     /* ── Input Bar (Fix 3: safe-area fallback) ── */
     .input-bar {
       display: flex;
-      align-items: flex-end;
+      flex-direction: column;
+      align-items: stretch;
       gap: 8px;
       padding: 10px 12px;
       padding-bottom: max(12px, calc(10px + env(safe-area-inset-bottom, 12px)));
@@ -305,9 +307,11 @@
       flex-shrink: 0;
     }
     .input-wrap {
-      flex: 1;
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       background: rgba(8, 15, 8, 0.9);
       border: 1px solid rgba(34, 197, 94, 0.1);
       border-radius: 22px;
@@ -321,6 +325,7 @@
     }
     .chat-input {
       flex: 1;
+      min-width: 0;
       background: none;
       border: none;
       outline: none;
@@ -421,7 +426,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      margin-top: 16px;
+      margin: 16px auto 0;
       width: 100%;
       max-width: 300px;
     }
@@ -474,6 +479,66 @@
       background: rgba(34, 197, 94, 0.15);
       border-color: var(--green);
     }
+    .skill-chip[data-scope="online"] {
+      border-color: rgba(251, 191, 36, 0.55);
+      color: #fbbf24;
+    }
+    .skill-chip[data-scope="approval"] {
+      border-color: rgba(96, 165, 250, 0.55);
+      color: #93c5fd;
+    }
+    .skill-chip-badge {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 6px;
+      padding: 1px 5px;
+      border-radius: 999px;
+      font-size: 9px;
+      line-height: 1.3;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .skill-chip[data-scope="online"] .skill-chip-badge {
+      color: #fef3c7;
+      background: rgba(251, 191, 36, 0.16);
+    }
+    .skill-chip[data-scope="approval"] .skill-chip-badge {
+      color: #dbeafe;
+      background: rgba(96, 165, 250, 0.16);
+    }
+    .online-confirm {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      border-radius: 14px;
+      background: rgba(120, 53, 15, 0.24);
+      color: #fef3c7;
+      font-size: 12px;
+    }
+    .online-confirm-text {
+      flex: 1;
+      min-width: 0;
+      line-height: 1.35;
+    }
+    .online-confirm button {
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      border-radius: 999px;
+      background: rgba(251, 191, 36, 0.12);
+      color: #fef3c7;
+      min-height: 34px;
+      padding: 5px 10px;
+      font: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .online-confirm .online-confirm-cancel {
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+    }
 
     /* ── Status text (Fix 15) ── */
     .status-label {
@@ -511,10 +576,14 @@
     }
     /* ── Tab Bar ── */
     .nav-tabs {
-      display: flex;
+      display: none;
       background: rgba(0,0,0,0.4);
       border-bottom: 1px solid var(--gray-800);
       gap: 2px;
+      flex-shrink: 0;
+    }
+    .nav-tabs.mesh-enabled {
+      display: flex;
     }
     .nav-tab {
       flex: 1;
@@ -636,6 +705,27 @@
       0%, 100% { transform: scale(1); box-shadow: 0 0 4px rgba(34,197,94,0.4); }
       50%      { transform: scale(1.2); box-shadow: 0 0 8px rgba(34,197,94,0.7); }
     }
+    #power-monitor {
+      display: none !important;
+    }
+    #img-preview-bar {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid rgba(34,197,94,0.1);
+      border-radius: 12px;
+    }
+    button,
+    textarea {
+      touch-action: manipulation;
+    }
+    @media (max-width: 360px) {
+      .header { padding-left: 10px; padding-right: 10px; }
+      .logo-name { font-size: 16px; }
+      .btn-clear { padding-left: 10px; padding-right: 10px; }
+      .chat { padding-left: 10px; padding-right: 10px; }
+      .input-bar { padding-left: 8px; padding-right: 8px; }
+      .input-wrap { padding-left: 10px; gap: 4px; }
+    }
   </style>
 </head>
 <body>
@@ -659,28 +749,19 @@
     <!-- Main Chat Window (Fix 4 & 5: padding) -->
     <main class="chat" id="chat">
       <!-- Welcome card and Agent messages go here -->
-    </main>
-
-    <!-- Mesh Chat Window (T-4.1) -->
-    <main class="chat hidden" id="meshChat">
-      <div class="msg ai system">
-        <div class="content">📡 LOKALES MESH-NETZWERK AKTIVIERT. Alle Nachrichten werden an verbundene Geräte im lokalen WLAN übertragen.</div>
-      </div>
-    </main>
-
-    <div class="welcome-msg" id="welcome">
+      <div class="welcome-msg" id="welcome">
         <span class="icon">◑</span>
         <div class="title">Hey 👋</div>
-        <span id="mobile-welcome-text">Ich bin dein lokaler KI-Assistent. Keine Cloud, keine Kosten.</span>
+        <span id="mobile-welcome-text">Ich bin dein lokaler KI-Assistent. Offline-first, online nur optional.</span>
         <!-- Consumer-freundliche Welcome Cards -->
         <div class="welcome-cards" id="welcome-cards">
-          <button class="welcome-card" data-prompt="Was sind die wichtigsten Erste-Hilfe-Maßnahmen?">
-            <span class="card-icon">🩺</span>
-            <span data-i18n="welcome.health_card">Gesundheits-Info</span>
+          <button class="welcome-card" data-prompt="/help Was kann MiMi Nox offline für mich tun?">
+            <span class="card-icon">⚡</span>
+            <span>Funktionen verstehen</span>
           </button>
-          <button class="welcome-card" data-prompt="/repair Wie repariere ich ein technisches Gerät?">
-            <span class="card-icon">🛠️</span>
-            <span data-i18n="crisis.repair_card">Technik-Hilfe</span>
+          <button class="welcome-card" data-prompt="/files Fasse eine lokale Datei oder ein Dokument zusammen">
+            <span class="card-icon">📁</span>
+            <span>Dateien nutzen</span>
           </button>
           <button class="welcome-card" data-prompt="/write Schreib mir eine professionelle E-Mail">
             <span class="card-icon">✏️</span>
@@ -692,15 +773,22 @@
           </button>
         </div>
       </div>
-    </div>
+    </main>
+
+    <!-- Mesh Chat Window (T-4.1, hidden unless Socket.IO is available) -->
+    <main class="chat hidden" id="meshChat">
+      <div class="msg ai system">
+        <div class="content">📡 LOKALES MESH-NETZWERK AKTIVIERT. Alle Nachrichten werden an verbundene Geräte im lokalen WLAN übertragen.</div>
+      </div>
+    </main>
 
     <!-- Skill Chips -->
     <div class="skill-chips" id="mobile-skill-chips">
-      <button class="skill-chip" data-trigger="/research">🔍 /research</button>
+      <button class="skill-chip" data-trigger="/help">⚡ /help</button>
+      <button class="skill-chip" data-trigger="/files">📁 /files</button>
       <button class="skill-chip" data-trigger="/write">✏️ /write</button>
-      <button class="skill-chip" data-trigger="/repair">🛠️ /repair</button>
-      <button class="skill-chip" data-trigger="/map">🗺️ /map</button>
-      <button class="skill-chip" data-trigger="/swarm">🐝 /swarm</button>
+      <button class="skill-chip" data-trigger="/scan">📷 /scan</button>
+      <button class="skill-chip" data-trigger="/research">🔍 /research</button>
     </div>
 
     <!-- Power Monitor -->
@@ -718,13 +806,18 @@
         <span id="img-preview-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px"></span>
         <button id="img-remove-btn" style="background:none;border:none;color:#ef4444;font-size:16px;cursor:pointer;padding:2px 6px">×</button>
       </div>
+      <div class="online-confirm hidden" id="online-confirm" role="alert">
+        <span class="online-confirm-text" id="online-confirm-text">Online optional: Diese Funktion kann externe Quellen nutzen.</span>
+        <button type="button" class="online-confirm-cancel" id="online-confirm-cancel">Abbrechen</button>
+        <button type="button" id="online-confirm-start">Online starten</button>
+      </div>
       <div class="input-wrap">
         <!-- Kamera / Galerie (E4B Vision) -->
         <input type="file" id="img-input" accept="image/*,image/heic,image/heif" style="display:none" />
-        <button class="camera-btn" id="camera-btn" title="📷 Foto / Galerie">📷</button>
+        <button class="camera-btn" id="camera-btn" title="📷 Foto / Galerie" aria-label="Foto oder Galerie öffnen">📷</button>
         <textarea class="chat-input" id="input" rows="1" placeholder="Message…" autocomplete="off" autocorrect="off" spellcheck="true"></textarea>
-        <button class="mic-btn" id="mic-btn">🎙️</button>
-        <button class="send-btn" id="send-btn">➤</button>
+        <button class="mic-btn" id="mic-btn" aria-label="Sprache aufnehmen">🎙️</button>
+        <button class="send-btn" id="send-btn" aria-label="Nachricht senden">➤</button>
       </div>
     </div>
   </div>
@@ -735,6 +828,30 @@
   <script>
     const API = '/api';
     const MODEL = 'gemma4:e4b';
+    const MOBILE_DEFAULT_SKILLS = [
+      { trigger: '/help', icon: '⚡', description: 'Lokale Funktionen anzeigen' },
+      { trigger: '/files', icon: '📁', description: 'Lokale Dateien nutzen' },
+      { trigger: '/write', icon: '✏️', description: 'Texte schreiben' },
+      { trigger: '/scan', icon: '📷', description: 'Bilder und OCR analysieren' },
+      { trigger: '/research', icon: '🔍', description: 'Optional online recherchieren' },
+    ];
+    const SKILL_ICONS = new Map([
+      ['/chart', '📊'],
+      ['/files', '📁'],
+      ['/help', '⚡'],
+      ['/pdf', '📄'],
+      ['/research', '🔍'],
+      ['/review', '💻'],
+      ['/scan', '📷'],
+      ['/shell', '>_'],
+      ['/svg', '🎨'],
+      ['/swarm', '🐝'],
+      ['/write', '✏️'],
+    ]);
+    const SKILL_SCOPES = new Map([
+      ['/research', { scope: 'online', badge: 'Online optional' }],
+      ['/shell', { scope: 'approval', badge: 'Approval' }],
+    ]);
 
     // ── i18n (lightweight, inline) ──
     const _lang = (localStorage.getItem('mimi-nox-lang') || navigator.language || 'en').substring(0, 2);
@@ -755,21 +872,27 @@
     const welcome = $('welcome');
     const toast = $('toast');
     const statusDot = $('status-dot');
+    const onlineConfirm = $('online-confirm');
+    const onlineConfirmText = $('online-confirm-text');
+    const onlineConfirmStart = $('online-confirm-start');
+    const onlineConfirmCancel = $('online-confirm-cancel');
 
     let currentTab = 'agents';
     let survivorName = localStorage.getItem('survivor_name') || 'Survivor_' + Math.floor(Math.random()*1000);
 
-    // Socket Init
-    const socket = io();
-    socket.emit('mesh:join', { user: survivorName });
-
-    socket.on('mesh:message', (data) => {
-      renderMeshMessage(data);
-    });
-
-    socket.on('mesh:presence', (data) => {
-      showToast(`${data.user} ist ${data.status === 'online' ? 'beigetreten' : 'gegangen'}`);
-    });
+    // Optional Mesh transport. The FastAPI build does not always expose Socket.IO;
+    // mobile chat must remain usable when /socket.io/socket.io.js is absent.
+    const socket = typeof window.io === 'function' ? window.io() : null;
+    if (socket) {
+      document.querySelector('.nav-tabs')?.classList.add('mesh-enabled');
+      socket.emit('mesh:join', { user: survivorName });
+      socket.on('mesh:message', (data) => {
+        renderMeshMessage(data);
+      });
+      socket.on('mesh:presence', (data) => {
+        showToast(`${data.user} ist ${data.status === 'online' ? 'beigetreten' : 'gegangen'}`);
+      });
+    }
 
     function renderMeshMessage(data) {
       const isMe = data.from === survivorName;
@@ -777,10 +900,20 @@
       el.className = `msg ${isMe ? 'user' : 'ai mesh'}`;
       el.innerHTML = `
         <div class="meta">${data.from} • ${new Date(data.timestamp).toLocaleTimeString()}</div>
-        <div class="content">${DOMPurify.sanitize(data.content)}</div>
+        <div class="content">${sanitizeHTML(data.content)}</div>
       `;
       $('meshChat').appendChild(el);
       if (currentTab === 'mesh') scrollToBottom($('meshChat'));
+    }
+
+    function sanitizeHTML(value) {
+      const text = String(value || '');
+      if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+        return window.DOMPurify.sanitize(text);
+      }
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
 
     // ── Tab Switching ──
@@ -798,6 +931,10 @@
     };
 
     btnMesh.onclick = () => {
+      if (!socket) {
+        showToast('📡 Mesh ist auf diesem Server nicht aktiv');
+        return;
+      }
       currentTab = 'mesh';
       btnMesh.classList.add('active');
       btnAgents.classList.remove('active');
@@ -810,13 +947,17 @@
     let streaming = false;
     let abortCtrl = null;
     let toastTimer = null;
+    let pendingOnlineMessage = '';
 
     // ── Init ──
     fetch(`${API}/mobile/ping`, { method: 'POST' }).catch(() => {});
     checkHealth();
-    updatePowerMetrics();
+    loadMobileSkillChips();
+    const powerMonitor = $('power-monitor');
+    const powerMetricsEnabled = powerMonitor && window.getComputedStyle(powerMonitor).display !== 'none';
+    if (powerMetricsEnabled) updatePowerMetrics();
     setInterval(checkHealth, 30000);
-    setInterval(updatePowerMetrics, 10000);
+    if (powerMetricsEnabled) setInterval(updatePowerMetrics, 10000);
 
     async function updatePowerMetrics() {
       try {
@@ -847,6 +988,19 @@
     // ── Events ──
     sendBtn.addEventListener('click', send);
     $('btn-clear').addEventListener('click', clearChat);
+    onlineConfirmStart?.addEventListener('click', () => {
+      hideOnlineConfirm();
+      if (pendingOnlineMessage) {
+        input.value = pendingOnlineMessage;
+        pendingOnlineMessage = '';
+      }
+      send(false, { allowOnline: true });
+    });
+    onlineConfirmCancel?.addEventListener('click', () => {
+      pendingOnlineMessage = '';
+      hideOnlineConfirm();
+      input.focus();
+    });
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     });
@@ -877,15 +1031,86 @@
     });
 
     // Fix 11: Skill Chips — tap to fill input
-    document.querySelectorAll('#mobile-skill-chips .skill-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const trigger = chip.dataset.trigger;
-        if (trigger) {
-          input.value = trigger + ' ';
-          input.focus();
+    $('mobile-skill-chips').addEventListener('click', (e) => {
+      const chip = e.target.closest('.skill-chip');
+      if (!chip) return;
+      const trigger = chip.dataset.trigger;
+      if (trigger) {
+        input.value = trigger + ' ';
+        input.focus();
+        autoResize();
+        if (trigger === '/research') {
+          showToast('Online optional: erst beim Senden bestaetigen');
         }
-      });
+      }
     });
+
+    async function loadMobileSkillChips() {
+      const container = $('mobile-skill-chips');
+      if (!container) return;
+      try {
+        const res = await fetch(`${API}/skills`);
+        if (!res.ok) throw new Error('skills unavailable');
+        const data = await res.json();
+        const skills = (data.skills || [])
+          .filter(skill => /^\/[a-z0-9_-]+$/i.test(skill.trigger || ''))
+          .map(skill => ({
+            trigger: skill.trigger,
+            icon: SKILL_ICONS.get(skill.trigger) || '⚡',
+            description: skill.description || '',
+            ...skillScope(skill.trigger),
+          }));
+        renderMobileSkillChips(skills.length ? skills : MOBILE_DEFAULT_SKILLS);
+      } catch {
+        renderMobileSkillChips(MOBILE_DEFAULT_SKILLS);
+      }
+    }
+
+    function renderMobileSkillChips(skills) {
+      const container = $('mobile-skill-chips');
+      if (!container) return;
+      container.innerHTML = '';
+      skills.forEach(skill => {
+        const scopeMeta = skillScope(skill.trigger);
+        const scope = skill.scope || scopeMeta.scope || 'local';
+        const badgeText = skill.badge || scopeMeta.badge || '';
+        const btn = document.createElement('button');
+        btn.className = 'skill-chip';
+        btn.type = 'button';
+        btn.dataset.trigger = skill.trigger;
+        btn.dataset.scope = scope;
+        btn.title = skill.description || skill.trigger;
+        btn.setAttribute('aria-label', `${skill.trigger} auswählen`);
+        btn.append(document.createTextNode(`${skill.icon || '⚡'} ${skill.trigger}`));
+        if (badgeText) {
+          const badge = document.createElement('span');
+          badge.className = 'skill-chip-badge';
+          badge.textContent = badgeText;
+          btn.appendChild(badge);
+        }
+        container.appendChild(btn);
+      });
+    }
+
+    function skillScope(trigger) {
+      return SKILL_SCOPES.get(trigger) || { scope: 'local', badge: '' };
+    }
+
+    function isMissingModelError(message) {
+      const text = String(message || '');
+      return /gemma4:e4b/i.test(text) && /modell|model/i.test(text) && /nicht installiert|not installed|missing|not found/i.test(text);
+    }
+
+    function modelRecoveryHTML(message) {
+      const detail = sanitizeHTML(String(message || `Modell '${MODEL}' nicht installiert`));
+      return `
+        <strong>⚠ Lokales Modell fehlt</strong>
+        <p>${detail}</p>
+        <p>Auf dem Mac im Terminal ausführen:</p>
+        <code>miminox doctor</code>
+        <code>miminox start</code>
+      `;
+    }
 
     // ── Kamera / Bild-Anhang (E4B Vision) ──
     let attachedImageB64 = null;
@@ -965,12 +1190,21 @@
     }
 
     // ── Send ──
-    function send(isVoice = false) {
+    function send(isVoice = false, options = {}) {
       if (streaming) { if (abortCtrl) abortCtrl.abort(); return; }
       const text = input.value.trim();
       if (!text) return;
+      if (requiresOnlineConfirmation(text) && !options.allowOnline) {
+        pendingOnlineMessage = text;
+        showOnlineConfirm(text);
+        return;
+      }
 
       if (currentTab === 'mesh') {
+        if (!socket) {
+          showToast('📡 Mesh ist auf diesem Server nicht aktiv');
+          return;
+        }
         socket.emit('mesh:message', { content: text });
         input.value = '';
         autoResize();
@@ -979,7 +1213,7 @@
 
       input.value = '';
       autoResize();
-      if (welcome) welcome.classList.add('hidden'); // Fix: use hide
+      $('welcome')?.classList.add('hidden'); // Fix: use current welcome node
 
       // Bild-Referenz SICHERN bevor clearAttachedImage() aufgerufen wird
       const imageToSend = attachedImageB64;
@@ -988,6 +1222,27 @@
       addBubble('user', text, imageToSend); // Bild auch in User-Bubble anzeigen
       history.push({ role: 'user', content: text });
       streamResponse(text, isVoice, imageToSend); // gesichertes Bild übergeben
+    }
+
+    function requiresOnlineConfirmation(text) {
+      return /^\/research(\s|$)/i.test(text || '');
+    }
+
+    function showOnlineConfirm(text) {
+      if (onlineConfirmText) {
+        onlineConfirmText.textContent = _t(
+          'Online optional: Websuche kann externe Quellen anfragen. Lokal bleibt Standard.',
+          'Optional online: web search may contact external sources. Local remains the default.'
+        );
+      }
+      onlineConfirm?.classList.remove('hidden');
+      input.value = text;
+      autoResize();
+      onlineConfirmStart?.focus();
+    }
+
+    function hideOnlineConfirm() {
+      onlineConfirm?.classList.add('hidden');
     }
 
     async function streamResponse(text, isVoice, imageB64 = null) {
@@ -1005,7 +1260,7 @@
         const res = await fetch(`${API}/chat/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, model: MODEL, history, autonomous: true, images: imageB64 ? [imageB64] : [] }),
+          body: JSON.stringify({ message: text, model: MODEL, history, autonomous: false, images: imageB64 ? [imageB64] : [] }),
           signal: abortCtrl.signal,
         });
 
@@ -1134,7 +1389,12 @@
                 break;
 
               case 'error':
-                bubble.textContent = `⚠ ${evt.msg}`;
+                if (isMissingModelError(evt.msg)) {
+                  bubble.innerHTML = modelRecoveryHTML(evt.msg);
+                  full = 'Lokales Modell fehlt. Reparatur: miminox doctor, dann miminox start.';
+                } else {
+                  bubble.textContent = `⚠ ${evt.msg}`;
+                }
                 showToast(`⚠ ${evt.msg}`, true);
                 break;
 
@@ -1230,9 +1490,39 @@
       input.style.height = Math.min(input.scrollHeight, 100) + 'px';
     }
 
+    function welcomeHTML() {
+      return `
+        <div class="welcome-msg" id="welcome">
+          <span class="icon">◑</span>
+          <div class="title">Hey 👋</div>
+          <span id="mobile-welcome-text">${_t('Schreib mir – ich bin dein lokaler KI-Agent.', 'I am your local AI assistant. Offline-first, online only when you choose it.')}</span>
+          <div class="welcome-cards" id="welcome-cards">
+            <button class="welcome-card" data-prompt="/help Was kann MiMi Nox offline für mich tun?">
+              <span class="card-icon">⚡</span>
+              <span>${_t('Funktionen verstehen', 'Understand features')}</span>
+            </button>
+            <button class="welcome-card" data-prompt="/files Fasse eine lokale Datei oder ein Dokument zusammen">
+              <span class="card-icon">📁</span>
+              <span>${_t('Dateien nutzen', 'Use files')}</span>
+            </button>
+            <button class="welcome-card" data-prompt="/write Schreib mir eine professionelle E-Mail">
+              <span class="card-icon">✏️</span>
+              <span>${_t('Texte schreiben', 'Write text')}</span>
+            </button>
+            <button class="welcome-card" data-prompt="/research Suche aktuelle Nachrichten zu">
+              <span class="card-icon">🔍</span>
+              <span>${_t('Im Web suchen', 'Search the web')}</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
     function clearChat() {
       history = [];
-      chat.innerHTML = `<div class="welcome-msg" id="welcome"><span class="icon">◑</span><div class="title">Hey 👋</div>Schreib mir – ich bin dein lokaler KI-Agent.</div>`;
+      pendingOnlineMessage = '';
+      hideOnlineConfirm();
+      chat.innerHTML = welcomeHTML();
       input.value = '';
       autoResize();
       input.focus();
@@ -1251,8 +1541,9 @@
       try {
         const res = await fetch(`${API}/health`, { signal: AbortSignal.timeout(5000) });
         const data = await res.json();
-        const isOnline = data.ollamaReady;
-        const isAirGapped = data.airGapped;
+        const isOnline = data.ollamaReady ?? data.ollama ?? false;
+        const isLocal = data.offline_capable === true && data.requires_internet === false;
+        const isAirGapped = data.airGapped === true;
 
         statusDot.classList.toggle('offline', !isOnline);
         
@@ -1266,10 +1557,10 @@
 
         if (label) {
           if (isAirGapped) {
-            label.innerHTML = '🔒 LOKAL (AIR-GAPPED)';
+            label.innerHTML = '🔒 Lokal';
             label.className = 'status-label tactical';
           } else {
-            label.innerHTML = isOnline ? 'Online' : 'Offline';
+            label.innerHTML = isOnline ? (isLocal ? 'Lokal' : 'Online') : 'Offline';
             label.className = 'status-label' + (isOnline ? '' : ' offline');
           }
         }

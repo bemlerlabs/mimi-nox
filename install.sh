@@ -1,196 +1,268 @@
 #!/usr/bin/env bash
-# ============================================================
-#  ◑ MiMi Nox – Local AI Assistant
-#  install.sh – One-command setup
-#
-#  Usage:
-#    git clone https://github.com/mimiai/mimi-nox
-#    cd mimi-nox
-#    ./install.sh
-#
-#  MiMi Tech AI UG – Bad Liebenzell, Schwarzwald
-#  No cloud. No tracking. 🌲
-# ============================================================
-
 set -euo pipefail
 
 GREEN='\033[0;32m'
-NEON='\033[38;5;82m'
 DIM='\033[2m'
 BOLD='\033[1m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-MIMI_NOX_MODEL="${MIMI_NOX_MODEL:-gemma4:e4b}"
+REPO_URL="${MIMI_NOX_REPO_URL:-https://github.com/MimiTechAi/mimi-nox.git}"
+INSTALL_DIR="${MIMI_NOX_INSTALL_DIR:-$HOME/Documents/MiMi-Nox}"
+MODEL="${MIMI_NOX_MODEL:-gemma4:e4b}"
+EMBED_MODEL="${MIMI_NOX_EMBED_MODEL:-nomic-embed-text}"
+PORT="${MIMI_NOX_PORT:-8765}"
+NO_START="${MIMI_NOX_NO_START:-0}"
+SKIP_MODEL="${MIMI_NOX_SKIP_MODEL:-0}"
+DRY_RUN="${MIMI_NOX_DRY_RUN:-0}"
 
-banner() {
-  echo ""
-  echo -e "${NEON}${BOLD}  🌲 ◑ MiMi Nox – Local AI Assistant${NC}"
-  echo -e "${DIM}  MiMi Tech AI UG · Bad Liebenzell, Schwarzwald${NC}"
-  echo ""
-}
+for arg in "$@"; do
+  case "$arg" in
+    --no-start) NO_START=1 ;;
+    --skip-model) SKIP_MODEL=1 ;;
+    --dry-run) DRY_RUN=1 ;;
+    --help|-h)
+      echo "Usage: ./install.sh [--no-start] [--skip-model] [--dry-run]"
+      echo "Env: MIMI_NOX_INSTALL_DIR, MIMI_NOX_MODEL, MIMI_NOX_PORT"
+      exit 0
+      ;;
+    *) echo "Unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
 
 step() { echo -e "${GREEN}▶${NC} ${BOLD}$1${NC}"; }
 info() { echo -e "  ${DIM}$1${NC}"; }
-ok()   { echo -e "  ${GREEN}✓${NC} $1"; }
-fail() { echo -e "  ${RED}✗${NC} $1"; exit 1; }
-
-banner
-
-# ── 1. Check Python ──────────────────────────────────────────────────────────
-step "Python 3.10+ prüfen"
-PYTHON=$(command -v python3 || command -v python || fail "Python nicht gefunden. Installiere Python 3.10+")
-PY_VERSION=$("$PYTHON" -c "import sys; print(sys.version_info[:2])")
-info "Gefunden: $PYTHON ($PY_VERSION)"
-"$PYTHON" -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" \
-  || fail "Python 3.10+ benötigt. Akt. Version: $PY_VERSION"
-ok "Python OK"
-
-# ── 2. Check / Install Ollama ─────────────────────────────────────────────────
-step "Ollama prüfen"
-if command -v ollama >/dev/null 2>&1; then
-  OLLAMA_VER=$(ollama --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "0.0.0")
-  ok "Ollama bereits installiert (v${OLLAMA_VER})"
-
-  # Gemma4 E4B benötigt mindestens Ollama v0.20.0
-  MIN_VER="0.20.0"
-  if printf '%s\n' "$MIN_VER" "$OLLAMA_VER" | sort -V | head -1 | grep -qv "$MIN_VER"; then
-    info "Ollama v${OLLAMA_VER} ist zu alt für ${MIMI_NOX_MODEL} (min. v${MIN_VER})."
-    info "Aktualisiere Ollama..."
-    if [[ "$(uname)" == "Darwin" ]]; then
-      brew upgrade ollama 2>/dev/null || curl -fsSL https://ollama.com/install.sh | sh
-    else
-      curl -fsSL https://ollama.com/install.sh | sh
-    fi
-    ok "Ollama aktualisiert auf $(ollama --version 2>/dev/null || echo 'neueste Version')"
-  fi
-else
-  info "Ollama nicht gefunden – wird installiert..."
-  if [[ "$(uname)" == "Darwin" ]]; then
-    if command -v brew >/dev/null 2>&1; then
-      brew install ollama
-    else
-      info "Lade Ollama via curl..."
-      curl -fsSL https://ollama.com/install.sh | sh
-    fi
-  elif [[ "$(uname)" == "Linux" ]]; then
-    curl -fsSL https://ollama.com/install.sh | sh
+ok() { echo -e "  ${GREEN}✓${NC} $1"; }
+fail() { echo -e "  ${RED}✗${NC} $1" >&2; exit 1; }
+run() {
+  if [[ "$DRY_RUN" == "1" ]]; then
+    echo "  DRY-RUN: $*"
   else
-    fail "Automatische Ollama-Installation nur auf macOS/Linux möglich.\nBitte manuell installieren: https://ollama.com"
+    "$@"
   fi
-  ok "Ollama installiert"
+}
+
+is_project_root() {
+  [[ -f "pyproject.toml" && -d "app/src" && -f "run_server.py" ]]
+}
+
+echo ""
+echo -e "${GREEN}${BOLD}MiMi Nox offline-first installer${NC}"
+echo -e "${DIM}Local Ollama + ${MODEL} by default. Online/API is optional.${NC}"
+echo ""
+
+if ! is_project_root; then
+  step "Installationsordner vorbereiten"
+  command -v git >/dev/null 2>&1 || fail "Git fehlt. Installiere Git und starte den Befehl erneut."
+  mkdir -p "$(dirname "$INSTALL_DIR")"
+  if [[ -d "$INSTALL_DIR/.git" ]]; then
+    ok "Vorhandenes Repository gefunden: $INSTALL_DIR"
+    cd "$INSTALL_DIR"
+    run git pull --ff-only
+  elif [[ -e "$INSTALL_DIR" ]]; then
+    fail "$INSTALL_DIR existiert bereits, ist aber kein Git-Repository. Setze MIMI_NOX_INSTALL_DIR auf einen anderen Pfad."
+  else
+    run git clone "$REPO_URL" "$INSTALL_DIR"
+    cd "$INSTALL_DIR"
+  fi
+  exec bash ./install.sh "$@"
 fi
 
-# ── 3. Ollama starten (falls nicht läuft) ────────────────────────────────────
-step "Ollama Service prüfen"
+PROJECT_DIR="$(pwd)"
+OS_NAME="$(uname -s)"
 
-# Flash Attention: bis zu 2x schnellere Inferenz bei großem Kontext
-export OLLAMA_FLASH_ATTENTION=1
+step "System prüfen"
+case "$OS_NAME" in
+  Darwin|Linux) ok "$OS_NAME unterstützt" ;;
+  *) fail "Automatischer Installer unterstützt macOS und Linux. Für Windows nutze install.ps1." ;;
+esac
+command -v curl >/dev/null 2>&1 || fail "curl fehlt. Installiere curl und starte den Installer erneut."
 
-if ! ollama list >/dev/null 2>&1; then
-  info "Ollama läuft nicht – starte im Hintergrund..."
-  ollama serve &>/dev/null &
-  OLLAMA_PID=$!
+FREE_KB=$(df -Pk "$PROJECT_DIR" | awk 'NR==2 {print $4}')
+if [[ "${FREE_KB:-0}" -lt 16000000 ]]; then
+  fail "Mindestens 16 GB freier Speicher empfohlen. Aktuell verfügbar: $((FREE_KB / 1024 / 1024)) GB."
+fi
+ok "Speicherplatz OK"
+
+step "Python 3.10+ prüfen"
+find_uv() {
+  for candidate in \
+    "$(command -v uv 2>/dev/null || true)" \
+    "$HOME/.local/bin/uv" \
+    "$HOME/.cargo/bin/uv"; do
+    [[ -n "$candidate" && -x "$candidate" ]] && { echo "$candidate"; return 0; }
+  done
+  return 1
+}
+
+find_python() {
+  uv_bin="$(find_uv || true)"
+  if [[ -n "$uv_bin" ]]; then
+    uv_python="$("$uv_bin" python find 3.12 2>/dev/null || true)"
+    if [[ -n "$uv_python" && -x "$uv_python" ]]; then
+      echo "$uv_python"
+      return 0
+    fi
+  fi
+
+  for candidate in \
+    python3.13 python3.12 python3.11 python3.10 python3 python \
+    /opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3.10 /opt/homebrew/bin/python3 \
+    /usr/local/bin/python3.13 /usr/local/bin/python3.12 /usr/local/bin/python3.11 /usr/local/bin/python3.10 /usr/local/bin/python3; do
+    if [[ "$candidate" == */* ]]; then
+      [[ -x "$candidate" ]] || continue
+      bin="$candidate"
+    else
+      command -v "$candidate" >/dev/null 2>&1 || continue
+      bin="$(command -v "$candidate")"
+    fi
+    if "$bin" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
+      echo "$bin"
+      return 0
+    fi
+  done
+  return 1
+}
+
+install_uv_python() {
+  info "Installiere eine lokale Python-Runtime mit uv."
+  uv_bin="$(find_uv || true)"
+  if [[ -z "$uv_bin" ]]; then
+    run sh -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+    uv_bin="$(find_uv || true)"
+  fi
+  if [[ -z "$uv_bin" && "$DRY_RUN" == "1" ]]; then
+    uv_bin="$HOME/.local/bin/uv"
+  fi
+  [[ -n "$uv_bin" ]] || return 1
+  run "$uv_bin" python install 3.12
+}
+
+install_python() {
+  info "Python 3.10+ fehlt. Installation startet."
+  if [[ "$OS_NAME" == "Darwin" ]]; then
+    if command -v brew >/dev/null 2>&1; then
+      run brew install python@3.12 || run brew install python
+    else
+      install_uv_python || fail "Python 3.10+ konnte nicht automatisch installiert werden."
+    fi
+  elif install_uv_python; then
+    return 0
+  elif command -v apt-get >/dev/null 2>&1; then
+    run sudo apt-get update
+    run sudo apt-get install -y python3 python3-venv python3-pip
+  elif command -v dnf >/dev/null 2>&1; then
+    run sudo dnf install -y python3 python3-pip
+  elif command -v yum >/dev/null 2>&1; then
+    run sudo yum install -y python3 python3-pip
+  elif command -v pacman >/dev/null 2>&1; then
+    run sudo pacman -Sy --noconfirm python python-pip
+  else
+    fail "Python 3.10+ fehlt. Installiere Python und python3-venv mit deinem Paketmanager und starte ./install.sh erneut."
+  fi
+}
+
+PYTHON="$(find_python || true)"
+if [[ -z "$PYTHON" ]]; then
+  install_python
+  PYTHON="$(find_python || true)"
+fi
+if [[ -z "$PYTHON" && "$DRY_RUN" == "1" ]]; then
+  PYTHON="python3"
+  ok "Python 3.10+ würde installiert"
+else
+  [[ -n "$PYTHON" ]] || fail "Python 3.10+ fehlt. Installiere Python und starte den Installer erneut."
+  ok "$("$PYTHON" -c 'import sys; print(sys.version.split()[0])') gefunden"
+fi
+
+find_ollama() {
+  for candidate in \
+    "$(command -v ollama 2>/dev/null || true)" \
+    "/opt/homebrew/bin/ollama" \
+    "/usr/local/bin/ollama" \
+    "/Applications/Ollama.app/Contents/Resources/ollama"; do
+    [[ -n "$candidate" && -x "$candidate" ]] && { echo "$candidate"; return 0; }
+  done
+  return 1
+}
+
+step "Ollama prüfen"
+OLLAMA_BIN="$(find_ollama || true)"
+if [[ -z "$OLLAMA_BIN" ]]; then
+  info "Ollama CLI fehlt. Installation startet."
+  if [[ "$OS_NAME" == "Darwin" ]]; then
+    if command -v brew >/dev/null 2>&1; then
+      run brew install --cask ollama || run brew install ollama
+    else
+      fail "Homebrew fehlt. Installiere Ollama von https://ollama.com/download und starte danach ./install.sh erneut."
+    fi
+  else
+    run sh -c "curl -fsSL https://ollama.com/install.sh | sh"
+  fi
+  OLLAMA_BIN="$(find_ollama || true)"
+fi
+[[ -n "$OLLAMA_BIN" ]] || fail "Ollama wurde nicht gefunden."
+ok "$OLLAMA_BIN"
+
+step "Ollama Service starten"
+if ! curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+  if [[ "$OS_NAME" == "Darwin" && -d "/Applications/Ollama.app" ]]; then
+    run open -a Ollama
+  fi
+  run "$OLLAMA_BIN" serve >/tmp/mimi-nox-ollama.log 2>&1 &
   sleep 3
-  if ! ollama list >/dev/null 2>&1; then
-    fail "Ollama konnte nicht gestartet werden. Führe 'ollama serve' manuell aus."
-  fi
-  info "Ollama PID: $OLLAMA_PID"
 fi
+for _ in $(seq 1 30); do
+  curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break
+  sleep 1
+done
+curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1 || fail "Ollama Service antwortet nicht."
 ok "Ollama läuft"
 
-# ── 4. Modell pullen ──────────────────────────────────────────────────────────
-step "Modell: ${MIMI_NOX_MODEL}"
-if ollama show "${MIMI_NOX_MODEL}" > /dev/null 2>&1; then
-  ok "${MIMI_NOX_MODEL} bereits vorhanden"
-else
-  info "Lade ${MIMI_NOX_MODEL} herunter (~2.5 GB — einmalig, dauert je nach Internet 3–8 Min)..."
-  info "☕ Guter Zeitpunkt für einen Kaffee."
-  echo ""
-  ollama pull "${MIMI_NOX_MODEL}"
-  echo ""
-  ok "${MIMI_NOX_MODEL} bereit"
-fi
-
-# ── 4b. Optimiertes MiMi-Nox Modell erstellen ────────────────────────────────
-if [[ -f "Modelfile" ]]; then
-  step "Optimiertes Modell erstellen (mimi-nox)"
-  if ollama show "mimi-nox" >/dev/null 2>&1; then
-    ok "mimi-nox Modell bereits vorhanden"
+if [[ "$SKIP_MODEL" != "1" ]]; then
+  step "KI-Modell installieren: ${MODEL}"
+  if "$OLLAMA_BIN" show "$MODEL" >/dev/null 2>&1; then
+    ok "$MODEL bereits installiert"
   else
-    info "Erstelle optimiertes Modell aus Modelfile (num_ctx=32768, temperature=0.6)..."
-    ollama create mimi-nox -f Modelfile
-    ok "mimi-nox Modell erstellt – nutzt Flash Attention + optimierte Parameter"
+    info "Download: ca. 9.6 GB, 128K Kontext. Abbruch ist sicher, erneuter Start setzt fort."
+    run "$OLLAMA_BIN" pull "$MODEL"
+    ok "$MODEL bereit"
+  fi
+
+  step "Memory-Modell installieren: ${EMBED_MODEL}"
+  if "$OLLAMA_BIN" show "$EMBED_MODEL" >/dev/null 2>&1; then
+    ok "$EMBED_MODEL bereits installiert"
+  else
+    run "$OLLAMA_BIN" pull "$EMBED_MODEL"
+    ok "$EMBED_MODEL bereit"
   fi
 fi
 
-# ── 5. Python venv + Dependencies ────────────────────────────────────────────
-step "Python-Umgebung einrichten"
+step "Lokale Python-Umgebung einrichten"
 if [[ ! -d ".venv" ]]; then
-  info "Erstelle Virtual Environment..."
-  "$PYTHON" -m venv .venv
+  run "$PYTHON" -m venv .venv
 fi
-info "Installiere Dependencies (inkl. chromadb – kann 1-2 Min dauern)..."
-.venv/bin/pip install -q -e ".[gui]" 2>&1 | tail -3
-ok "Dependencies installiert (ddgs, chromadb, textual, ollama)"
+run .venv/bin/python -m pip install --upgrade pip
+run .venv/bin/pip install -e ".[gui,voice]"
+ok "Dependencies installiert"
 
-# ── 5b. nomic-embed-text für Memory ──────────────────────────────────────────
-step "Embedding-Modell für Memory"
-if ollama show "nomic-embed-text" > /dev/null 2>&1; then
-  ok "nomic-embed-text bereits vorhanden"
-else
-  info "Lade nomic-embed-text (~274 MB) für persistentes Memory..."
-  ollama pull nomic-embed-text
-  ok "nomic-embed-text bereit"
-fi
+step "Lokale Datenordner anlegen"
+mkdir -p "$HOME/.mimi-nox/memory" "$HOME/.mimi-nox/skills" "$HOME/.mimi-nox/sessions/audio" "$HOME/.mimi-nox/sessions/images"
+ok "$HOME/.mimi-nox bereit"
 
-# Gesamt-Download-Info
-info "Gesamtdownload abgeschlossen (~2.8 GB — nur einmalig nötig)"
-
-# ── 6. Fertig ─────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${NEON}${BOLD}  ✅ Setup abgeschlossen!${NC}"
-echo ""
-echo -e "  ${BOLD}Starten mit:${NC}"
-echo -e "  ${NEON}.venv/bin/python run_server.py${NC}"
-echo -e "  → öffne ${NEON}http://127.0.0.1:8765${NC} im Browser"
-echo ""
-echo -e "  ${DIM}TUI-Modus (alternativ):${NC}"
-echo -e "  ${DIM}.venv/bin/mimi-nox${NC}"
-echo ""
-echo -e "  ${DIM}Anderes Modell beim Setup:${NC}"
-echo -e "  ${DIM}MIMI_NOX_MODEL=llama3.1 ./install.sh${NC}"
-echo ""
-echo -e "${DIM}  🌲 No cloud. No tracking. Straight from the Black Forest.${NC}"
+echo -e "${GREEN}${BOLD}Setup fertig.${NC}"
+echo "Projekt: $PROJECT_DIR"
+echo "Start:   .venv/bin/miminox start --open"
+echo "Check:   .venv/bin/miminox doctor"
+echo "URL:     http://127.0.0.1:${PORT}"
 echo ""
 
-# Auto-Start: Server im Hintergrund starten + Browser öffnen
-if [[ -t 0 ]]; then
-  read -rp "  Jetzt starten? [J/n] " REPLY
-  REPLY="${REPLY:-J}"
-  if [[ "$REPLY" =~ ^[JjYy]$ ]]; then
-    echo -e "\n  ${NEON}▶${NC} Server startet..."
-    .venv/bin/python run_server.py &
-    SERVER_PID=$!
-
-    # Warte bis Server antwortet (max 30s)
-    echo -e "  ⏳ Warte auf Server..."
-    for i in $(seq 1 30); do
-      if curl -s http://127.0.0.1:8765/api/health > /dev/null 2>&1; then
-        break
-      fi
-      sleep 1
-    done
-
-    # Browser automatisch öffnen
-    echo -e "  ${NEON}🌐${NC} Öffne ${NEON}http://127.0.0.1:8765${NC}..."
-    if [[ "$(uname)" == "Darwin" ]]; then
-      open http://127.0.0.1:8765
-    else
-      xdg-open http://127.0.0.1:8765 2>/dev/null || \
-      python3 -m webbrowser http://127.0.0.1:8765 2>/dev/null || true
-    fi
-
-    wait $SERVER_PID
+if [[ "$NO_START" != "1" && "$DRY_RUN" != "1" ]]; then
+  if [[ -t 0 ]]; then
+    read -r -p "Jetzt starten? [J/n] " reply
+    reply="${reply:-J}"
+    [[ "$reply" =~ ^[JjYy]$ ]] || exit 0
   fi
+  exec .venv/bin/miminox start --port "$PORT" --model "$MODEL" --open
 fi

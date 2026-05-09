@@ -17,6 +17,12 @@ from core.commands import is_learn_command, extract_learn_topic, is_swarm_comman
 from core.skill_builder import build_skill
 from core.skills import SkillLoadError
 from core.artifact_detector import ArtifactDetector
+from core.model_provider import (
+    DEFAULT_OLLAMA_BASE_URL,
+    ModelProviderConfig,
+    ProviderSetupError,
+    get_active_provider,
+)
 from core.swarm_v2 import run_swarm_v2
 
 router = APIRouter(tags=["Chat"])
@@ -75,18 +81,28 @@ pending_sandbox: dict[str, dict] = {}  # DEPRECATED: nutze get_sandbox()
 _active_sandbox_events: dict[str, dict] = {}
 
 
+def sandbox_auto_approval_allowed(*, autonomous: bool) -> bool:
+    """Risky tools must always require explicit user approval."""
+    return False
+
+
 # ── Routes ─────────────────────────────────────────────────────────────────
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
     """Synchroner Chat-Endpunkt (wartet auf vollständige Antwort)."""
+    provider = get_active_provider()
+    model = provider.model if request.model == DEFAULT_MODEL else request.model
     try:
         response_text = await react_loop(
             question=request.message,
-            model=request.model,
+            model=model,
             context=request.history,
+            provider_config=provider,
         )
-        return ChatResponse(response=response_text or "", model=request.model)
+        return ChatResponse(response=response_text or "", model=model)
+    except ProviderSetupError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     except OllamaNotReachableError:
         raise HTTPException(status_code=503, detail="Ollama nicht erreichbar. Starte mit: ollama serve")
     except OllamaModelNotFoundError as exc:
@@ -131,16 +147,34 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
             # Wenn force_tier gesetzt → Router gibt den erzwungenen Tier zurück
             # Wenn model == DEFAULT_MODEL → Router entscheidet automatisch
             # Wenn model explizit gesetzt → bleibt unverändert (Override)
-            if request.force_tier or request.model == DEFAULT_MODEL:
+            active_provider = get_active_provider()
+            if request.force_tier:
                 from core.model_router import get_router
                 active_config = await get_router().resolve(
                     force_tier=request.force_tier
                 )
                 model = active_config.name
+                active_provider = ModelProviderConfig(
+                    provider="local_ollama",
+                    model=model,
+                    base_url=DEFAULT_OLLAMA_BASE_URL,
+                    label="Local Ollama",
+                    offline_capable=True,
+                    requires_internet=False,
+                )
                 # Tier-Info an Frontend senden
                 emit({"type": "model_info",
                       "tier": active_config.tier.value,
-                      "model": model})
+                      "model": model,
+                      "provider": "local_ollama"})
+            elif request.model == DEFAULT_MODEL:
+                model = active_provider.model
+                emit({"type": "model_info",
+                      "tier": "provider",
+                      "model": model,
+                      "provider": active_provider.provider,
+                      "offline_capable": active_provider.offline_capable,
+                      "requires_internet": active_provider.requires_internet})
             else:
                 model = request.model
 
@@ -229,7 +263,7 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
 
                 # ── Sandbox Handler ─────────────────────────────────────────
                 async def _sandbox_cb(name: str, args: dict) -> bool:
-                    if request.autonomous:
+                    if sandbox_auto_approval_allowed(autonomous=request.autonomous):
                         return True
                     token = str(uuid.uuid4())
                     event = asyncio.Event()
@@ -321,6 +355,7 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     on_tool_start=on_tool_start,
                     on_tool_done=on_tool_done,
                     on_phase=on_phase,
+                    provider_config=active_provider,
                 )
 
                 # Restlichen Thinking-Buffer flushen
@@ -376,8 +411,11 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     on_tool_start=on_tool_start,
                     on_tool_done=on_tool_done,
                     on_phase=on_phase,
+                    provider_config=active_provider,
                 )
 
+            except ProviderSetupError as exc:
+                emit({"type": "error", "msg": str(exc)})
             except OllamaNotReachableError:
                 emit({"type": "error", "msg": "Ollama nicht erreichbar — starte: ollama serve"})
             except OllamaModelBusyError as exc:

@@ -6,7 +6,7 @@
 
 # Your AI. Your Knowledge. Your Machine.
 
-**The only AI agent that learns from YOU, works offline, and never sends a single byte to the cloud.**
+**An offline-first local AI assistant for chat, images, files, memory, and safe tools. Optional online/API features are always opt-in.**
 
 <br>
 
@@ -24,13 +24,13 @@
 
 <div align="center">
 
-### 🐳 One command. That's it.
+### ⚡ One command. That's it.
 
 ```bash
-docker compose up
+curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.sh | bash
 ```
 
-Then open **http://localhost:8765** — your private AI is ready. 🚀
+Installs into `~/Documents/MiMi-Nox`, prepares Ollama + `gemma4:e4b`, then opens **http://127.0.0.1:8765**. Docker stays available under advanced options.
 
 </div>
 
@@ -38,13 +38,13 @@ Then open **http://localhost:8765** — your private AI is ready. 🚀
 
 <div align="center">
 
-|  | MiMi Nox 🌲 | ChatGPT / Claude | OpenClaw |
+|  | MiMi Nox 🌲 | Cloud chat apps | Generic local UI |
 |---|---|---|---|
-| **Your data stays on YOUR device** | ✅ Always | ❌ Cloud | ⚠️ Partial |
-| **Works 100% offline** | ✅ Gemma 4 | ❌ | ❌ |
-| **Learns from YOU over time** | ✅ Local knowledge tree | ❌ Feeds their models | ❌ |
+| **Offline-first core** | ✅ Local Ollama | ❌ | ⚠️ Depends |
+| **Default model** | ✅ `gemma4:e4b` | ❌ Remote | ⚠️ User choice |
+| **Local memory** | ✅ `~/.mimi-nox/` | ❌ Remote account | ⚠️ Partial |
 | **Phone app without App Store** | ✅ QR → PWA | ❌ | ❌ |
-| **You can see the AI thinking** | ✅ Thinking Panel | ❌ Blackbox | ❌ |
+| **Optional Online features** | ✅ Explicit opt-in | Always online | Varies |
 | **Cost per month** | **$0** | $20–200 | $20–200 |
 | **Works in your language** | ✅ All languages | ✅ | ✅ |
 
@@ -72,19 +72,33 @@ Then open **http://localhost:8765** — your private AI is ready. 🚀
 
 ## 🧠 Why MiMi Nox?
 
-### Your Knowledge Stays on YOUR Device
+### Your Knowledge Starts on YOUR Device
 
-Every time you chat with ChatGPT or Claude, **your conversations feed their models**. Your ideas, your code, your private questions — all stored on servers you don't control.
+MiMi Nox is built for people who want a useful assistant without making a remote account the default path.
 
 MiMi Nox is different:
 
-> **MiMi builds YOUR personal knowledge base — on YOUR machine.**
+> **MiMi builds YOUR personal knowledge base on YOUR machine by default.**
 >
-> Every conversation, every correction, every preference is stored **locally** in your `~/.mimi-nox/` folder. MiMi learns your writing style, remembers your projects, and gets smarter over time — without sending a single byte to OpenAI, Google, or anyone else.
+> Conversations, corrections and preferences are stored **locally** in your `~/.mimi-nox/` folder. Web search, public mobile tunnels, and OpenAI-compatible APIs are optional online features you must choose explicitly.
 >
 > *You own your AI. You own your knowledge. Delete the folder — it's gone. Forever.*
 
-MiMi Nox is a **fully local, autonomous AI agent** powered by **Gemma 4 (E4B)** via [Ollama](https://ollama.com). It runs as a premium web app with a browser interface, works in **any language**, and scales from your laptop to DGX.
+MiMi Nox is an **offline-first local AI assistant** powered by **Gemma 4 E4B** via [Ollama](https://ollama.com). The default provider is `local_ollama` with `gemma4:e4b` (Ollama artifact: **9.6 GB**, **128K** context). Advanced users can opt in to their own local model server or OpenAI-compatible API.
+
+### Feature Matrix
+
+| Feature | Default | Network |
+|---|---|---|
+| Chat with Gemma 4 E4B | Offline-first | Local Ollama |
+| Image understanding / OCR | Offline-first | Local Ollama |
+| Files, PDFs, Memory, Profile | Offline-first | Local disk |
+| Safe shell / screen tools | Offline-first | Local approval required |
+| Web search | Optional Online | Internet |
+| Text-to-speech via Edge-TTS | Optional Online | Internet |
+| Public mobile tunnel | Optional Online | Internet |
+| Custom local Ollama server | Advanced Opt-in | LAN/local endpoint |
+| OpenAI-compatible API | Advanced Opt-in | Your configured API |
 
 ---
 
@@ -116,7 +130,7 @@ No app install. No account. No port forwarding.
 2. Scan the QR code with your phone camera
 3. → Full WhatsApp-style chat appears, with all tools available, including 📷 camera for vision queries
 
-Works over the internet (automatic SSH tunnel) and installs as a **PWA on iOS & Android**.
+Works on your local network by default and installs as a **PWA on iOS & Android**. Public access is an explicit Optional Online mode.
 
 ### 🐝 Swarm Pipelines — Multiple agents, one command
 
@@ -130,67 +144,46 @@ MiMi spawns three parallel agents: Researcher → Writer → Social Media Expert
 
 ## ⚡ Quick Start
 
-### 🐳 Docker (recommended)
+One command installs MiMi Nox into `~/Documents/MiMi-Nox`, installs Ollama if possible, downloads `gemma4:e4b` (9.6 GB, 128K context), prepares Python, starts the local app, and opens the browser.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.sh | bash
+```
+
+Then open: **http://127.0.0.1:8765**
+
+> The first run downloads Gemma 4 E4B (`gemma4:e4b`, 9.6 GB via Ollama). If the download is interrupted, run the same command again; Ollama resumes.
+
+<details>
+<summary><strong>More install options</strong></summary>
+
+### Existing checkout
+
+```bash
+./install.sh
+```
+
+### Windows PowerShell
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+### Docker
 
 ```bash
 docker compose up
 ```
 
-Then open: **http://localhost:8765** 🚀
-
-> The first run downloads Gemma4 E4B (~2.5 GB) — after that it starts in seconds.
-> Your knowledge, memory, and sessions are stored in Docker volumes on YOUR machine.
-
-<details>
-<summary><strong>📦 Manual setup (without Docker)</strong></summary>
-
-**Prerequisites:** Python 3.10+, [Ollama](https://ollama.com) installed
-
-#### One-command setup
+### CLI
 
 ```bash
-git clone https://github.com/MimiTechAi/mimi-nox.git
-cd mimi-nox
-./install.sh
+miminox start --open
+miminox doctor
+miminox update
 ```
 
-The script handles everything:
-1. ✅ Python version check (≥ 3.10)
-2. ✅ Installs Ollama (if missing) or auto-updates if < v0.20.0
-3. ✅ Downloads `gemma4:e4b` (~2.5 GB, one-time)
-4. ✅ Creates virtual environment + dependencies
-5. ✅ Optional instant start
-
-> **Note:** Gemma4 E4B requires Ollama ≥ v0.20.0. The install script detects older versions and updates automatically.
-
-#### Manual setup
-
-```bash
-git clone https://github.com/MimiTechAi/mimi-nox.git
-cd mimi-nox
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[gui]"
-ollama pull gemma4:e4b
-```
-
-#### Run
-
-```bash
-# Web app (recommended)
-python run_server.py
-
-# With options
-python run_server.py --port 9000     # Different port
-python run_server.py --reload         # Dev mode with auto-reload
-
-# TUI (terminal alternative)
-mimi-nox
-mimi-nox --model llama3.3           # Different model
-```
-
-Then open: **http://127.0.0.1:8765** 🚀
-
-**To uninstall:** Delete the `mimi-nox/` folder. That's it. Gone. Zero traces.
+To uninstall, delete `~/Documents/MiMi-Nox` and optionally `~/.mimi-nox`.
 
 </details>
 
@@ -684,7 +677,7 @@ Licensed under the [Apache License, Version 2.0](LICENSE). You may use, modify, 
 │  │  └──────────┘ └──────────┘ └────────────────────┘ │           │
 │  └───────────────────────────────────────────────────┘           │
 │                                                                 │
-│  Zero Cloud · Zero Telemetry · 383 Tests · Apache 2.0           │
+│  Offline-first · No telemetry · Optional Online · Apache 2.0    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -694,7 +687,7 @@ Licensed under the [Apache License, Version 2.0](LICENSE). You may use, modify, 
 
 ### Built with precision in the Black Forest 🌲
 
-*Zero cloud dependencies. Zero telemetry. Zero compromise.*
+*Offline-first by default. Optional online integrations when you choose them.*
 
 *From concept to production — engineered for the AI community.*
 

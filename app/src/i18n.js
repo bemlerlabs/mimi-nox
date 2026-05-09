@@ -25,7 +25,25 @@ const translations = {
     'nav.memory': '🧠 Memory',
     'nav.profile': '👤 Profil',
     'nav.mobilePairing': '📱 Smartphone verbinden',
-    'nav.autonom': '🤖 Autonom',
+    'nav.exportChat': '💾 Chat exportieren',
+    'nav.tasks': '✅ Aufgaben',
+    'nav.toolApproval': 'Tool-Freigabe',
+    'provider.settingsTitle': 'Modell-Provider',
+    'provider.title': 'Modell-Provider',
+    'provider.sub': 'Offline-first nutzt standardmäßig lokales Ollama. Online/API ist eine bewusste Advanced-Option.',
+    'provider.localTitle': 'Lokales Ollama',
+    'provider.localDesc': 'Standard: offline-fähig auf diesem Computer.',
+    'provider.customTitle': 'Eigenes Ollama / LAN',
+    'provider.customDesc': 'Nutze deinen eigenen lokalen Modellserver oder ein anderes Gerät im Netzwerk.',
+    'provider.apiTitle': 'OpenAI-kompatible API',
+    'provider.apiDesc': 'Advanced Opt-in. Online/API, Daten gehen an deinen konfigurierten Anbieter.',
+    'provider.modelLabel': 'Modell',
+    'provider.baseUrlLabel': 'Base URL',
+    'provider.warningTitle': 'Online/API-Modus',
+    'provider.warningBody': 'Daten gehen an deinen konfigurierten Anbieter. API-Keys bleiben serverseitig über Umgebungsvariablen.',
+    'provider.confirmOnline': 'Ich verstehe, dass dies nicht der Offline-Default ist.',
+    'provider.cancel': 'Abbrechen',
+    'provider.save': 'Provider speichern',
     'status.connecting': 'Verbinden…',
     'status.connected': 'Verbunden',
     'status.offline': 'Offline',
@@ -41,14 +59,14 @@ const translations = {
 
     // ── Welcome Screen ──
     'welcome.heading': 'Womit kann ich helfen?',
-    'welcome.sub': 'Tippe eine Frage oder wähle einen Skill',
-    'welcome.searchNews': 'Aktuelle News suchen',
-    'welcome.analyzeFile': 'Datei analysieren',
+    'welcome.sub': 'Offline-first auf deinem Computer. Online-Funktionen sind optional.',
+    'welcome.searchNews': 'Optional online recherchieren',
+    'welcome.analyzeFile': 'Lokale Datei analysieren',
     'welcome.writeText': 'Text schreiben',
 
     // ── Activity Panel ──
     'activity.title': '⬡ KI-Aktivität',
-    'activity.waiting': '💡 Tippe "/research" für Web-Suche\n💡 "/files" zum Dateien durchsuchen\n💡 Hänge ein Bild mit 📎 an für KI-Vision',
+    'activity.waiting': '💡 "/files" liest lokale Dateien\n💡 Hänge ein Bild mit 📎 an für Gemma 4 Vision\n💡 "/research" ist optional online',
     'activity.about': '🧠 Was ich über dich weiß',
     'activity.nothingSaved': 'Noch nichts gespeichert.',
 
@@ -59,6 +77,7 @@ const translations = {
     'chat.readAloud': 'Vorlesen',
     'chat.copy': 'Kopieren',
     'chat.deepen': 'Vertiefen',
+    'chat.deepenFollowup': 'Vertiefe die vorherige Antwort',
     'chat.placeholder': 'Frag mich alles… oder / für Skills',
     'chat.send': 'Senden',
     'chat.attachImage': 'Bild anfügen',
@@ -88,8 +107,15 @@ const translations = {
     'skills.saved': '✅ Gespeichert!',
     'skills.delete': 'Löschen',
     'skills.builtIn': 'Built-in',
+    'skills.inspectBtn': 'Ansehen',
     'skills.editBtn': '✏️ Bearbeiten',
     'skills.userSkill': 'Eigener Skill',
+
+    // ── Tasks Tab ──
+    'tasks.title': '✅ Aufgaben',
+    'tasks.sub': 'Lokale Aufgaben und To-Dos, die MiMi für dich festhält.',
+    'tasks.empty': 'Keine Aufgaben vorhanden.',
+    'tasks.error': 'Aufgaben konnten nicht geladen werden.',
 
     // ── History Tab ──
     'history.title': '📚 Gespeicherte Unterhaltungen',
@@ -129,8 +155,8 @@ const translations = {
 
     // ── Onboarding ──
     'onboarding.title': 'Willkommen bei MiMi Nox',
-    'onboarding.sub': 'Wähle, wofür du mich hauptsächlich nutzen möchtest.',
-    'onboarding.subLine2': 'Ich aktiviere die passenden Skills automatisch.',
+    'onboarding.sub': 'Starte lokal mit Ollama und Gemma 4 E4B.',
+    'onboarding.subLine2': 'Default: gemma4:e4b · 9.6 GB · 128K Kontext. Eigene Modellserver oder APIs sind Advanced Opt-in.',
     'onboarding.dev': 'Entwickler',
     'onboarding.devDesc': 'Code reviewen, Shell-Befehle, Debugging',
     'onboarding.research': 'Forscher',
@@ -145,21 +171,27 @@ const translations = {
     'onboarding.allroundDesc': 'Alle Skills aktivieren',
     'onboarding.hint': 'Du kannst Skills jederzeit unter ⚡ Skills anpassen.',
     'onboarding.start': 'Starten →',
+    'onboarding.back': '← Zurück',
 
     // ── Mobile Pairing Modal ──
     'mobile.title': '📱 Mobile Pairing',
-    'mobile.sub': 'Scanne mich, um MiMi auf dein Handy zu holen (weltweit erreichbar).',
-    'mobile.loading': 'Globaler Tunnel wird aufgebaut...',
-    'mobile.loadingHint': 'Dies kann bis zu 3 Sekunden dauern.',
+    'mobile.sub': 'Scanne im gleichen lokalen Netzwerk. Public-Zugriff ist eine bewusste Online-Option.',
+    'mobile.loading': 'Lokale Netzwerkverbindung wird vorbereitet...',
+    'mobile.loadingHint': 'Es startet kein Public-Tunnel, solange du ihn nicht auswählst.',
     'mobile.close': 'Schließen',
 
     // ── Skill Chips ──
+    'chip.chart': 'Diagramm erstellen',
     'chip.research': 'Web-Suche starten',
     'chip.files': 'Dateien lesen/suchen',
+    'chip.help': 'Hilfe anzeigen',
+    'chip.pdf': 'PDF analysieren',
     'chip.write': 'Texte schreiben',
     'chip.review': 'Code reviewen',
     'chip.shell': 'Shell-Befehl',
+    'chip.svg': 'SVG erstellen',
     'chip.scan': 'Screenshots analysieren',
+    'chip.swarm': 'Mehrere Agenten koordinieren',
 
     // ── Errors ──
     'error.ollamaOffline': 'Ollama nicht erreichbar — starte: ollama serve',
@@ -198,7 +230,25 @@ const translations = {
     'nav.memory': '🧠 Memory',
     'nav.profile': '👤 Profile',
     'nav.mobilePairing': '📱 Connect Phone',
-    'nav.autonom': '🤖 Autonomous',
+    'nav.exportChat': '💾 Export Chat',
+    'nav.tasks': '✅ Tasks',
+    'nav.toolApproval': 'Tool approval',
+    'provider.settingsTitle': 'Model Provider',
+    'provider.title': 'Model Provider',
+    'provider.sub': 'Offline-first uses local Ollama by default. Online/API is an explicit advanced option.',
+    'provider.localTitle': 'Local Ollama',
+    'provider.localDesc': 'Default offline-capable setup on this computer.',
+    'provider.customTitle': 'Custom Ollama / LAN',
+    'provider.customDesc': 'Use your own local model server or another device in your network.',
+    'provider.apiTitle': 'OpenAI-compatible API',
+    'provider.apiDesc': 'Advanced Opt-in. Online/API, data goes to your configured provider.',
+    'provider.modelLabel': 'Model',
+    'provider.baseUrlLabel': 'Base URL',
+    'provider.warningTitle': 'Online/API mode',
+    'provider.warningBody': 'Data goes to your configured provider. API keys stay server-side via environment variables.',
+    'provider.confirmOnline': 'I understand this is not the offline default.',
+    'provider.cancel': 'Cancel',
+    'provider.save': 'Save Provider',
     'status.connecting': 'Connecting…',
     'status.connected': 'Connected',
     'status.offline': 'Offline',
@@ -214,14 +264,14 @@ const translations = {
 
     // ── Welcome Screen ──
     'welcome.heading': 'How can I help?',
-    'welcome.sub': 'Type a question or choose a skill',
-    'welcome.searchNews': 'Search latest news',
-    'welcome.analyzeFile': 'Analyze a file',
+    'welcome.sub': 'Offline-first on your computer. Online features are optional.',
+    'welcome.searchNews': 'Research online optionally',
+    'welcome.analyzeFile': 'Analyze a local file',
     'welcome.writeText': 'Write a text',
 
     // ── Activity Panel ──
     'activity.title': '⬡ AI Activity',
-    'activity.waiting': '💡 Try "/research" to search the web\n💡 Type "/files" to browse documents\n💡 Attach an image with 📎 for AI vision',
+    'activity.waiting': '💡 "/files" reads local files\n💡 Attach an image with 📎 for Gemma 4 vision\n💡 "/research" is optional online',
     'activity.about': '🧠 What I know about you',
     'activity.nothingSaved': 'Nothing saved yet.',
 
@@ -232,6 +282,7 @@ const translations = {
     'chat.readAloud': 'Read aloud',
     'chat.copy': 'Copy',
     'chat.deepen': 'Dig deeper',
+    'chat.deepenFollowup': 'Dig deeper into the previous answer',
     'chat.placeholder': 'Ask me anything… or / for skills',
     'chat.send': 'Send',
     'chat.attachImage': 'Attach image',
@@ -261,8 +312,15 @@ const translations = {
     'skills.saved': '✅ Saved!',
     'skills.delete': 'Delete',
     'skills.builtIn': 'Built-in',
+    'skills.inspectBtn': 'View',
     'skills.editBtn': '✏️ Edit',
     'skills.userSkill': 'Custom Skill',
+
+    // ── Tasks Tab ──
+    'tasks.title': '✅ Tasks',
+    'tasks.sub': 'Local tasks and to-dos MiMi keeps for you.',
+    'tasks.empty': 'No tasks yet.',
+    'tasks.error': 'Tasks could not be loaded.',
 
     // ── History Tab ──
     'history.title': '📚 Saved Conversations',
@@ -302,8 +360,8 @@ const translations = {
 
     // ── Onboarding ──
     'onboarding.title': 'Welcome to MiMi Nox',
-    'onboarding.sub': 'Choose what you\'ll mainly use me for.',
-    'onboarding.subLine2': 'I\'ll activate the right skills automatically.',
+    'onboarding.sub': 'Start locally with Ollama and Gemma 4 E4B.',
+    'onboarding.subLine2': 'Default: gemma4:e4b · 9.6 GB · 128K context. Your own model server or API is Advanced Opt-in.',
     'onboarding.dev': 'Developer',
     'onboarding.devDesc': 'Code review, shell commands, debugging',
     'onboarding.research': 'Researcher',
@@ -318,21 +376,27 @@ const translations = {
     'onboarding.allroundDesc': 'Activate all skills',
     'onboarding.hint': 'You can adjust skills anytime under ⚡ Skills.',
     'onboarding.start': 'Start →',
+    'onboarding.back': '← Back',
 
     // ── Mobile Pairing Modal ──
     'mobile.title': '📱 Mobile Pairing',
-    'mobile.sub': 'Scan to get MiMi on your phone (reachable worldwide).',
-    'mobile.loading': 'Setting up global tunnel...',
-    'mobile.loadingHint': 'This may take up to 3 seconds.',
+    'mobile.sub': 'Scan on the same local network. Public access is an explicit online option.',
+    'mobile.loading': 'Preparing local network pairing...',
+    'mobile.loadingHint': 'No public tunnel starts unless you choose it.',
     'mobile.close': 'Close',
 
     // ── Skill Chips ──
+    'chip.chart': 'Create chart',
     'chip.research': 'Start web search',
     'chip.files': 'Read/search files',
+    'chip.help': 'Show help',
+    'chip.pdf': 'Analyze PDF',
     'chip.write': 'Write texts',
     'chip.review': 'Code review',
     'chip.shell': 'Shell command',
+    'chip.svg': 'Create SVG',
     'chip.scan': 'Analyze screenshots',
+    'chip.swarm': 'Coordinate multiple agents',
 
     // ── Errors ──
     'error.ollamaOffline': 'Ollama not reachable — start: ollama serve',
@@ -369,7 +433,25 @@ const translations = {
     'nav.memory': '🧠 Memoria',
     'nav.profile': '👤 Perfil',
     'nav.mobilePairing': '📱 Conectar smartphone',
-    'nav.autonom': '🤖 Autónomo',
+    'nav.exportChat': '💾 Exportar chat',
+    'nav.tasks': '✅ Tareas',
+    'nav.toolApproval': 'Aprobación de herramientas',
+    'provider.settingsTitle': 'Proveedor de modelo',
+    'provider.title': 'Proveedor de modelo',
+    'provider.sub': 'Offline-first usa Ollama local por defecto. Online/API es una opción avanzada explícita.',
+    'provider.localTitle': 'Ollama local',
+    'provider.localDesc': 'Configuración predeterminada offline-capable en este ordenador.',
+    'provider.customTitle': 'Ollama propio / LAN',
+    'provider.customDesc': 'Usa tu propio servidor local de modelos u otro dispositivo en tu red.',
+    'provider.apiTitle': 'API compatible con OpenAI',
+    'provider.apiDesc': 'Advanced Opt-in. Online/API, los datos van a tu proveedor configurado.',
+    'provider.modelLabel': 'Modelo',
+    'provider.baseUrlLabel': 'Base URL',
+    'provider.warningTitle': 'Modo Online/API',
+    'provider.warningBody': 'Los datos van a tu proveedor configurado. Las claves API permanecen en el servidor mediante variables de entorno.',
+    'provider.confirmOnline': 'Entiendo que este no es el modo offline predeterminado.',
+    'provider.cancel': 'Cancelar',
+    'provider.save': 'Guardar proveedor',
     'status.connecting': 'Conectando…',
     'status.connected': 'Conectado',
     'status.offline': 'Sin conexión',
@@ -395,6 +477,7 @@ const translations = {
     'chat.readAloud': 'Leer en voz alta',
     'chat.copy': 'Copiar',
     'chat.deepen': 'Profundizar',
+    'chat.deepenFollowup': 'Profundiza la respuesta anterior',
     'chat.placeholder': 'Pregúntame lo que sea… o / para habilidades',
     'chat.send': 'Enviar',
     'chat.attachImage': 'Adjuntar imagen',
@@ -436,6 +519,7 @@ const translations = {
     'chip.review': 'Revisar código',
     'chip.scan': 'Analizar capturas',
     'chip.shell': 'Comando shell',
+    'chip.swarm': 'Coordinar múltiples agentes',
     'chip.write': 'Escribir textos',
     'hint.full': '↑ Último comando · / Skills · Enter Enviar · Esc Cancelar',
     'history.clear': '🗑 Borrar historial',
@@ -446,9 +530,9 @@ const translations = {
     'memory.searchPlaceholder': 'Buscar en memoria…',
     'memory.sub': 'La IA recuerda información importante entre sesiones.',
     'mobile.close': 'Cerrar',
-    'mobile.loading': 'Estableciendo túnel global...',
-    'mobile.loadingHint': 'Puede tardar hasta 3 segundos.',
-    'mobile.sub': 'Escanéame para llevar MiMi a tu móvil.',
+    'mobile.loading': 'Preparando conexión en la red local...',
+    'mobile.loadingHint': 'No se inicia acceso público a menos que lo elijas.',
+    'mobile.sub': 'Escanea en la misma red local. El acceso público es una opción online explícita.',
     'mobile.title': '📱 Conexión móvil',
     'onboarding.allround': 'General',
     'onboarding.allroundDesc': 'Activar todos los skills',
@@ -462,6 +546,7 @@ const translations = {
     'onboarding.research': 'Investigador',
     'onboarding.researchDesc': 'Búsqueda web, verificación, fuentes',
     'onboarding.start': 'Comenzar →',
+    'onboarding.back': '← Atrás',
     'onboarding.sub': 'Elige para qué me usarás principalmente.',
     'onboarding.subLine2': 'Activaré los skills adecuados automáticamente.',
     'onboarding.title': 'Bienvenido a MiMi Nox',
@@ -493,6 +578,13 @@ const translations = {
     'skills.saved': '✅ ¡Guardado!',
     'skills.tools': 'Herramientas (separadas por coma)',
     'skills.trigger': 'Trigger',
+    'skills.inspectBtn': 'Ver',
+    'skills.editBtn': '✏️ Editar',
+    'skills.userSkill': 'Skill propio',
+    'tasks.title': '✅ Tareas',
+    'tasks.sub': 'Tareas locales y pendientes que MiMi guarda para ti.',
+    'tasks.empty': 'No hay tareas.',
+    'tasks.error': 'No se pudieron cargar las tareas.',
 
     'chat.camera': 'Tomar foto',
     'welcome.explainTopic': 'Explicar algo',
@@ -512,7 +604,25 @@ const translations = {
     'nav.memory': '🧠 Mémoire',
     'nav.profile': '👤 Profil',
     'nav.mobilePairing': '📱 Connecter smartphone',
-    'nav.autonom': '🤖 Autonome',
+    'nav.exportChat': '💾 Exporter le chat',
+    'nav.tasks': '✅ Tâches',
+    'nav.toolApproval': 'Validation des outils',
+    'provider.settingsTitle': 'Fournisseur de modèle',
+    'provider.title': 'Fournisseur de modèle',
+    'provider.sub': 'Offline-first utilise Ollama local par défaut. Online/API est une option avancée explicite.',
+    'provider.localTitle': 'Ollama local',
+    'provider.localDesc': 'Configuration par défaut compatible hors ligne sur cet ordinateur.',
+    'provider.customTitle': 'Ollama personnalisé / LAN',
+    'provider.customDesc': 'Utilisez votre propre serveur de modèles local ou un autre appareil du réseau.',
+    'provider.apiTitle': 'API compatible OpenAI',
+    'provider.apiDesc': 'Advanced Opt-in. Online/API, les données vont vers votre fournisseur configuré.',
+    'provider.modelLabel': 'Modèle',
+    'provider.baseUrlLabel': 'Base URL',
+    'provider.warningTitle': 'Mode Online/API',
+    'provider.warningBody': 'Les données vont vers votre fournisseur configuré. Les clés API restent côté serveur via variables d’environnement.',
+    'provider.confirmOnline': 'Je comprends que ce n’est pas le mode hors ligne par défaut.',
+    'provider.cancel': 'Annuler',
+    'provider.save': 'Enregistrer le fournisseur',
     'status.connecting': 'Connexion…',
     'status.connected': 'Connecté',
     'status.offline': 'Hors ligne',
@@ -538,6 +648,7 @@ const translations = {
     'chat.readAloud': 'Lire à haute voix',
     'chat.copy': 'Copier',
     'chat.deepen': 'Approfondir',
+    'chat.deepenFollowup': 'Approfondis la réponse précédente',
     'chat.placeholder': 'Demandez-moi tout… ou / pour les compétences',
     'chat.send': 'Envoyer',
     'chat.attachImage': 'Joindre image',
@@ -579,6 +690,7 @@ const translations = {
     'chip.review': 'Réviser du code',
     'chip.scan': 'Analyser captures',
     'chip.shell': 'Commande shell',
+    'chip.swarm': 'Coordonner plusieurs agents',
     'chip.write': 'Rédiger des textes',
     'hint.full': '↑ Dernière commande · / Skills · Entrée Envoyer · Échap Annuler',
     'history.clear': '🗑 Effacer l\'historique',
@@ -589,9 +701,9 @@ const translations = {
     'memory.searchPlaceholder': 'Rechercher dans la mémoire…',
     'memory.sub': 'L\'IA se souvient d\'informations importantes entre les sessions.',
     'mobile.close': 'Fermer',
-    'mobile.loading': 'Création du tunnel global...',
-    'mobile.loadingHint': 'Cela peut prendre jusqu\'à 3 secondes.',
-    'mobile.sub': 'Scannez-moi pour avoir MiMi sur votre téléphone.',
+    'mobile.loading': 'Préparation de la connexion au réseau local...',
+    'mobile.loadingHint': 'Aucun accès public ne démarre sauf si vous le choisissez.',
+    'mobile.sub': 'Scannez sur le même réseau local. L\'accès public est une option en ligne explicite.',
     'mobile.title': '📱 Connexion mobile',
     'onboarding.allround': 'Général',
     'onboarding.allroundDesc': 'Activer toutes les compétences',
@@ -636,6 +748,13 @@ const translations = {
     'skills.saved': '✅ Enregistré !',
     'skills.tools': 'Outils (séparés par virgule)',
     'skills.trigger': 'Trigger',
+    'skills.inspectBtn': 'Voir',
+    'skills.editBtn': '✏️ Modifier',
+    'skills.userSkill': 'Skill personnalisé',
+    'tasks.title': '✅ Tâches',
+    'tasks.sub': 'Tâches locales et choses à faire que MiMi garde pour vous.',
+    'tasks.empty': 'Aucune tâche.',
+    'tasks.error': 'Impossible de charger les tâches.',
 
     'chat.camera': 'Prendre photo',
     'welcome.explainTopic': 'Expliquer quelque chose',
@@ -655,7 +774,25 @@ const translations = {
     'nav.memory': '🧠 メモリー',
     'nav.profile': '👤 プロフィール',
     'nav.mobilePairing': '📱 スマホ接続',
-    'nav.autonom': '🤖 自律モード',
+    'nav.exportChat': '💾 チャットを書き出す',
+    'nav.tasks': '✅ タスク',
+    'nav.toolApproval': 'ツール承認',
+    'provider.settingsTitle': 'モデルプロバイダー',
+    'provider.title': 'モデルプロバイダー',
+    'provider.sub': 'Offline-first はデフォルトでローカル Ollama を使います。Online/API は明示的な高度オプションです。',
+    'provider.localTitle': 'ローカル Ollama',
+    'provider.localDesc': 'このコンピューター上のオフライン対応デフォルト設定です。',
+    'provider.customTitle': 'カスタム Ollama / LAN',
+    'provider.customDesc': '自分のローカルモデルサーバー、または同じネットワーク上の別デバイスを使います。',
+    'provider.apiTitle': 'OpenAI互換API',
+    'provider.apiDesc': 'Advanced Opt-in。Online/API では、データは設定したプロバイダーへ送られます。',
+    'provider.modelLabel': 'モデル',
+    'provider.baseUrlLabel': 'Base URL',
+    'provider.warningTitle': 'Online/APIモード',
+    'provider.warningBody': 'データは設定したプロバイダーへ送られます。APIキーは環境変数でサーバー側に保持されます。',
+    'provider.confirmOnline': 'これがオフラインのデフォルトではないことを理解しています。',
+    'provider.cancel': 'キャンセル',
+    'provider.save': 'プロバイダーを保存',
     'status.connecting': '接続中…',
     'status.connected': '接続済み',
     'status.offline': 'オフライン',
@@ -681,6 +818,7 @@ const translations = {
     'chat.readAloud': '読み上げ',
     'chat.copy': 'コピー',
     'chat.deepen': '深掘り',
+    'chat.deepenFollowup': '前の回答を深掘り',
     'chat.placeholder': '何でも聞いてください… / でスキル一覧',
     'chat.send': '送信',
     'chat.attachImage': '画像を添付',
@@ -722,6 +860,7 @@ const translations = {
     'chip.review': 'コードレビュー',
     'chip.scan': 'スクリーンショット分析',
     'chip.shell': 'シェルコマンド',
+    'chip.swarm': '複数エージェントを調整',
     'chip.write': 'テキスト作成',
     'hint.full': '↑ 前のコマンド · / スキル · Enter 送信 · Esc キャンセル',
     'history.clear': '🗑 履歴を削除',
@@ -732,9 +871,9 @@ const translations = {
     'memory.searchPlaceholder': 'メモリーを検索…',
     'memory.sub': 'AIはセッション間で重要な情報を記憶します。',
     'mobile.close': '閉じる',
-    'mobile.loading': 'グローバルトンネルを構築中...',
-    'mobile.loadingHint': '最大3秒かかることがあります。',
-    'mobile.sub': 'スキャンしてスマホでMiMiを使おう。',
+    'mobile.loading': 'ローカルネットワーク接続を準備中...',
+    'mobile.loadingHint': '選択しない限り、公開アクセスは開始されません。',
+    'mobile.sub': '同じローカルネットワークでスキャンしてください。公開アクセスは明示的なオンラインオプションです。',
     'mobile.title': '📱 モバイル接続',
     'onboarding.allround': '汎用',
     'onboarding.allroundDesc': '全スキルを有効化',
@@ -779,6 +918,13 @@ const translations = {
     'skills.saved': '✅ 保存完了！',
     'skills.tools': 'ツール（カンマ区切り）',
     'skills.trigger': 'トリガー',
+    'skills.inspectBtn': '表示',
+    'skills.editBtn': '✏️ 編集',
+    'skills.userSkill': 'カスタムスキル',
+    'tasks.title': '✅ タスク',
+    'tasks.sub': 'MiMiがローカルで保持するタスクとTo-Doです。',
+    'tasks.empty': 'タスクはまだありません。',
+    'tasks.error': 'タスクを読み込めませんでした。',
 
     'chat.camera': '写真を撮る',
     'welcome.explainTopic': '何かを説明',
@@ -798,7 +944,25 @@ const translations = {
     'nav.memory': '🧠 记忆',
     'nav.profile': '👤 档案',
     'nav.mobilePairing': '📱 连接手机',
-    'nav.autonom': '🤖 自主模式',
+    'nav.exportChat': '💾 导出聊天',
+    'nav.tasks': '✅ 任务',
+    'nav.toolApproval': '工具批准',
+    'provider.settingsTitle': '模型提供方',
+    'provider.title': '模型提供方',
+    'provider.sub': 'Offline-first 默认使用本地 Ollama。Online/API 是明确的高级选项。',
+    'provider.localTitle': '本地 Ollama',
+    'provider.localDesc': '此电脑上的默认离线可用设置。',
+    'provider.customTitle': '自定义 Ollama / LAN',
+    'provider.customDesc': '使用你自己的本地模型服务器或同一网络中的其他设备。',
+    'provider.apiTitle': 'OpenAI 兼容 API',
+    'provider.apiDesc': 'Advanced Opt-in。Online/API 模式下，数据会发送到你配置的提供方。',
+    'provider.modelLabel': '模型',
+    'provider.baseUrlLabel': 'Base URL',
+    'provider.warningTitle': 'Online/API 模式',
+    'provider.warningBody': '数据会发送到你配置的提供方。API Key 通过环境变量保留在服务器端。',
+    'provider.confirmOnline': '我理解这不是默认离线模式。',
+    'provider.cancel': '取消',
+    'provider.save': '保存提供方',
     'status.connecting': '连接中…',
     'status.connected': '已连接',
     'status.offline': '离线',
@@ -824,6 +988,7 @@ const translations = {
     'chat.readAloud': '朗读',
     'chat.copy': '复制',
     'chat.deepen': '深入了解',
+    'chat.deepenFollowup': '深入上一条回答',
     'chat.placeholder': '问我任何问题… 或 / 查看技能',
     'chat.send': '发送',
     'chat.attachImage': '附加图片',
@@ -865,6 +1030,7 @@ const translations = {
     'chip.review': '代码审查',
     'chip.scan': '分析截图',
     'chip.shell': 'Shell命令',
+    'chip.swarm': '协调多个代理',
     'chip.write': '撰写文本',
     'hint.full': '↑ 上一命令 · / 技能 · Enter 发送 · Esc 取消',
     'history.clear': '🗑 清除记录',
@@ -875,9 +1041,9 @@ const translations = {
     'memory.searchPlaceholder': '搜索记忆…',
     'memory.sub': 'AI会在会话之间记住重要信息。',
     'mobile.close': '关闭',
-    'mobile.loading': '正在建立全球隧道...',
-    'mobile.loadingHint': '可能需要最多3秒。',
-    'mobile.sub': '扫描我，在手机上使用MiMi。',
+    'mobile.loading': '正在准备本地网络连接...',
+    'mobile.loadingHint': '除非你选择，否则不会启动公共访问。',
+    'mobile.sub': '请在同一本地网络中扫码。公共访问是明确的在线选项。',
     'mobile.title': '📱 移动连接',
     'onboarding.allround': '通用',
     'onboarding.allroundDesc': '启用所有技能',
@@ -922,6 +1088,13 @@ const translations = {
     'skills.saved': '✅ 已保存！',
     'skills.tools': '工具（逗号分隔）',
     'skills.trigger': '触发器',
+    'skills.inspectBtn': '查看',
+    'skills.editBtn': '✏️ 编辑',
+    'skills.userSkill': '自定义技能',
+    'tasks.title': '✅ 任务',
+    'tasks.sub': 'MiMi 为你在本地保存的任务和待办。',
+    'tasks.empty': '暂无任务。',
+    'tasks.error': '无法加载任务。',
 
     'chat.camera': '拍照',
     'welcome.explainTopic': '解释一件事',
@@ -931,10 +1104,26 @@ const translations = {
   },
 };
 
+function storageGet(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function storageSet(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Embedded browsers may block storage. Language still works in memory.
+  }
+}
+
 // ── Detect language ──────────────────────────────────────────────────────────
 function detectLanguage() {
   // 1. Check localStorage override
-  const stored = localStorage.getItem('mimi-nox-lang');
+  const stored = storageGet('mimi-nox-lang');
   if (stored && translations[stored]) return stored;
 
   // 2. Check browser language
@@ -970,7 +1159,7 @@ export function currentLang() {
 export function setLanguage(lang) {
   if (!translations[lang]) return;
   _currentLang = lang;
-  localStorage.setItem('mimi-nox-lang', lang);
+  storageSet('mimi-nox-lang', lang);
   document.documentElement.lang = lang;
   applyTranslations();
 }
@@ -1011,7 +1200,7 @@ export function applyTranslations() {
  * Returns true on first launch (before any language selection).
  */
 export function needsLanguageSelection() {
-  return !localStorage.getItem('mimi-nox-lang');
+  return !storageGet('mimi-nox-lang');
 }
 
 export default { t, currentLang, setLanguage, applyTranslations, needsLanguageSelection, translations };

@@ -254,3 +254,49 @@ class TestChatWithTools:
             "KRITISCH: Tool-Detection muss stream=False nutzen "
             "(bekanntes Ollama-Limit: Tool-Calls brechen mit stream=True)"
         )
+
+    @pytest.mark.asyncio
+    async def test_given_gemma4_e4b_when_tool_detection_runs_then_native_thinking_flag_is_not_sent(self):
+        """
+        GIVEN the default Gemma 4 E4B local model
+        WHEN chat_with_tools performs the non-streaming tool detection call
+        THEN it must not send Ollama's native think=True flag because this model rejects it.
+        """
+        pure_text = _make_ollama_response(content="OK", tool_calls=[])
+
+        with patch("core.chat.ollama.AsyncClient") as MockClient:
+            client = AsyncMock()
+            client.chat = AsyncMock(return_value=pure_text)
+            MockClient.return_value = client
+
+            await chat_with_tools(
+                model="gemma4:e4b",
+                history=[{"role": "user", "content": "Sage OK"}],
+                on_chunk=lambda c: None,
+            )
+
+        detection_call_kwargs = client.chat.call_args_list[0].kwargs
+        assert "think" not in detection_call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_given_native_thinking_model_when_tool_detection_runs_then_thinking_flag_is_sent(self):
+        """
+        GIVEN a model family known to support native Ollama thinking
+        WHEN chat_with_tools performs tool detection
+        THEN the native thinking flag is still available for that model family.
+        """
+        pure_text = _make_ollama_response(content="OK", tool_calls=[])
+
+        with patch("core.chat.ollama.AsyncClient") as MockClient:
+            client = AsyncMock()
+            client.chat = AsyncMock(return_value=pure_text)
+            MockClient.return_value = client
+
+            await chat_with_tools(
+                model="qwen3:4b",
+                history=[{"role": "user", "content": "Sage OK"}],
+                on_chunk=lambda c: None,
+            )
+
+        detection_call_kwargs = client.chat.call_args_list[0].kwargs
+        assert detection_call_kwargs.get("think") is True

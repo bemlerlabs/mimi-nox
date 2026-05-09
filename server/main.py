@@ -15,7 +15,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from server.routes import health, chat, memory, skills, profile, feedback, audio, mobile, schedule, vision, tasks, export
+from server.routes import (
+    audio,
+    chat,
+    export,
+    feedback,
+    health,
+    memory,
+    mobile,
+    model_provider,
+    profile,
+    schedule,
+    skills,
+    tasks,
+    vision,
+)
 from core import __version__, __edition__, __tagline__
 from core.scheduler import nox_scheduler
 
@@ -73,11 +87,13 @@ def create_app() -> FastAPI:
         redoc_url=None,
     )
 
-    # ── CORS für Tauri WebView ─────────────────────────────────────────────
-    # Tauri lädt Seiten als tauri://localhost oder http://localhost:PORT
+    # ── CORS für lokale WebView/Dev-Origins ────────────────────────────────
+    # LAN/mobile nutzt same-origin über die vom Server gelieferte PWA. Fremde
+    # Webseiten bekommen keine Schreibrechte auf die lokalen APIs.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=["tauri://localhost"],
+        allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -96,6 +112,7 @@ def create_app() -> FastAPI:
     app.include_router(vision.router,   prefix="/api")
     app.include_router(tasks.router,    prefix="/api")
     app.include_router(export.router,   prefix="/api")
+    app.include_router(model_provider.router, prefix="/api")
 
     # ── Statische Dateien (Audio-Aufnahmen für Playback) ───────────────────
     audio_dir = Path(

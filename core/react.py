@@ -25,9 +25,8 @@ import re
 from dataclasses import dataclass
 from typing import Callable
 
-import ollama
-
 from core.chat import chat_with_tools, OllamaNotReachableError, OllamaModelNotFoundError
+from core.model_provider import ModelProviderConfig, build_provider_client, get_active_provider
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +79,7 @@ async def reflect(
     response: str,
     question: str,
     model: str,
+    provider_config: ModelProviderConfig | None = None,
 ) -> ReflexionResult:
     """
     Bewertet eine Antwort via separatem LLM-Aufruf.
@@ -95,7 +95,11 @@ async def reflect(
     Returns:
         ReflexionResult(needs_revision=bool, reason=str)
     """
-    client = ollama.AsyncClient()
+    provider = provider_config or get_active_provider()
+    try:
+        client = build_provider_client(provider)
+    except Exception:
+        return ReflexionResult(needs_revision=False, reason="")
 
     prompt = (
         f"Frage: {question}\n\n"
@@ -150,6 +154,7 @@ async def react_loop(
     on_chunk: Callable[[str], None] | None = None,
     on_tool_start: Callable[[str, dict], None] | None = None,
     on_tool_done: Callable[[str, str], None] | None = None,
+    provider_config: ModelProviderConfig | None = None,
 ) -> str:
     """
     ReAct-Loop mit Reflexions-basierter Selbstkorrektur.
@@ -214,6 +219,7 @@ async def react_loop(
             on_chunk=chunk_cb,
             on_tool_start=on_tool_start,
             on_tool_done=on_tool_done,
+            provider_config=provider_config,
         )
 
         last_answer = answer or "".join(iteration_buffer)
@@ -235,6 +241,7 @@ async def react_loop(
             response=last_answer,
             question=question,
             model=model,
+            provider_config=provider_config,
         )
 
         step = ReActStep(

@@ -5,10 +5,10 @@ build-backend = "hatchling.build"
 [project]
 name = "mimi-nox"
 version = "4.0.0"
-description = "◑ MiMi Nox – Autonomer lokaler AI-Agent. Privat. Lokal. Yours."
+description = "◑ MiMi Nox – Offline-first local AI assistant. Private. Local. Yours."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 authors = [
     { name = "MiMi Tech AI UG", email = "hello@mimiai.de" },
 ]
@@ -18,7 +18,7 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -61,6 +61,7 @@ tui = [
 
 [project.scripts]
 mimi-nox = "clawdash:main"
+miminox = "miminox_cli:main"
 # keep clawdash alias for backwards compatibility / open-source users
 clawdash  = "clawdash:main"
 
@@ -71,6 +72,7 @@ Issues     = "https://github.com/mimiai/mimi-nox/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["core", "ui", "server"]
+include = ["clawdash.py", "miminox_cli.py", "app/src/**"]
 
 [tool.hatch.build.targets.wheel.shared-data]
 "skills" = "share/mimi-nox/skills"
