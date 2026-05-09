@@ -139,7 +139,7 @@ def test_given_miminox_start_when_model_is_missing_then_it_pulls_before_starting
     """
     import miminox_cli
 
-    args = miminox_cli.build_parser().parse_args(["start", "--skip-model-check"])
+    args = miminox_cli.build_parser().parse_args(["start", "--model", "gemma4:e4b", "--skip-model-check"])
     args.skip_model_check = False
     args.open = False
     args.reload = False
@@ -168,7 +168,7 @@ def test_given_miminox_start_when_model_is_installed_but_broken_then_it_repairs_
     """
     import miminox_cli
 
-    args = miminox_cli.build_parser().parse_args(["start", "--skip-model-check"])
+    args = miminox_cli.build_parser().parse_args(["start", "--model", "gemma4:e4b", "--skip-model-check"])
     args.skip_model_check = False
     args.open = False
     args.reload = False
