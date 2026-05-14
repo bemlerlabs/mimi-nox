@@ -161,7 +161,7 @@ def test_given_readme_when_phone_pairing_is_described_then_qr_flow_is_prominent_
     top = readme[:3000]
 
     assert "Phone Via QR" in readme
-    assert "mimi-nox-mobile-qr-demo.mp4" in top
+    assert "mimi-nox-mobile-qr-demo.gif" in top
     assert "LAN-first" in readme
     assert "Public access is an optional online mode" in readme
     assert "miminox start --lan" in readme
@@ -171,12 +171,12 @@ def test_given_readme_media_when_checked_then_only_reviewed_demo_videos_are_pres
     """
     GIVEN documentation media is a public trust surface
     WHEN README media references are checked
-    THEN only the reviewed inline demo MP4s are present, no unstable webm.
+    THEN only the reviewed inline demo GIFs are present, no unstable webm/mp4.
     """
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert ".webm" not in readme
-    assert "mimi-nox-demo.mp4" in readme
-    assert "mimi-nox-mobile-qr-demo.mp4" in readme
+    assert "mimi-nox-demo.gif" in readme
+    assert "mimi-nox-mobile-qr-demo.gif" in readme
 
 
 def test_given_project_metadata_when_checked_then_repository_urls_match_public_remote():
