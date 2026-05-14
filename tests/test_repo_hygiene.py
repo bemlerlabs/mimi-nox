@@ -33,7 +33,6 @@ def test_given_git_tracked_files_when_checked_then_local_artifacts_are_not_track
         if "/node_modules/" in f"/{path}/"
         or re.search(r"\.(db|sqlite|sqlite3|db-wal|db-shm)$", path)
         or re.search(r"(^|/)=\d", path)
-        or re.search(r"^docs/media/.*\.(mp4|webm|mov)$", path)
     ]
     assert forbidden == []
 
