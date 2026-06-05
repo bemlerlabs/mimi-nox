@@ -34,6 +34,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import ollama
 from ddgs import DDGS
 from core.project_discovery import analyze_project_path, discover_project_records, format_project_listing
 from core.source_notebook import (
@@ -76,7 +77,6 @@ def _get_shared_client() -> Any:
     """Lazy-initialized shared AsyncClient. Reuses TCP connection across calls."""
     global _shared_client
     if _shared_client is None:
-        import ollama
         _shared_client = ollama.AsyncClient()
     return _shared_client
 

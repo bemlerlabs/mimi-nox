@@ -7,6 +7,7 @@ EXPECTED_BUILTIN_TRIGGERS = {
     "/review",
     "/files",
     "/help",
+    "/notebook",
     "/pdf",
     "/shell",
     "/svg",
@@ -55,6 +56,7 @@ def test_given_high_impact_builtin_skills_when_loaded_then_they_require_real_too
         "shell-helper": "run_shell",
         "vision-assistant": "analyze_image",
         "project-assistant": "analyze_project",
+        "source-notebook": "create_source_notebook",
     }.items():
         skill = loader.load(name)
         assert tool_name in skill.tools

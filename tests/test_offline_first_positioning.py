@@ -87,7 +87,7 @@ def test_given_gemma_copy_when_checked_then_model_size_and_context_are_correct()
     text = _public_text()
     assert "gemma4:12b" in text
     assert "16GB RAM" in text
-    assert "128K" in text
+    assert "256K" in text
 
 
 def test_given_root_pwa_when_dom_checked_then_provider_badge_and_offline_help_exist():
