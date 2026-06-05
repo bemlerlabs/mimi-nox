@@ -47,7 +47,7 @@ export class Orchestrator {
     this._comm        = comm;
     this._journal     = journal;
     this._llm         = null;   // T-07: Optional LLM-Provider
-    this._llmProvider = null;   // T-07: Firma-LLM-Provider (tests use chat(messages, tools) signature)
+    this._llmProvider = null;   // T-07: Tool-call provider (tests use chat(messages, tools) signature)
     this._initialized = false;
     this._appMode     = 'crisis'; // 'crisis' | 'daily'
     this.crisisTeam   = [];        // active experts
@@ -76,7 +76,7 @@ export class Orchestrator {
   /**
    * T-07: Setzt den LLM-Provider für echte LLM-Calls.
    * DUAL INTERFACE:
-   *   A) Firma-Modus (Tests): provider.chat(messages, tools) → { toolCall, args }
+   *   A) Tool-call tests: provider.chat(messages, tools) → { toolCall, args }
    *   B) Server-Modus: provider.chat({ messages, hasImages }) + provider.chatStream()
    *
    * Interface:
@@ -86,7 +86,7 @@ export class Orchestrator {
    * @param {{ chat: Function }} provider
    */
   setLLMProvider(provider) {
-    // Firma/Test-Pfad: chat(messages, tools) → { toolCall, args }
+    // Tool-call test path: chat(messages, tools) → { toolCall, args }
     this._llmProvider = provider;
     // Server-Pfad: chat({ messages, hasImages }) + chatStream()
     this._llm = provider;
@@ -147,7 +147,7 @@ export class Orchestrator {
   /**
    * Submit a new task to the company.
    *
-   * T-07: Mit LLM-Provider → echter Ollama-Call für CEO-Entscheidung.
+   * T-07: Mit LLM-Provider → echter Ollama-Call für Routing-Entscheidung.
    * T-08: Journal-Context in System-Prompt injiziert.
    * Fallback: Direkte Delegation wie bisher (synchron, rückwärtskompatibel).
    *
@@ -181,11 +181,11 @@ export class Orchestrator {
       return taskId;
     }
 
-    // ── T-07: Firma-LLM-Provider → CEO/CTO Delegation ─────────────────
+    // ── T-07: Tool-call provider → Agent delegation ───────────────────
     // Dieser Pfad wird von Tests mit setLLMProvider() + initFirma() verwendet.
     // Interface: chat(messages[], tools[]) → { toolCall, args }
     if (this._llmProvider) {
-      return await this._submitViaFirmaLLM(prompt, taskId);
+      return await this._submitViaToolProvider(prompt, taskId);
     }
 
     // ── 1. Routing: crisis oder daily ─────────────────────────────────
@@ -210,10 +210,9 @@ export class Orchestrator {
       type:    'task',
     });
 
-    // Firma-Delegation: alice_ceo → targetAgent (Rückwärtskompatibilität für Tests)
     this._bus.send({
-      from:    'alice_ceo',
-      to:      'bob_cto',
+      from:    'system',
+      to:      targetAgent,
       content: `Delegiert: ${cleanPrompt.slice(0, 80)}`,
       type:    'message',
     });
@@ -246,12 +245,12 @@ export class Orchestrator {
   }
 
   /**
-   * T-07: Firma-LLM Delegation (CEO → CTO via LLM-Provider).
-   * Erstellt Kanban-Ticket + CEO→CTO Chat-Nachricht basierend auf LLM-Antwort.
+   * T-07: Tool-call delegation via LLM provider.
+   * Erstellt Kanban-Ticket + Chat-Nachricht basierend auf LLM-Antwort.
    */
-  async _submitViaFirmaLLM(prompt, taskId) {
-    const journalContext = this._journal?.getContextPrompt?.('alice_ceo') || '';
-    const systemContent  = `Du bist Alice (CEO). Delegiere Aufgaben klar und präzise.${journalContext}`;
+  async _submitViaToolProvider(prompt, taskId) {
+    const journalContext = this._journal?.getContextPrompt?.('engineer_agent') || '';
+    const systemContent  = `Du bist der MiMiNox Orchestrator. Delegiere Aufgaben klar an passende Spezial-Agenten.${journalContext}`;
 
     const messages = [
       { role: 'system',    content: systemContent },
@@ -267,15 +266,14 @@ export class Orchestrator {
     }
 
     if (llmResult?.toolCall === 'assign_task' && llmResult?.args) {
-      const { from = 'alice_ceo', to = 'bob_cto', task, description = '' } = llmResult.args;
+      const { from = 'system', to = 'engineer_agent', task, description = '' } = llmResult.args;
       // Kanban-Ticket aus LLM-Antwort
       this._kanban.createTicket({ title: task, description, assignee: to, status: 'backlog' });
-      // CEO → CTO Chat
       this._bus.send({ from, to, content: `Task: ${task}`, type: 'message' });
     } else {
       // Fallback: direktes Ticket ohne LLM-Antwort
-      this._kanban.createTicket({ title: prompt.slice(0, 80), description: '', assignee: 'bob_cto', status: 'backlog' });
-      this._bus.send({ from: 'alice_ceo', to: 'bob_cto', content: `Task: ${prompt}`, type: 'message' });
+      this._kanban.createTicket({ title: prompt.slice(0, 80), description: '', assignee: 'engineer_agent', status: 'backlog' });
+      this._bus.send({ from: 'system', to: 'engineer_agent', content: `Task: ${prompt}`, type: 'message' });
     }
 
     return taskId;

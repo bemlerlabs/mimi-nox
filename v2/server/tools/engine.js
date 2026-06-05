@@ -14,6 +14,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { PythonBridge } from '../bridge/python-bridge.js';
+import { searchKnowledge } from '../knowledge/search.js';
 
 // ── Custom Errors ───────────────────────────────────────────────────
 
@@ -222,6 +223,20 @@ export class ToolEngine {
   }
 
   async _searchKnowledge({ query, domain, top_k = 3 }) {
+    const localResults = searchKnowledge(query, { limit: top_k, domain });
+    if (localResults.length > 0) {
+      const relevant = localResults.filter(res => (res.score || 0) >= 3);
+      if (relevant.length === 0) {
+        return "Keine ausreichend relevanten Informationen in der lokalen Wissensbasis gefunden.";
+      }
+
+      let output = `Gefundene Informationen (Offline-Wissensbasis):\n`;
+      for (const res of relevant) {
+        output += `• ${res.text} (Quelle: ${res.source || 'unbekannt'})\n`;
+      }
+      return output;
+    }
+
     try {
       const results = await this._bridge.callModule('core.memory_utils', 'search', {
         query,
@@ -230,7 +245,7 @@ export class ToolEngine {
       });
 
       if (!Array.isArray(results) || results.length === 0) {
-        return "Keine relevanten Informationen in der lokalen Wissensbasis gefunden.";
+        return "Keine ausreichend relevanten Informationen in der lokalen Wissensbasis gefunden.";
       }
 
       const relevant = results.filter(res => res.score >= 0.42);

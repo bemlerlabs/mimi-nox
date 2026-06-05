@@ -1,6 +1,6 @@
 /**
  * ◑ MiMiNox v2 — Test: Hierarchie-Orchestrator
- * Task 2.2: CEO dekomponiert → CTO plant → Dev implementiert → QA prüft
+ * Task 2.2: Krisen-Orchestrator routet an Spezial-Agenten
  * TDD: Tests FIRST.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -62,11 +62,11 @@ describe('Task 2.2: Hierarchie-Orchestrator', () => {
     expect(tickets[0].status).toBe('backlog');
   });
 
-  it('[D] GIVEN firma WHEN submitTask THEN alice sends chat to bob', async () => {
+  it('[D] GIVEN crisis team WHEN submitTask THEN system delegates to specialist', async () => {
     orch.initFirma();
-    await orch.submitTask('Baue eine Todo-App');
+    await orch.submitTask('Solaranlage liefert keinen Strom');
     const history = bus.getHistory();
-    expect(history.some(m => m.from === 'alice_ceo' && m.to === 'bob_cto')).toBe(true);
+    expect(history.some(m => m.from === 'system' && m.to === 'engineer_agent')).toBe(true);
   });
 
   it('[D] GIVEN firma with task WHEN getStatus THEN returns full state', async () => {
@@ -117,8 +117,8 @@ describe('T-07: Orchestrator — LLM-Provider Interface', () => {
         llmCalls.push({ messages, tools });
         return {
           toolCall: 'assign_task',
-          args: { from: 'alice_ceo', to: 'bob_cto',
-                  task: 'REST API bauen', description: 'CRUD /api/todos' },
+          args: { from: 'system', to: 'engineer_agent',
+                  task: 'Solar prüfen', description: 'Panelspannung messen' },
         };
       },
     });
@@ -138,7 +138,7 @@ describe('T-07: Orchestrator — LLM-Provider Interface', () => {
     orch.setLLMProvider({
       chat: async () => ({
         toolCall: 'assign_task',
-        args: { from: 'alice_ceo', to: 'bob_cto',
+        args: { from: 'system', to: 'engineer_agent',
                 task: 'KI-generierter Task', description: 'Von LLM erstellt' },
       }),
     });
@@ -178,20 +178,20 @@ describe('T-08: CorrectionJournal — getContextPrompt & LLM-Injection', () => {
 
   afterEach(() => store?.close());
 
-  // GIVEN Journal hat Korrektur-Einträge für alice_ceo
+  // GIVEN Journal hat Korrektur-Einträge für engineer_agent
   // WHEN getContextPrompt aufgerufen
   // THEN enthält der Prompt Fehler + Fix, beginnt mit ---
   it('[T-08] GIVEN journal has errors WHEN getContextPrompt THEN prompt has correct format', () => {
     journal.addCorrection({
-      agentId:  'alice_ceo',
-      error:    'Keine Zeitplanung für Sprints',
-      fix:      'Sprint-Dauer in Ticket-Description angeben',
+      agentId:  'engineer_agent',
+      error:    'Messwerte unvollständig',
+      fix:      'Panel- und Batteriespannung dokumentieren',
       ticketId: 1,
     });
 
-    const prompt = journal.getContextPrompt('alice_ceo');
-    expect(prompt).toContain('Keine Zeitplanung für Sprints');
-    expect(prompt).toContain('Sprint-Dauer');
+    const prompt = journal.getContextPrompt('engineer_agent');
+    expect(prompt).toContain('Messwerte unvollständig');
+    expect(prompt).toContain('Panel- und Batteriespannung');
     expect(prompt.startsWith('\n---')).toBe(true);
   });
 
@@ -199,7 +199,7 @@ describe('T-08: CorrectionJournal — getContextPrompt & LLM-Injection', () => {
   // WHEN getContextPrompt aufgerufen
   // THEN leerer String (kein Phantom-Prompt)
   it('[T-08] GIVEN empty journal WHEN getContextPrompt THEN empty string', () => {
-    expect(journal.getContextPrompt('alice_ceo')).toBe('');
+    expect(journal.getContextPrompt('engineer_agent')).toBe('');
   });
 
   // GIVEN Journal hat Fehler UND LLM-Provider gesetzt
@@ -207,9 +207,9 @@ describe('T-08: CorrectionJournal — getContextPrompt & LLM-Injection', () => {
   // THEN System-Prompt enthält Journal-Context (Injection verifiziert)
   it('[T-08] GIVEN journal + LLM provider WHEN submitTask THEN journal injected in system prompt', async () => {
     journal.addCorrection({
-      agentId:  'alice_ceo',
-      error:    'Delegation zu vage',
-      fix:      'Konkrete Akzeptanzkriterien benennen',
+      agentId:  'engineer_agent',
+      error:    'Messwerte unvollständig',
+      fix:      'Konkrete Spannungswerte benennen',
       ticketId: 2,
     });
 
@@ -220,7 +220,7 @@ describe('T-08: CorrectionJournal — getContextPrompt & LLM-Injection', () => {
         captured.push(...messages);
         return {
           toolCall: 'assign_task',
-          args: { from: 'alice_ceo', to: 'bob_cto', task: 'Test', description: '' },
+          args: { from: 'system', to: 'engineer_agent', task: 'Test', description: '' },
         };
       },
     });
@@ -229,8 +229,8 @@ describe('T-08: CorrectionJournal — getContextPrompt & LLM-Injection', () => {
 
     const systemMsg = captured.find(m => m.role === 'system');
     expect(systemMsg).toBeDefined();
-    expect(systemMsg.content).toContain('Delegation zu vage');
-    expect(systemMsg.content).toContain('Konkrete Akzeptanzkriterien');
+    expect(systemMsg.content).toContain('Messwerte unvollständig');
+    expect(systemMsg.content).toContain('Konkrete Spannungswerte');
   });
 });
 

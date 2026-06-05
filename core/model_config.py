@@ -4,12 +4,12 @@ core/model_config.py
 
 Definiert die drei Modell-Tiers der Hybrid-Architektur:
   - OFFLINE: gemma4:e2b  → läuft auf dem Gerät, kein Internet nötig
-  - FAST:    gemma4:e4b  → lokal, schnell, multimodal (Consumer HW)
+  - FAST:    gemma4:12b  → lokal, schnell, multimodal (Consumer HW)
   - POWER:   gemma4:26b  → DGX Backend, maximale Stärke
 
 Alle Werte sind via Env-Variablen überschreibbar:
   MIMI_OFFLINE_MODEL  (default: gemma4:e2b)
-  MIMI_FAST_MODEL     (default: gemma4:e4b)
+  MIMI_FAST_MODEL     (default: gemma4:12b)
   MIMI_POWER_MODEL    (default: gemma4:26b)
   MIMI_DGX_HOST       (default: localhost:11434)
   MIMI_FORCE_TIER     (optional: offline | fast | power)
@@ -28,7 +28,7 @@ from enum import Enum
 class ModelTier(str, Enum):
     """Die drei Stufen der MIMI Hybrid-Architektur."""
     OFFLINE = "offline"   # gemma4:e2b — kein Netz nötig, immer verfügbar
-    FAST    = "fast"      # gemma4:e4b — lokal + schnell + multimodal
+    FAST    = "fast"      # gemma4:12b — lokal + schnell + multimodal
     POWER   = "power"     # gemma4:26b — DGX Backend, Frontier-Level
 
 
@@ -42,7 +42,7 @@ class ModelConfig:
     frozen=True: Kein versehentliches Überschreiben möglich.
     Alle Felder sind read-only nach der Erstellung.
     """
-    name: str           # Ollama Modell-Name, z.B. "gemma4:e4b"
+    name: str           # Ollama Modell-Name, z.B. "gemma4:12b"
     tier: ModelTier     # Welcher Tier diese Config gehört
     host: str = "localhost:11434"  # Ollama Host (lokal oder DGX)
 
@@ -78,7 +78,7 @@ def _build_tier_map() -> dict[ModelTier, ModelConfig]:
             host="localhost:11434",  # Offline läuft IMMER lokal
         ),
         ModelTier.FAST: ModelConfig(
-            name=os.environ.get("MIMI_FAST_MODEL", "gemma4:e4b"),
+            name=os.environ.get("MIMI_FAST_MODEL", "gemma4:12b"),
             tier=ModelTier.FAST,
             host="localhost:11434",  # Fast läuft lokal
         ),

@@ -4,7 +4,11 @@
  * TDD: Tests FIRST, then implementation.
  */
 import { describe, it, expect } from 'vitest';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ToolEngine, ShellConfirmationRequired, FileNotAllowedError } from '../server/tools/engine.js';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('Task 1.7: Tool Engine', () => {
   let engine;
@@ -47,16 +51,16 @@ describe('Task 1.7: Tool Engine', () => {
   // ── read_file — erlaubter Pfad ────────────────────────────────────
 
   it('[D] GIVEN engine WHEN read_file on allowed path THEN returns content', async () => {
-    engine = new ToolEngine({ whitelist: ['/home/mimione/MiMiNox'] });
-    const result = await engine.execute('read_file', { path: '/home/mimione/MiMiNox/v2/package.json' });
+    engine = new ToolEngine({ whitelist: [ROOT] });
+    const result = await engine.execute('read_file', { path: join(ROOT, 'package.json') });
     expect(result).toContain('miminox-v2');
   });
 
   // ── list_directory ────────────────────────────────────────────────
 
   it('[D] GIVEN engine WHEN list_directory on allowed path THEN returns entries', async () => {
-    engine = new ToolEngine({ whitelist: ['/home/mimione/MiMiNox'] });
-    const result = await engine.execute('list_directory', { path: '/home/mimione/MiMiNox/v2' });
+    engine = new ToolEngine({ whitelist: [ROOT] });
+    const result = await engine.execute('list_directory', { path: ROOT });
     expect(result).toContain('package.json');
   });
 

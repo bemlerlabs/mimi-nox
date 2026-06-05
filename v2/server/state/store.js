@@ -2,7 +2,7 @@
  * ◑ MiMiNox v2 — SQLite State Store
  * server/state/store.js
  *
- * Persistenter Shared State für die gesamte Firma.
+ * Persistenter Shared State für das Agenten-System.
  * Port von Python core/swarm_state.py SwarmStateStore.
  *
  * Features:

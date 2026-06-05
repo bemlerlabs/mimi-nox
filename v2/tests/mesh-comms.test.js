@@ -6,7 +6,7 @@ import express from 'express';
 
 describe('Mesh Communication (Phase 4)', () => {
   let io, server, client1, client2;
-  const port = 3001;
+  let port;
 
   beforeAll(async () => {
     const app = express();
@@ -27,7 +27,8 @@ describe('Mesh Communication (Phase 4)', () => {
       });
     });
 
-    await new Promise(resolve => server.listen(port, resolve));
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    port = server.address().port;
     client1 = new Client(`http://localhost:${port}`);
     client2 = new Client(`http://localhost:${port}`);
     

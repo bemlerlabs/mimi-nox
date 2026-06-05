@@ -28,7 +28,7 @@ def main() -> None:
         epilog=(
             "Examples:\n"
             "  mimi-nox\n"
-            "  mimi-nox --model gemma4:e4b\n"
+            "  mimi-nox --model gemma4:12b\n"
             "  mimi-nox --model llama3.1\n"
             "  mimi-nox --reset\n\n"
             "No cloud. No tracking. ◑ Open Source · github.com/mimiai/mimi-nox"
@@ -36,9 +36,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--model",
-        default="gemma4:e4b",
+        default="gemma4:12b",
         metavar="MODEL",
-        help="Ollama model name (default: gemma4:e4b). "
+        help="Ollama model name (default: gemma4:12b). "
              "Also great: phi4-mini, llama3.1, mistral",
     )
     parser.add_argument(

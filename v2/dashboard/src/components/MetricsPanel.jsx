@@ -6,7 +6,6 @@
 export function MetricsPanel({ agents = [], kanban = {} }) {
   const totalTickets = Object.values(kanban).reduce((sum, col) => sum + (col?.length || 0), 0);
   const activeAgents = agents.filter(a => a.status === 'running').length;
-  const doneTickets = (kanban.done || []).length;
   const avgLevel = agents.length
     ? Math.round(agents.reduce((s, a) => s + (a.skills?.level || 1), 0) / agents.length)
     : 0;

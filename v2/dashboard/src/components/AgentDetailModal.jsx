@@ -3,7 +3,7 @@
  * Task 4.2c: Radar-Chart
  * Task 4.5: Gedanken-Dekomposition-View
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 const SKILL_KEYS = ['codeQuality', 'bugDetection', 'architecture', 'research', 'speed', 'toolMastery', 'communication', 'testing'];
 const SKILL_SHORT = ['Code', 'Bugs', 'Arch', 'Rsrch', 'Speed', 'Tools', 'Comms', 'Test'];
@@ -114,7 +114,7 @@ function ThoughtTree({ thoughts = [] }) {
 export function AgentDetailModal({ agent, onClose, thoughts = [] }) {
   const canvasRef = useRef(null);
   const profile = agent?.skills || {};
-  const skills = profile.skills || {};
+  const skills = useMemo(() => profile.skills || {}, [profile.skills]);
 
   useEffect(() => {
     if (canvasRef.current && Object.keys(skills).length > 0) {

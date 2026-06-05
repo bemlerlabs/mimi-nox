@@ -31,9 +31,6 @@ from server.routes import (
     vision,
 )
 from core import __version__, __edition__, __tagline__
-from core.scheduler import nox_scheduler
-
-
 from contextlib import asynccontextmanager
 import asyncio
 
@@ -51,27 +48,40 @@ async def lifespan(fastapi_app: FastAPI):
     asyncio.create_task(asyncio.to_thread(warmup_whisper))
 
     # --- GUI Automation Safety Setup ---
-    import sys
-    import logging
-    try:
-        import pyautogui
-        pyautogui.FAILSAFE = True
-        
-        if sys.platform == "darwin":
-            logging.getLogger("uvicorn.error").warning(
-                "⚡ [GUI Automation] Ensure MiMi Nox (Terminal/App) has 'Accessibility' "
-                "and 'Screen Recording' permissions in macOS System Settings > Privacy & Security, "
-                "otherwise vision_click tools will crash immediately."
-            )
-    except Exception:
-        pass
+    def configure_gui_safety():
+        import sys
+        import logging
+        try:
+            import pyautogui
+            pyautogui.FAILSAFE = True
+            if sys.platform == "darwin":
+                logging.getLogger("uvicorn.error").warning(
+                    "⚡ [GUI Automation] Ensure MiMi Nox (Terminal/App) has 'Accessibility' "
+                    "and 'Screen Recording' permissions in macOS System Settings > Privacy & Security, "
+                    "otherwise vision_click tools will crash immediately."
+                )
+        except Exception:
+            pass
+
+    asyncio.create_task(asyncio.to_thread(configure_gui_safety))
 
     # --- Background Scheduler ---
-    nox_scheduler.start()
+    def start_scheduler():
+        try:
+            from core.scheduler import nox_scheduler
+            nox_scheduler.start()
+        except Exception:
+            pass
+
+    asyncio.create_task(asyncio.to_thread(start_scheduler))
 
     yield
 
-    nox_scheduler.stop()
+    try:
+        from core.scheduler import nox_scheduler
+        nox_scheduler.stop()
+    except Exception:
+        pass
 
 def create_app() -> FastAPI:
     """

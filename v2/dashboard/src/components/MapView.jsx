@@ -30,6 +30,19 @@ const pulseIcon = L.divIcon({
   iconAnchor: [12, 12],
 });
 
+const TILE_LAYERS = {
+  osm: {
+    url:  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attr: '© OpenStreetMap',
+    label: '🗺 Karte',
+  },
+  topo: {
+    url:  'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attr: '© OpenTopoMap',
+    label: '⛰ Topo',
+  },
+};
+
 export function MapView({ onClose }) {
   const mapRef       = useRef(null);    // Leaflet map instance
   const mapElRef     = useRef(null);    // DOM element
@@ -39,24 +52,12 @@ export function MapView({ onClose }) {
   const tilesRef     = useRef(null);    // tile layer
 
   const [position, setPosition]   = useState(null); // {lat, lng, accuracy}
-  const [gpsStatus, setGpsStatus] = useState('suche…');
+  const [gpsStatus, setGpsStatus] = useState(() => (
+    'geolocation' in navigator ? 'suche…' : 'GPS nicht verfügbar'
+  ));
   const [mapStyle,  setMapStyle]  = useState('osm'); // osm | topo | satellite
-  const [tracking,  setTracking]  = useState(true);
+  const [tracking,  setTracking]  = useState(() => 'geolocation' in navigator);
   const [copied,    setCopied]    = useState(false);
-
-  // Karten-Tiles je nach Modus
-  const TILE_LAYERS = {
-    osm: {
-      url:  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      attr: '© OpenStreetMap',
-      label: '🗺 Karte',
-    },
-    topo: {
-      url:  'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-      attr: '© OpenTopoMap',
-      label: '⛰ Topo',
-    },
-  };
 
   // Karte initialisieren
   useEffect(() => {
@@ -162,7 +163,49 @@ export function MapView({ onClose }) {
 
   // Beim Öffnen direkt tracking starten
   useEffect(() => {
-    startTracking();
+    if (!('geolocation' in navigator)) return;
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        setPosition({ lat, lng, accuracy });
+        setGpsStatus(`±${Math.round(accuracy)}m`);
+
+        const map = mapRef.current;
+        if (!map) return;
+
+        if (!markerRef.current) {
+          markerRef.current = L.marker([lat, lng], { icon: pulseIcon })
+            .addTo(map)
+            .bindPopup(`◑ Du bist hier<br/>${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        } else {
+          markerRef.current.setLatLng([lat, lng]);
+          markerRef.current.setPopupContent(
+            `◑ Du bist hier<br/>${lat.toFixed(5)}, ${lng.toFixed(5)}<br/>±${Math.round(accuracy)}m`
+          );
+        }
+
+        if (!circleRef.current) {
+          circleRef.current = L.circle([lat, lng], {
+            radius:      accuracy,
+            color:       '#C4A265',
+            fillColor:   '#C4A265',
+            fillOpacity: 0.08,
+            weight:      1,
+          }).addTo(map);
+        } else {
+          circleRef.current.setLatLng([lat, lng]);
+          circleRef.current.setRadius(accuracy);
+        }
+
+        map.panTo([lat, lng]);
+      },
+      (err) => {
+        const msgs = { 1: 'Zugriff verweigert', 2: 'GPS nicht verfügbar', 3: 'Timeout' };
+        setGpsStatus(msgs[err.code] || 'Fehler');
+        setTracking(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
+    );
     return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
@@ -178,7 +221,9 @@ export function MapView({ onClose }) {
       await navigator.clipboard.writeText(coord);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    } catch {
+      setCopied(false);
+    }
 
     // Im Gedächtnis speichern → Gemma kann Koordinaten in Chat ausgeben
     fetch(`${API_BASE}/api/tasks`, {

@@ -23,6 +23,13 @@ SKILL_FIXTURES = [
         "is_builtin": True,
     },
     {
+        "name": "Deck",
+        "trigger": "/deck",
+        "description": "Erstellt Pitchdecks und Praesentations-Slides.",
+        "tools": ["create_pitch_deck"],
+        "is_builtin": True,
+    },
+    {
         "name": "Review",
         "trigger": "/review",
         "description": "Prueft Code, Dokumente und Plaene kritisch.",
@@ -91,7 +98,7 @@ SKILL_FIXTURES = [
 class PwaVisualHandler(SimpleHTTPRequestHandler):
     active_provider = {
         "provider": "local_ollama",
-        "model": "gemma4:e4b",
+        "model": "gemma4:12b",
         "base_url": "http://localhost:11434",
         "requires_internet": False,
         "offline_capable": True,
@@ -165,11 +172,11 @@ class PwaVisualHandler(SimpleHTTPRequestHandler):
                 {
                     "active": self.active_provider,
                     "providers": [
-                        {"provider": "local_ollama", "model": "gemma4:e4b"},
-                        {"provider": "custom_ollama", "model": "gemma4:e4b"},
+                        {"provider": "local_ollama", "model": "gemma4:12b"},
+                        {"provider": "custom_ollama", "model": "gemma4:12b"},
                         {"provider": "openai_compatible", "model": "custom-model"},
                     ],
-                    "local_models": ["gemma4:e4b"],
+                    "local_models": ["gemma4:12b"],
                 }
             )
             return
@@ -202,7 +209,7 @@ class PwaVisualHandler(SimpleHTTPRequestHandler):
             provider = body.get("provider", "local_ollama")
             self.__class__.active_provider = {
                 "provider": provider,
-                "model": body.get("model") or "gemma4:e4b",
+                "model": body.get("model") or "gemma4:12b",
                 "base_url": body.get("base_url") or "",
                 "requires_internet": provider == "openai_compatible",
                 "offline_capable": provider != "openai_compatible",
@@ -217,7 +224,7 @@ class PwaVisualHandler(SimpleHTTPRequestHandler):
 def _static_server():
     PwaVisualHandler.active_provider = {
         "provider": "local_ollama",
-        "model": "gemma4:e4b",
+        "model": "gemma4:12b",
         "base_url": "http://localhost:11434",
         "requires_internet": False,
         "offline_capable": True,
@@ -1227,7 +1234,7 @@ def test_given_desktop_research_skill_when_sent_then_online_confirmation_is_requ
 
 def test_given_missing_gemma_model_when_root_pwa_loads_then_recovery_help_is_visible():
     """
-    GIVEN Ollama is reachable but gemma4:e4b is missing
+    GIVEN Ollama is reachable but gemma4:12b is missing
     WHEN the Root-PWA checks health
     THEN the UI shows concrete recovery commands instead of a generic offline warning.
     """
@@ -1257,12 +1264,12 @@ def test_given_missing_gemma_model_when_root_pwa_loads_then_recovery_help_is_vis
                         {
                             "status": "degraded",
                             "ollama": True,
-                            "active_model": "gemma4:e4b",
+                            "active_model": "gemma4:12b",
                             "active_provider": "local_ollama",
                             "offline_capable": True,
                             "requires_internet": False,
                             "model_installed": False,
-                            "detail": "Modell 'gemma4:e4b' nicht installiert",
+                            "detail": "Modell 'gemma4:12b' nicht installiert",
                         }
                     ),
                 )
@@ -1274,7 +1281,7 @@ def test_given_missing_gemma_model_when_root_pwa_loads_then_recovery_help_is_vis
                 page.wait_for_selector("#offline-banner:not(.hidden)")
 
                 text = page.locator("#offline-banner").inner_text()
-                assert "gemma4:e4b" in text
+                assert "gemma4:12b" in text
                 assert "miminox doctor" in text
                 assert "miminox start" in text
                 assert "Modell" in text or "model" in text.lower()
@@ -1282,7 +1289,7 @@ def test_given_missing_gemma_model_when_root_pwa_loads_then_recovery_help_is_vis
 
 def test_given_desktop_chat_stream_reports_missing_model_then_recovery_help_is_rendered():
     """
-    GIVEN chat starts while gemma4:e4b is missing
+    GIVEN chat starts while gemma4:12b is missing
     WHEN the backend streams a model error
     THEN the desktop chat renders a repair path instead of a bare model exception.
     """
@@ -1307,7 +1314,7 @@ def test_given_desktop_chat_stream_reports_missing_model_then_recovery_help_is_r
             def route_chat(route):
                 body = "\n".join(
                     [
-                        "data: {\"type\":\"error\",\"msg\":\"Modell 'gemma4:e4b' nicht installiert\"}",
+                        "data: {\"type\":\"error\",\"msg\":\"Modell 'gemma4:12b' nicht installiert\"}",
                         'data: {"type":"done"}',
                         "",
                     ]
@@ -1324,14 +1331,14 @@ def test_given_desktop_chat_stream_reports_missing_model_then_recovery_help_is_r
                 page.wait_for_function("() => document.querySelector('.bubble-ai') && !window._nox.isStreaming")
 
                 text = page.locator(".bubble-ai").last.inner_text()
-                assert "gemma4:e4b" in text
+                assert "gemma4:12b" in text
                 assert "miminox doctor" in text
                 assert "miminox start" in text
 
 
 def test_given_mobile_chat_stream_reports_missing_model_then_recovery_help_is_rendered():
     """
-    GIVEN the phone is paired but gemma4:e4b is missing
+    GIVEN the phone is paired but gemma4:12b is missing
     WHEN the backend streams a model error
     THEN mobile.html gives a concrete recovery path the user can run on the Mac.
     """
@@ -1351,7 +1358,7 @@ def test_given_mobile_chat_stream_reports_missing_model_then_recovery_help_is_re
             def route_chat(route):
                 body = "\n".join(
                     [
-                        "data: {\"type\":\"error\",\"msg\":\"Modell 'gemma4:e4b' nicht installiert\"}",
+                        "data: {\"type\":\"error\",\"msg\":\"Modell 'gemma4:12b' nicht installiert\"}",
                         'data: {"type":"done"}',
                         "",
                     ]
@@ -1369,7 +1376,7 @@ def test_given_mobile_chat_stream_reports_missing_model_then_recovery_help_is_re
                 page.wait_for_function("() => document.body.innerText.includes('miminox doctor')")
 
                 text = page.locator("#chat .msg.ai").last.inner_text()
-                assert "gemma4:e4b" in text
+                assert "gemma4:12b" in text
                 assert "miminox doctor" in text
                 assert "miminox start" in text
 
@@ -1865,3 +1872,133 @@ def test_given_model_streams_thinking_when_rendered_then_raw_reasoning_is_not_ex
                 assert "should never render" not in messages
                 assert "thinking-open" not in (page.locator(".thinking-panel").get_attribute("class") or "")
                 assert "Gedacht" in page.locator(".thinking-label").inner_text()
+
+
+def test_given_root_pwa_html_when_loaded_then_no_external_font_hosts_are_required():
+    """
+    GIVEN MiMi Nox claims an offline-first first-run path
+    WHEN the root PWA HTML is inspected
+    THEN it does not require Google Fonts or other remote font hosts.
+    """
+    html = (ROOT / "app" / "src" / "index.html").read_text(encoding="utf-8")
+    assert "fonts.googleapis.com" not in html
+    assert "fonts.gstatic.com" not in html
+
+
+def test_given_long_chat_history_when_user_sends_message_then_stream_request_history_is_compacted():
+    """
+    GIVEN a long local chat with large assistant outputs
+    WHEN the user sends a new message
+    THEN the PWA sends a compact bounded history to the stream endpoint.
+    """
+    sync_api = pytest.importorskip("playwright.sync_api")
+
+    with sync_api.sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:  # pragma: no cover - depends on local browser install
+            pytest.skip(f"Playwright Chromium is not installed: {exc}")
+
+        with browser:
+            context = browser.new_context(viewport={"width": 1280, "height": 820}, service_workers="block")
+            page = context.new_page()
+            page.add_init_script(
+                """
+                localStorage.setItem('mimi-nox-lang', 'en');
+                localStorage.setItem('mimi_nox_onboarded', '1');
+                """
+            )
+
+            chat_calls: list[dict] = []
+
+            def route_chat(route):
+                chat_calls.append(route.request.post_data_json)
+                body = "\n".join(
+                    [
+                        'data: {"type":"chunk","data":"ok"}',
+                        'data: {"type":"done"}',
+                        "",
+                    ]
+                )
+                route.fulfill(status=200, content_type="text/event-stream", body=body)
+
+            page.route("**/api/chat/stream", route_chat)
+
+            with _static_server() as url:
+                page.goto(f"{url}?qa=long-history", wait_until="domcontentloaded")
+                page.wait_for_function("() => window._nox")
+                page.evaluate(
+                    """
+                    () => {
+                      const huge = 'Workspace analysis '.repeat(900);
+                      window._nox.history = Array.from({ length: 40 }, (_, index) => ({
+                        role: index % 2 ? 'assistant' : 'user',
+                        content: `${index}: ${huge}`
+                      }));
+                    }
+                    """
+                )
+
+                page.locator("#chat-input").fill("ja starte")
+                page.locator("#send-btn").click()
+                page.wait_for_function("() => !window._nox.isStreaming")
+
+                assert chat_calls
+                payload = chat_calls[-1]
+                assert payload["message"] == "ja starte"
+                assert len(payload["history"]) <= 12
+                assert len(json.dumps(payload["history"])) <= 30_000
+                assert page.locator("#chat-input").is_enabled()
+
+
+def test_given_stream_quality_events_when_rendered_then_activity_panel_shows_quality_and_artifact_status():
+    """
+    GIVEN the backend emits local quality and artifact checks
+    WHEN the PWA consumes the stream
+    THEN the user sees visible quality/artifact status instead of a silent background check.
+    """
+    sync_api = pytest.importorskip("playwright.sync_api")
+
+    with sync_api.sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:  # pragma: no cover - depends on local browser install
+            pytest.skip(f"Playwright Chromium is not installed: {exc}")
+
+        with browser:
+            context = browser.new_context(viewport={"width": 1280, "height": 820}, service_workers="block")
+            page = context.new_page()
+            page.add_init_script(
+                """
+                localStorage.setItem('mimi-nox-lang', 'en');
+                localStorage.setItem('mimi_nox_onboarded', '1');
+                """
+            )
+
+            def route_chat(route):
+                body = "\n".join(
+                    [
+                        'data: {"type":"thinking_start"}',
+                        'data: {"type":"quality_check","status":"running","skill":"pdf-creator"}',
+                        'data: {"type":"artifact_check","artifact_type":"pdf","status":"passed","path":"/Users/test/Downloads/report.pdf","warnings":[]}',
+                        'data: {"type":"quality_check","status":"passed","skill":"pdf-creator","issues":[]}',
+                        'data: {"type":"chunk","data":"PDF saved."}',
+                        'data: {"type":"done"}',
+                        "",
+                    ]
+                )
+                route.fulfill(status=200, content_type="text/event-stream", body=body)
+
+            page.route("**/api/chat/stream", route_chat)
+
+            with _static_server() as url:
+                page.goto(f"{url}?qa=quality-events", wait_until="domcontentloaded")
+                page.locator("#chat-input").fill("/pdf Create report")
+                page.locator("#send-btn").click()
+                page.wait_for_function("() => !window._nox.isStreaming")
+
+                terminal = page.locator("#ap-terminal").inner_text()
+                assert "Quality check" in terminal
+                assert "Quality OK" in terminal
+                assert "Artifact" in terminal
+                assert "report.pdf" in terminal

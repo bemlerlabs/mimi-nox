@@ -71,6 +71,28 @@ class TestWebSearch:
         assert "https://realpython.com" in results
 
     @pytest.mark.asyncio
+    async def test_given_official_source_query_when_search_runs_then_official_results_are_prioritized(self):
+        """
+        GIVEN search results include official and low-trust pages
+        WHEN web_search is called for a query asking for official information
+        THEN official sources are listed first so the model grounds its answer better.
+        """
+        mock_results = [
+            {"title": "SEO Gemma rumors", "href": "https://example-blog.test/gemma", "body": "Rumors"},
+            {"title": "Google AI for Developers Gemma", "href": "https://ai.google.dev/gemma", "body": "Official docs"},
+        ]
+        mock_instance = MagicMock()
+        mock_instance.text = MagicMock(return_value=mock_results)
+        mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+        mock_instance.__exit__ = MagicMock(return_value=False)
+
+        with patch("core.tools.DDGS", return_value=mock_instance):
+            results = await web_search("official Gemma 4 12B")
+
+        assert results.index("https://ai.google.dev/gemma") < results.index("https://example-blog.test/gemma")
+        assert "Source quality: official" in results
+
+    @pytest.mark.asyncio
     async def test_raises_web_search_error_on_connection_failure(self):
         """
         GIVEN  DuckDuckGo nicht erreichbar (mock: ConnectionError)
@@ -152,6 +174,22 @@ class TestFileSearch:
 
         assert "find" in cmd or "locate" in cmd
         assert isinstance(result, str)
+
+    @pytest.mark.asyncio
+    async def test_given_macos_spotlight_miss_when_file_exists_then_python_fallback_finds_it(self, tmp_path):
+        """
+        GIVEN  macOS Spotlight returns no matches for a freshly-created file
+        WHEN   file_search() runs inside an allowed directory
+        THEN   the Python fallback still finds the file.
+        """
+        target = tmp_path / "mimi_nox_fresh_probe.txt"
+        target.write_text("fresh file", encoding="utf-8")
+
+        with patch("sys.platform", "darwin"), patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(stdout="", returncode=0)
+            result = await file_search("mimi_nox_fresh_probe", str(tmp_path))
+
+        assert str(target) in result
 
     @pytest.mark.asyncio
     async def test_raises_value_error_on_empty_query(self):

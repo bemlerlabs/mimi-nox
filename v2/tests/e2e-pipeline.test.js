@@ -1,6 +1,6 @@
 /**
  * ◑ MiMiNox v2 — E2E Integration Test
- * QA-Audit: Prüft die gesamte Pipeline von Firma-Init bis Skill-XP.
+ * QA-Audit: Prüft die gesamte Pipeline vom Krisen-Team bis Skill-XP.
  * Alle Module müssen zusammen funktionieren.
  */
 import { describe, it, expect, afterEach } from 'vitest';
@@ -23,7 +23,7 @@ describe('E2E: Vollständige Pipeline', () => {
 
   afterEach(() => { try { store?.close(); } catch {} });
 
-  it('Firma-Init → Auftrag → Delegation → Dev → QA → Approve → Skill-XP', () => {
+  it('Krisen-Team → Auftrag → Delegation → Review → Approve → Skill-XP', async () => {
     // ── SETUP ─────────────────────────────────────────────────────
     store = new StateStore(':memory:');
     const bus = new ChatBus(store);
@@ -52,116 +52,116 @@ describe('E2E: Vollständige Pipeline', () => {
     }
 
     // ── 2. AUFTRAG EINREICHEN ──────────────────────────────────────
-    const taskId = orch.submitTask('Baue eine REST-API für Todos');
+    const taskId = await orch.submitTask('Solaranlage liefert keinen Strom');
     expect(taskId).toBeDefined();
 
     // Ticket wurde erstellt
     const tickets = kanban.getAll();
     expect(tickets).toHaveLength(1);
-    expect(tickets[0].assignee).toBe('bob_cto');
+    expect(tickets[0].assignee).toBe('engineer_agent');
     expect(tickets[0].status).toBe('backlog');
 
-    // Alice hat an Bob gesendet
+    // System hat an den passenden Spezial-Agenten delegiert
     const history = bus.getHistory();
-    expect(history.some(m => m.from === 'alice_ceo' && m.to === 'bob_cto')).toBe(true);
+    expect(history.some(m => m.from === 'system' && m.to === 'engineer_agent')).toBe(true);
 
-    // ── 3. BOB DELEGIERT AN CHARLIE ────────────────────────────────
+    // ── 3. MEDIC DELEGIERT AN ENGINEER ──────────────────────────────
     comm.assignTask({
-      from: 'bob_cto',
-      to: 'charlie_dev',
-      task: 'Express Endpoints implementieren',
-      description: 'GET/POST/PUT/DELETE für /api/todos',
+      from: 'medic_agent',
+      to: 'engineer_agent',
+      task: 'MC4-Stecker und Laderegler prüfen',
+      description: 'Off-Grid Solarfehler diagnostizieren',
     });
 
     expect(kanban.getAll()).toHaveLength(2);
-    expect(kanban.getAll()[1].assignee).toBe('charlie_dev');
+    expect(kanban.getAll()[1].assignee).toBe('engineer_agent');
 
-    // ── 4. CHARLIE ARBEITET ──────────────────────────────────────
+    // ── 4. ENGINEER ARBEITET ───────────────────────────────────────
     const devTicketId = kanban.getAll()[1].id;
     kanban.moveTicket(devTicketId, 'in_progress');
-    store.updateAgent('charlie_dev', { status: 'running' });
+    store.updateAgent('engineer_agent', { status: 'running' });
 
     // Log Events
-    eventLog.addEvent({ type: 'tool_call', agentId: 'charlie_dev', toolName: 'read_file' });
-    eventLog.addEvent({ type: 'thinking', agentId: 'charlie_dev', content: 'REST oder GraphQL?' });
+    eventLog.addEvent({ type: 'tool_call', agentId: 'engineer_agent', toolName: 'read_file' });
+    eventLog.addEvent({ type: 'thinking', agentId: 'engineer_agent', content: 'Laderegler oder Verkabelung?' });
 
     // Thought Decomposition
-    const tree = decomposer.decompose('REST oder GraphQL? REST für MVP. GraphQL für komplexe Queries.');
+    const tree = decomposer.decompose('Laderegler oder Verkabelung? Erst Spannung messen. Dann Stecker reinigen.');
     expect(tree.root).toContain('?');
     expect(tree.children.length).toBeGreaterThanOrEqual(1);
 
     // Metrics
-    metrics.recordThoughtFlow('charlie_dev');
-    metrics.recordConnection('charlie_dev', 'express', 'todos');
-    expect(metrics.getTF('charlie_dev')).toBe(1);
-    expect(metrics.getKC('charlie_dev')).toBe(1);
+    metrics.recordThoughtFlow('engineer_agent');
+    metrics.recordConnection('engineer_agent', 'solar', 'laderegler');
+    expect(metrics.getTF('engineer_agent')).toBe(1);
+    expect(metrics.getKC('engineer_agent')).toBe(1);
 
     // Knowledge Graph
-    graph.addNode({ id: 'charlie_dev', type: 'agent', label: 'Charlie' });
-    graph.addNode({ id: 'express', type: 'technology', label: 'Express' });
-    graph.addEdge({ from: 'charlie_dev', to: 'express', type: 'chose' });
+    graph.addNode({ id: 'engineer_agent', type: 'agent', label: 'Mimi-Engineer' });
+    graph.addNode({ id: 'solar', type: 'technology', label: 'Solar' });
+    graph.addEdge({ from: 'engineer_agent', to: 'solar', type: 'diagnosed' });
     expect(graph.nodeCount).toBe(2);
     expect(graph.edgeCount).toBe(1);
 
     // Tool usage XP
-    skills.onToolUsed('charlie_dev', 'web_search');
-    expect(skills.getProfile('charlie_dev').skills.research).toBe(45); // 40 + 5
+    skills.onToolUsed('engineer_agent', 'web_search');
+    expect(skills.getProfile('engineer_agent').skills.research).toBe(45); // 40 + 5
 
-    // ── 5. CHARLIE REICHT EIN ────────────────────────────────────
+    // ── 5. ENGINEER REICHT EIN ─────────────────────────────────────
     comm.submitWork({
-      from: 'charlie_dev',
+      from: 'engineer_agent',
       ticketId: devTicketId,
-      result: 'CRUD Endpoints fertig',
-      code: 'app.get("/api/todos", ...)',
+      result: 'Stecker gereinigt, Laderegler zeigt 12.7V',
+      code: 'Messprotokoll: 12.7V Batterie, 18.4V Panel',
     });
 
     expect(kanban.getTicket(devTicketId).status).toBe('testing');
 
-    // ── 6. DIANA LEHNT AB (Erste Runde) ──────────────────────────
-    const cqBefore = skills.getProfile('charlie_dev').skills.codeQuality;
-    const bdBefore = skills.getProfile('charlie_dev').skills.bugDetection;
+    // ── 6. SENSOR LEHNT AB (Erste Runde) ───────────────────────────
+    const cqBefore = skills.getProfile('engineer_agent').skills.codeQuality;
+    const bdBefore = skills.getProfile('engineer_agent').skills.bugDetection;
 
     comm.rejectWork({
-      from: 'diana_qa',
+      from: 'sensor_agent',
       ticketId: devTicketId,
-      reason: 'Keine Input-Validierung',
-      feedback: 'express-validator nutzen',
+      reason: 'Panelspannung fehlt',
+      feedback: 'Bitte Panelspannung unter Last messen',
     });
 
     expect(kanban.getTicket(devTicketId).status).toBe('in_progress');
     // T-04 FIX: Kein XP bei Rejection — Developer hat noch nichts gefixt
-    expect(skills.getProfile('charlie_dev').skills.bugDetection).toBe(bdBefore);
+    expect(skills.getProfile('engineer_agent').skills.bugDetection).toBe(bdBefore);
 
     // CorrectionJournal eintragen
     journal.addCorrection({
-      agentId: 'charlie_dev',
-      error: 'Keine Input-Validierung',
-      fix: 'express-validator hinzugefügt',
+      agentId: 'engineer_agent',
+      error: 'Panelspannung fehlt',
+      fix: 'Panelspannung unter Last ergänzt',
       ticketId: devTicketId,
     });
 
-    const prompt = journal.getContextPrompt('charlie_dev');
-    expect(prompt).toContain('Input-Validierung');
+    const prompt = journal.getContextPrompt('engineer_agent');
+    expect(prompt).toContain('Panelspannung');
 
     // Error Topology
     graph.generateErrorTopology({
-      error: 'Keine Input-Validierung',
-      file: 'todos-router.js',
-      agent: 'charlie_dev', // Already exists
-      sop: 'Input-Sanitization',
+      error: 'Panelspannung fehlt',
+      file: 'solar-checklist.md',
+      agent: 'engineer_agent',
+      sop: 'Solar-Diagnose',
     });
     expect(graph.nodeCount).toBeGreaterThanOrEqual(4);
 
-    // ── 7. CHARLIE FIXT UND REICHT ERNEUT EIN ────────────────────
+    // ── 7. ENGINEER FIXT UND REICHT ERNEUT EIN ─────────────────────
     kanban.moveTicket(devTicketId, 'testing');
 
-    // ── 8. DIANA GENEHMIGT ──────────────────────────────────────
-    comm.approveWork({ from: 'diana_qa', ticketId: devTicketId });
+    // ── 8. SENSOR GENEHMIGT ────────────────────────────────────────
+    comm.approveWork({ from: 'sensor_agent', ticketId: devTicketId });
 
     expect(kanban.getTicket(devTicketId).status).toBe('done');
-    expect(skills.getProfile('charlie_dev').skills.codeQuality).toBe(cqBefore + 3);
+    expect(skills.getProfile('engineer_agent').skills.codeQuality).toBe(cqBefore + 3);
     // T-04 FIX: bugDetection XP kommt JETZT beim Approve (Fix wurde geleistet)
-    expect(skills.getProfile('charlie_dev').skills.bugDetection).toBe(bdBefore + 8);
+    expect(skills.getProfile('engineer_agent').skills.bugDetection).toBe(bdBefore + 8);
 
 
     // ── 9. STATUS DASHBOARD ──────────────────────────────────────
@@ -180,17 +180,17 @@ describe('E2E: Vollständige Pipeline', () => {
     expect(events.length).toBeGreaterThan(0);
 
     // Tool whitelist enforcement
-    expect(isToolAllowed('alice_ceo', 'run_shell')).toBe(false);
-    expect(isToolAllowed('charlie_dev', 'run_shell')).toBe(true);
-    expect(isToolAllowed('diana_qa', 'reject_work')).toBe(true);
+    expect(isToolAllowed('medic_agent', 'run_shell')).toBe(false);
+    expect(isToolAllowed('engineer_agent', 'read_file')).toBe(true);
+    expect(isToolAllowed('sensor_agent', 'get_datetime')).toBe(true);
 
     // Delegation chain
     const chain = orch.getDelegationChain();
     expect(chain).toHaveLength(4);
 
     // Weakest skill
-    const weakest = skills.getWeakestSkill('alice_ceo');
-    expect(weakest.skill).toBe('testing'); // 10 is lowest for CEO
+    const weakest = skills.getWeakestSkill('engineer_agent');
+    expect(weakest.skill).toBe('architecture');
 
     // Thinking parser (Phase 1 - still works)
     const parser = new ThinkingStreamParser();

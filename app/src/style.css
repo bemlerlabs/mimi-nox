@@ -27,8 +27,8 @@
   --radius-md:    14px;
   --radius-lg:    20px;
 
-  --font-main:    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Inter, sans-serif;
-  --font-mono:    'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  --font-main:    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    "SF Mono", "Menlo", "Consolas", "Courier New", monospace;
 
   --topbar-h:     60px;
   --bottom-h:     116px;
@@ -325,7 +325,8 @@ body {
   color: var(--text-muted);
   font-size: 12px;
 }
-.provider-grid input {
+.provider-grid input,
+.provider-grid select {
   min-width: 0;
   width: 100%;
   padding: 10px 12px;
@@ -335,6 +336,29 @@ body {
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+.provider-grid select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--green) 50%),
+    linear-gradient(135deg, var(--green) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+}
+.provider-grid select.hidden,
+.provider-grid input.hidden {
+  display: none;
+}
+.provider-model-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.provider-refresh-btn {
+  justify-content: center;
+  width: 100%;
+  min-height: 36px;
 }
 .provider-warning {
   display: flex;
@@ -1242,7 +1266,7 @@ body {
   border-color: var(--green);
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
 }
-/* ── Attach Button (E4B Vision) ─────────────────────────────────────────── */
+/* ── Attach Button (12B Vision) ─────────────────────────────────────────── */
 .attach-btn {
   background: transparent;
   border: 1px solid var(--green-dim);
@@ -2665,6 +2689,8 @@ body.mobile-pwa-mode .skill-chips { display: flex !important; }
   font-family: var(--font-mono);
   font-size: 12.5px;
   color: var(--green-light);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .bubble-ai pre {
   background: rgba(2,5,2,0.8);
@@ -2672,6 +2698,7 @@ body.mobile-pwa-mode .skill-chips { display: flex !important; }
   border-radius: 8px;
   padding: 12px 14px;
   overflow-x: auto;
+  max-width: 100%;
   margin: 10px 0;
   scrollbar-width: thin;
   scrollbar-color: var(--green-dim) transparent;
@@ -2682,6 +2709,7 @@ body.mobile-pwa-mode .skill-chips { display: flex !important; }
   padding: 0;
   font-size: 12px;
   color: var(--green-light);
+  white-space: pre-wrap;
 }
 .bubble-ai blockquote {
   border-left: 3px solid var(--green-dim);
@@ -2990,6 +3018,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   font-size: 13px;
   transition: background 0.15s, border-color 0.15s;
   cursor: pointer;
+  max-width: 100%;
+  min-width: 0;
 }
 .file-result-btn:hover {
   background: rgba(34,197,94,0.12);
@@ -3000,6 +3030,16 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   margin-left: auto;
   font-size: 11px;
   color: var(--green-light);
+  flex: 0 0 auto;
+}
+.file-result-icon {
+  flex: 0 0 auto;
+}
+.file-result-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 
@@ -3057,7 +3097,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 }
 
 .lang-picker-title {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-main);
   font-size: 24px;
   font-weight: 700;
   color: var(--text-primary, #f0fdf4);
@@ -3088,7 +3128,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-primary, #f0fdf4);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-main);
 }
 
 .lang-btn:hover {

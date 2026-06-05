@@ -17,7 +17,7 @@ import ollama
 
 ProviderType = Literal["local_ollama", "custom_ollama", "openai_compatible"]
 SUPPORTED_PROVIDER_TYPES = {"local_ollama", "custom_ollama", "openai_compatible"}
-DEFAULT_LOCAL_MODEL = "gemma4:e4b"
+DEFAULT_LOCAL_MODEL = "gemma4:12b"
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 
 
@@ -212,10 +212,7 @@ def _provider_from_env() -> ModelProviderConfig:
     return ModelProviderConfig(
         provider="local_ollama",
         model=os.environ.get("MIMI_NOX_MODEL", DEFAULT_LOCAL_MODEL),
-        base_url=_base_url(
-            os.environ.get("MIMI_LOCAL_OLLAMA_BASE_URL")
-            or os.environ.get("OLLAMA_HOST")
-        ),
+        base_url=_base_url(os.environ.get("MIMI_LOCAL_OLLAMA_BASE_URL")),
         label="Local Ollama",
         offline_capable=True,
         requires_internet=False,
@@ -325,6 +322,4 @@ def build_provider_client(config: ModelProviderConfig | None = None) -> Any:
             base_url=active.base_url,
             api_key=os.environ["MIMI_OPENAI_COMPAT_API_KEY"],
         )
-    if active.base_url == DEFAULT_OLLAMA_BASE_URL:
-        return ollama.AsyncClient()
     return ollama.AsyncClient(host=active.base_url)

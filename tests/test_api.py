@@ -78,6 +78,31 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         assert "version" in response.json()
 
+    def test_given_provider_model_differs_from_router_when_health_then_models_match_active_model(self, client):
+        """
+        GIVEN  the active provider uses gemma4:12b but legacy router resolves offline gemma4:e2b
+        WHEN   GET /api/health
+        THEN   active_model and models describe the same release model.
+        """
+        from core.model_provider import ModelProviderConfig
+
+        with patch("server.routes.health.check_ollama_connection", new=AsyncMock(
+            return_value=(True, "OK", ["gemma4:12b", "gemma4:e2b"])
+        )), patch("server.routes.health.get_active_provider", return_value=ModelProviderConfig(
+            provider="local_ollama",
+            model="gemma4:12b",
+            base_url="http://127.0.0.1:11434",
+            label="Local Ollama",
+            offline_capable=True,
+            requires_internet=False,
+        )):
+            response = client.get("/api/health")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["active_model"] == "gemma4:12b"
+        assert data["models"] == ["gemma4:12b"]
+
 
 # ── Chat ───────────────────────────────────────────────────────────────────
 
@@ -133,6 +158,277 @@ class TestChatEndpoint:
 
         assert response.status_code == 503
         assert "detail" in response.json()
+
+    def test_given_tool_chat_emits_thinking_when_streaming_then_raw_reasoning_is_filtered(self, client):
+        """
+        GIVEN the model adapter reports internal thinking text
+        WHEN /api/chat/stream emits SSE to the PWA
+        THEN raw reasoning does not cross the API boundary.
+        """
+        from core.react import ReflexionResult
+
+        async def fake_chat_with_tools(*, on_chunk, on_thinking, **_kwargs):
+            on_thinking("SECRET_INTERNAL_REASONING")
+            on_chunk("Final answer")
+
+        with patch("server.routes.chat.run_skill_fast_path", new=AsyncMock(return_value=None)), patch(
+            "server.routes.chat.chat_with_tools",
+            new=fake_chat_with_tools,
+        ), patch(
+            "server.routes.chat.reflect",
+            new=AsyncMock(return_value=ReflexionResult(needs_revision=False, reason="ok")),
+        ):
+            with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"message": "Hallo", "model": "gemma4:12b", "history": []},
+            ) as response:
+                body = "".join(response.iter_text())
+
+        assert response.status_code == 200
+        assert "Final answer" in body
+        assert "SECRET_INTERNAL_REASONING" not in body
+        assert '"type": "thinking"' not in body
+
+    def test_given_skill_trigger_when_streaming_then_skill_prompt_and_tool_scope_are_used(self, client):
+        """
+        GIVEN a user invokes the PDF skill via /pdf
+        WHEN /api/chat/stream calls the chat engine
+        THEN the skill system prompt is injected and only the skill tools are offered.
+        """
+        from core.react import ReflexionResult
+
+        captured: dict = {}
+
+        async def fake_chat_with_tools(**kwargs):
+            captured.update(kwargs)
+            kwargs["on_chunk"]("PDF ready")
+            return "PDF ready"
+
+        with patch("server.routes.chat.run_skill_fast_path", new=AsyncMock(return_value=None)), patch(
+            "server.routes.chat.chat_with_tools",
+            new=fake_chat_with_tools,
+        ), patch(
+            "server.routes.chat.reflect",
+            new=AsyncMock(return_value=ReflexionResult(needs_revision=False, reason="ok")),
+        ):
+            with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"message": "/pdf Erstelle ein kurzes Test-PDF", "model": "gemma4:12b", "history": []},
+            ) as response:
+                body = "".join(response.iter_text())
+
+        assert response.status_code == 200
+        assert "PDF ready" in body
+        assert captured["allowed_tool_names"] == ["create_pdf"]
+        assert "professionelle PDF-Dokumente" in captured["extra_system_prompt"]
+        history = captured["history"]
+        assert history[-1]["content"] == "Erstelle ein kurzes Test-PDF"
+
+    def test_given_deck_skill_trigger_when_streaming_then_deck_tool_scope_is_used(self, client):
+        """
+        GIVEN a user invokes the deck skill via /deck
+        WHEN /api/chat/stream calls the chat engine
+        THEN only the pitchdeck tool is offered and the deck prompt is injected.
+        """
+        from core.react import ReflexionResult
+
+        captured: dict = {}
+
+        async def fake_chat_with_tools(**kwargs):
+            captured.update(kwargs)
+            kwargs["on_chunk"]("Deck ready")
+            return "Deck ready"
+
+        with patch("server.routes.chat.run_skill_fast_path", new=AsyncMock(return_value=None)), patch(
+            "server.routes.chat.chat_with_tools",
+            new=fake_chat_with_tools,
+        ), patch(
+            "server.routes.chat.reflect",
+            new=AsyncMock(return_value=ReflexionResult(needs_revision=False, reason="ok")),
+        ):
+            with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"message": "/deck Erstelle ein Pitchdeck fuer MiMi Nox", "model": "gemma4:12b", "history": []},
+            ) as response:
+                body = "".join(response.iter_text())
+
+        assert response.status_code == 200
+        assert "Deck ready" in body
+        assert captured["allowed_tool_names"] == [
+            "create_pitch_deck",
+            "create_pptx_deck",
+            "inspect_pptx_template",
+            "edit_pptx_template",
+            "qa_pptx_deck",
+        ]
+        assert "Pitchdeck" in captured["extra_system_prompt"]
+
+    def test_given_skill_stream_when_quality_gate_runs_then_quality_events_are_emitted(self, client):
+        """
+        GIVEN a user invokes a high-impact skill
+        WHEN the stream completes
+        THEN the SSE stream includes deterministic local quality-check events.
+        """
+        from core.react import ReflexionResult
+
+        async def fake_chat_with_tools(**kwargs):
+            kwargs["on_tool_done"]("create_pdf", "PDF_FILE:/Users/test/Downloads/report.pdf")
+            kwargs["on_chunk"]("PDF saved at /Users/test/Downloads/report.pdf")
+            return "PDF saved at /Users/test/Downloads/report.pdf"
+
+        with patch("server.routes.chat.run_skill_fast_path", new=AsyncMock(return_value=None)), patch(
+            "server.routes.chat.chat_with_tools",
+            new=fake_chat_with_tools,
+        ), patch(
+            "server.routes.chat.reflect",
+            new=AsyncMock(return_value=ReflexionResult(needs_revision=False, reason="ok")),
+        ):
+            with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"message": "/pdf Erstelle ein kurzes Test-PDF", "model": "gemma4:12b", "history": []},
+            ) as response:
+                body = "".join(response.iter_text())
+
+        assert response.status_code == 200
+        assert '"type": "quality_check"' in body
+        assert '"status": "running"' in body
+        assert '"status": "passed"' in body
+        assert '"type": "artifact_check"' in body
+
+    def test_given_skill_quality_passes_when_streaming_then_reflect_is_skipped(self, client):
+        """
+        GIVEN deterministic skill quality already passed
+        WHEN the stream has emitted the skill answer
+        THEN reflect is skipped so the UI receives done without a slow critique call.
+        """
+        async def fake_chat_with_tools(**kwargs):
+            kwargs["on_tool_done"]("web_search", "[1] Official\n    URL: https://ai.google.dev/gemma\n    Source quality: official")
+            kwargs["on_chunk"]("Antwort mit Quelle\n\n📎 Quellen:\n[Official](https://ai.google.dev/gemma)")
+            return "Antwort mit Quelle\n\n📎 Quellen:\n[Official](https://ai.google.dev/gemma)"
+
+        with patch("server.routes.chat.run_skill_fast_path", new=AsyncMock(return_value=None)), patch(
+            "server.routes.chat.chat_with_tools",
+            new=fake_chat_with_tools,
+        ), patch(
+            "server.routes.chat.reflect",
+            new=AsyncMock(side_effect=AssertionError("reflect should be skipped after passing skill quality")),
+        ):
+            with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"message": "/research Gemma 4 12B offizielle Infos", "model": "gemma4:12b", "history": []},
+            ) as response:
+                body = "".join(response.iter_text())
+
+        assert response.status_code == 200
+        assert '"status": "passed"' in body
+        assert '"type": "done"' in body
+
+    def test_given_fast_path_deck_when_streaming_then_quality_and_artifact_events_are_emitted(self, client, tmp_path):
+        """
+        GIVEN a deterministic deck fast path returns a Slide Studio artifact
+        WHEN /api/chat/stream serves the response without model tool calling
+        THEN the PWA still receives quality_check and artifact_check events.
+        """
+        pdf = tmp_path / "deck.pdf"
+        pptx = tmp_path / "deck.pptx"
+        qa = tmp_path / "deck.qa.json"
+        manifest = tmp_path / "deck.manifest.json"
+        for path in (pdf, pptx, qa, manifest):
+            path.write_text("test", encoding="utf-8")
+        studio = tmp_path / "deck.studio.html"
+        studio.write_text(
+            "MiMi Nox Slide Studio\nChoose Output\nSlide Contact Sheet\n"
+            f'<a href="file://{pdf}">Download PDF</a>\n'
+            f'<a href="file://{pptx}">Download PPTX</a>\n'
+            f'<a href="file://{qa}">Open QA Report</a>\n'
+            f'<a href="file://{manifest}">Open Claim Manifest</a>',
+            encoding="utf-8",
+        )
+        answer = f"## Slide Studio erstellt\nDECK_STUDIO_FILE:{studio}\n"
+
+        with patch("server.routes.chat.run_skill_fast_path", new=AsyncMock(return_value=answer)):
+            with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"message": "/deck Erstelle ein Board Deck", "model": "gemma4:12b", "history": []},
+            ) as response:
+                body = "".join(response.iter_text())
+
+        assert response.status_code == 200
+        assert '"type": "file_result"' in body
+        assert '"file_type": "deck_studio"' in body
+        assert '"type": "quality_check"' in body
+        assert '"status": "passed"' in body
+        assert '"type": "artifact_check"' in body
+        assert '"artifact_type": "deck_studio"' in body
+
+    def test_given_project_skill_trigger_when_streaming_then_project_tools_are_scoped(self, client):
+        """
+        GIVEN a user invokes /project
+        WHEN /api/chat/stream calls the chat engine
+        THEN the project system prompt and project tools are passed to tool calling.
+        """
+        from core.react import ReflexionResult
+
+        captured: dict = {}
+
+        async def fake_chat_with_tools(**kwargs):
+            captured.update(kwargs)
+            kwargs["on_chunk"]("Projektanalyse bereit")
+            return "Projektanalyse bereit"
+
+        with patch("server.routes.chat.run_skill_fast_path", new=AsyncMock(return_value=None)), patch(
+            "server.routes.chat.chat_with_tools",
+            new=fake_chat_with_tools,
+        ), patch(
+            "server.routes.chat.reflect",
+            new=AsyncMock(return_value=ReflexionResult(needs_revision=False, reason="ok")),
+        ):
+            with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"message": "/project finde mimi-nox", "model": "gemma4:12b", "history": []},
+            ) as response:
+                body = "".join(response.iter_text())
+
+        assert response.status_code == 200
+        assert "Projektanalyse bereit" in body
+        assert captured["allowed_tool_names"] == [
+            "discover_projects",
+            "analyze_project",
+            "read_file",
+            "list_directory",
+            "file_search",
+        ]
+        assert "lokaler Projekt-Analyst" in captured["extra_system_prompt"]
+
+    def test_given_project_skill_fast_path_when_streaming_then_chat_model_is_skipped(self, client):
+        """
+        GIVEN /project can be answered by deterministic local tools
+        WHEN /api/chat/stream handles it
+        THEN chat_with_tools and reflect are skipped for speed.
+        """
+        with patch("server.routes.chat.run_skill_fast_path", new=AsyncMock(return_value="## Gefundene Projekte\n- mimi")), patch(
+            "server.routes.chat.chat_with_tools",
+            new=AsyncMock(side_effect=AssertionError("model should be skipped")),
+        ), patch(
+            "server.routes.chat.reflect",
+            new=AsyncMock(side_effect=AssertionError("reflect should be skipped")),
+        ):
+            with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"message": "/project finde mimi", "model": "gemma4:12b", "history": []},
+            ) as response:
+                body = "".join(response.iter_text())
+
+        assert response.status_code == 200
+        assert "Gefundene Projekte" in body
 
 
 # ── Memory ─────────────────────────────────────────────────────────────────
@@ -206,6 +502,23 @@ class TestSkillsEndpoint:
             assert "trigger" in skill
             assert "description" in skill
 
+    def test_given_skills_list_when_called_then_v2_quality_metadata_is_returned(self, client):
+        """
+        GIVEN Skill System v2 adds progressive quality metadata
+        WHEN GET /api/skills returns summaries
+        THEN clients can inspect quality profile and reference availability without breaking old fields.
+        """
+        response = client.get("/api/skills")
+
+        assert response.status_code == 200
+        pdf = next(skill for skill in response.json()["skills"] if skill["name"] == "pdf-creator")
+        assert pdf["trigger"] == "/pdf"
+        assert "quality_profile" in pdf
+        assert "artifact_types" in pdf
+        assert "has_references" in pdf
+        assert "when_to_use" in pdf
+        assert "when_not_to_use" in pdf
+
     def test_skill_detail_returns_skill(self, client):
         """
         GIVEN  Built-in Skill "web-researcher" vorhanden
@@ -219,6 +532,16 @@ class TestSkillsEndpoint:
         data = response.json()
         assert data["name"] == "web-researcher"
         assert len(data["system_prompt"]) > 0
+
+    def test_given_skill_detail_when_called_then_v2_quality_metadata_is_returned(self, client):
+        response = client.get("/api/skills/pdf-creator")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "pdf-creator"
+        assert "quality_profile" in data
+        assert "artifact_types" in data
+        assert "reference_text" in data
 
     def test_skill_not_found_returns_404(self, client):
         """
@@ -611,4 +934,3 @@ class TestVisionCallbackIsolation:
         # Für den Red-Test: wir erwarten dass es noch NULL ist (B sieht A nicht)
         # Das wird erst nach dem Fix garantiert — jetzt bestätigen wir nur die API.
         assert "val" in seen_in_b  # Mindestens muss das Dictionary befüllt sein
-

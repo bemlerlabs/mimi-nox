@@ -3,7 +3,7 @@
 ## Product Positioning
 
 - Treat the root PWA as the main product.
-- Keep MiMi Nox offline-first by default: local Ollama, `gemma4:e4b`, no account requirement.
+- Keep MiMi Nox offline-first by default: local Ollama, `gemma4:12b`, no account requirement.
 - Mark custom Ollama, public mobile access, web search, TTS APIs, and OpenAI-compatible APIs as optional opt-in paths.
 - Do not reintroduce company/CEO/CTO/crisis-team/Zero Human positioning into public README or UI.
 

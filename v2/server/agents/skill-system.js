@@ -24,6 +24,17 @@
 // Tools that count towards specific skills
 const RESEARCH_TOOLS = ['web_search', 'browser_go', 'file_search'];
 
+const DEFAULT_SKILLS = {
+  codeQuality: 50,
+  bugDetection: 30,
+  architecture: 25,
+  research: 40,
+  speed: 45,
+  toolMastery: 35,
+  communication: 30,
+  testing: 40,
+};
+
 export class SkillSystem {
   /**
    * @param {import('../state/store.js').StateStore} store
@@ -72,20 +83,21 @@ export class SkillSystem {
    * @param {Object} initialSkills - { codeQuality, bugDetection, ... }
    */
   initProfile(agentId, initialSkills) {
+    const skills = { ...DEFAULT_SKILLS, ...(initialSkills || {}) };
     this._store._db.prepare(`
       INSERT OR REPLACE INTO agent_skills
         (agent_id, code_quality, bug_detection, architecture, research, speed, tool_mastery, communication, testing)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       agentId,
-      initialSkills.codeQuality,
-      initialSkills.bugDetection,
-      initialSkills.architecture,
-      initialSkills.research,
-      initialSkills.speed,
-      initialSkills.toolMastery,
-      initialSkills.communication,
-      initialSkills.testing,
+      skills.codeQuality,
+      skills.bugDetection,
+      skills.architecture,
+      skills.research,
+      skills.speed,
+      skills.toolMastery,
+      skills.communication,
+      skills.testing,
     );
   }
 

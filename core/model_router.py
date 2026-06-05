@@ -13,7 +13,7 @@ Entscheidungslogik:
 Beispiel:
     router = get_router()
     config = await router.resolve()
-    # → ModelConfig(name="gemma4:e4b", tier=FAST, host="localhost:11434")
+    # → ModelConfig(name="gemma4:12b", tier=FAST, host="localhost:11434")
 
 MiMi Tech AI UG – Bad Liebenzell, Schwarzwald
 """

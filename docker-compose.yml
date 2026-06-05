@@ -18,7 +18,7 @@ services:
       /bin/sh -c "
         ollama serve &
         until ollama list >/dev/null 2>&1; do sleep 1; done &&
-        ollama pull gemma4:e4b &&
+        ollama pull gemma4:12b &&
         wait
       "
     healthcheck:
@@ -52,7 +52,7 @@ services:
 
 volumes:
   ollama_data:
-    # Ollama model cache (gemma4:e4b ≈ 9.6 GB, downloaded once)
+    # Ollama model cache (gemma4:12b, downloaded once)
   mimi_data:
     # YOUR personal knowledge: memory, sessions, skills, profile
     # This is local app data; optional online features must be enabled explicitly.

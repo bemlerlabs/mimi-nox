@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,31 +26,59 @@ def _reload_provider(monkeypatch, **env):
     return importlib.reload(provider)
 
 
-def test_given_fresh_environment_when_provider_loaded_then_local_ollama_e4b_is_default(monkeypatch):
+def test_given_fresh_environment_when_provider_loaded_then_local_ollama_12b_is_default(monkeypatch):
     """
     GIVEN no provider env configuration
     WHEN the model provider is loaded
-    THEN MiMi Nox defaults to local Ollama with Gemma 4 E4B.
+    THEN MiMi Nox defaults to local Ollama with Gemma 4 12B.
     """
     provider = _reload_provider(monkeypatch)
     active = provider.get_active_provider()
     assert active.provider == "local_ollama"
-    assert active.model == "gemma4:e4b"
+    assert active.model == "gemma4:12b"
     assert active.base_url == "http://localhost:11434"
     assert active.offline_capable is True
     assert active.requires_internet is False
 
 
-def test_given_ollama_host_env_when_provider_loaded_then_local_provider_uses_that_endpoint(monkeypatch):
+def test_given_global_ollama_host_env_when_provider_loaded_then_local_provider_keeps_loopback(monkeypatch):
     """
-    GIVEN Docker or a user start script points Ollama at a reachable host
+    GIVEN the user's shell exports OLLAMA_HOST for another project or machine
     WHEN the local provider is loaded
-    THEN chat uses the same endpoint instead of silently falling back to localhost.
+    THEN the default offline-first provider still uses local loopback.
     """
     provider = _reload_provider(monkeypatch, OLLAMA_HOST="http://host.docker.internal:11434")
     active = provider.get_active_provider()
     assert active.provider == "local_ollama"
-    assert active.base_url == "http://host.docker.internal:11434"
+    assert active.base_url == "http://localhost:11434"
+
+
+def test_given_explicit_local_ollama_url_when_provider_loaded_then_local_provider_uses_it(monkeypatch):
+    """
+    GIVEN a user explicitly configures MiMi Nox's local Ollama URL
+    WHEN the local provider is loaded
+    THEN that MiMi-specific endpoint is used.
+    """
+    provider = _reload_provider(
+        monkeypatch,
+        OLLAMA_HOST="http://wrong.example:11434",
+        MIMI_LOCAL_OLLAMA_BASE_URL="http://127.0.0.1:11434",
+    )
+    active = provider.get_active_provider()
+    assert active.provider == "local_ollama"
+    assert active.base_url == "http://127.0.0.1:11434"
+
+
+def test_given_global_ollama_host_env_when_client_built_then_loopback_host_is_passed(monkeypatch):
+    """
+    GIVEN OLLAMA_HOST points somewhere else
+    WHEN the default local client is built
+    THEN MiMi Nox passes its own loopback host explicitly.
+    """
+    provider = _reload_provider(monkeypatch, OLLAMA_HOST="http://wrong.example:11434")
+    with patch("core.model_provider.ollama.AsyncClient") as client_cls:
+        provider.build_provider_client(provider.get_active_provider())
+    client_cls.assert_called_once_with(host="http://localhost:11434")
 
 
 def test_given_provider_config_when_validated_then_only_supported_types_are_allowed(monkeypatch):
@@ -183,7 +212,7 @@ def test_given_model_provider_api_when_health_and_provider_loaded_then_offline_f
 
     with patch(
         "server.routes.health.check_ollama_connection",
-        new=AsyncMock(return_value=(True, "ok", ["gemma4:e4b"])),
+        new=AsyncMock(return_value=(True, "ok", ["gemma4:12b"])),
     ), patch(
         "server.routes.health.ConnectivityProbe.check_remote",
         new=AsyncMock(return_value=False),
@@ -195,7 +224,7 @@ def test_given_model_provider_api_when_health_and_provider_loaded_then_offline_f
         from core.model_config import ModelConfig, ModelTier
 
         router_getter.return_value.resolve.return_value = ModelConfig(
-            name="gemma4:e4b",
+            name="gemma4:12b",
             tier=ModelTier.FAST,
         )
         client = TestClient(create_app())
@@ -213,3 +242,102 @@ def test_given_model_provider_api_when_health_and_provider_loaded_then_offline_f
     assert health_data["active_provider"] == "local_ollama"
     assert health_data["offline_capable"] is True
     assert health_data["requires_internet"] is False
+
+
+def test_given_local_ollama_models_when_provider_api_called_then_chat_options_are_returned(monkeypatch, tmp_path):
+    """
+    GIVEN local Ollama has chat models
+    WHEN /api/model/providers is called
+    THEN the response contains structured local_model_options for the picker.
+    """
+    _reload_provider(monkeypatch)
+    monkeypatch.setenv("MIMI_NOX_MEMORY_DIR", str(tmp_path / "memory"))
+    monkeypatch.setenv("MIMI_NOX_SKILLS_DIR", str(tmp_path / "skills"))
+
+    from server.main import create_app
+
+    model_options = [
+        {
+            "name": "gemma4:12b",
+            "model": "gemma4:12b",
+            "label": "gemma4:12b · 12.0B · Q4_K_M · 16GB RAM",
+            "family": "gemma4",
+            "parameter_size": "12.0B",
+            "quantization": "Q4_K_M",
+            "size_bytes": 9608350718,
+            "size_label": "16GB RAM",
+            "chat_capable": True,
+        }
+    ]
+
+    with patch("server.routes.model_provider.list_local_models", new=AsyncMock(return_value=["gemma4:12b"])), patch(
+        "server.routes.model_provider.list_local_model_options",
+        new=AsyncMock(return_value=model_options),
+    ):
+        client = TestClient(create_app())
+        response = client.get("/api/model/providers")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["local_models"] == ["gemma4:12b"]
+    assert data["local_model_options"][0]["name"] == "gemma4:12b"
+    assert data["local_model_options"][0]["chat_capable"] is True
+
+
+def test_given_unknown_local_model_when_provider_saved_then_request_is_rejected(monkeypatch, tmp_path):
+    """
+    GIVEN the user selects Local Ollama
+    WHEN the requested model is not in detected chat models
+    THEN MiMi rejects it instead of saving a broken provider state.
+    """
+    _reload_provider(monkeypatch)
+    monkeypatch.setenv("MIMI_NOX_MEMORY_DIR", str(tmp_path / "memory"))
+    monkeypatch.setenv("MIMI_NOX_SKILLS_DIR", str(tmp_path / "skills"))
+
+    from server.main import create_app
+
+    with patch(
+        "server.routes.model_provider.list_local_model_options",
+        new=AsyncMock(return_value=[{"name": "gemma4:12b", "model": "gemma4:12b"}]),
+    ):
+        client = TestClient(create_app())
+        response = client.put(
+            "/api/model/provider",
+            json={"provider": "local_ollama", "model": "gemma3:12b"},
+        )
+
+    assert response.status_code == 422
+    assert "nicht installiert" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_given_ollama_list_contains_embeddings_when_local_options_loaded_then_only_chat_models_remain(monkeypatch):
+    """
+    GIVEN Ollama lists chat and embedding models
+    WHEN MiMi builds local model options
+    THEN embedding/reranker models are hidden from the chat model picker.
+    """
+    import core.chat as chat
+
+    class FakeClient:
+        async def list(self):
+            return SimpleNamespace(
+                models=[
+                    SimpleNamespace(
+                        model="gemma3:12b",
+                        size=8147483648,
+                        details={"family": "gemma3", "families": ["gemma3"], "parameter_size": "12.0B", "quantization_level": "Q4_K_M"},
+                    ),
+                    SimpleNamespace(
+                        model="nomic-embed-text:latest",
+                        size=274302450,
+                        details={"family": "nomic-bert", "families": ["nomic-bert"], "parameter_size": "137M", "quantization_level": "F16"},
+                    ),
+                ]
+            )
+
+    monkeypatch.setattr(chat, "build_provider_client", lambda _provider: FakeClient())
+    options = await chat.list_local_model_options()
+
+    assert [item["name"] for item in options] == ["gemma3:12b"]
+    assert options[0]["label"].startswith("gemma3:12b · 12.0B")

@@ -78,18 +78,18 @@ class DemoHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/health":
             self._json({
-                "status": "ok", "ollama": True, "active_model": "gemma4:e4b",
+                "status": "ok", "ollama": True, "active_model": "gemma4:12b",
                 "active_provider": "local_ollama", "offline_capable": True,
                 "requires_internet": False, "model_installed": True,
             })
             return
         if parsed.path == "/api/model/providers":
             self._json({
-                "active": {"provider": "local_ollama", "model": "gemma4:e4b",
+                "active": {"provider": "local_ollama", "model": "gemma4:12b",
                            "base_url": "http://localhost:11434",
                            "requires_internet": False, "offline_capable": True},
-                "providers": [{"provider": "local_ollama", "model": "gemma4:e4b"}],
-                "local_models": ["gemma4:e4b"],
+                "providers": [{"provider": "local_ollama", "model": "gemma4:12b"}],
+                "local_models": ["gemma4:12b"],
             })
             return
         if parsed.path == "/api/skills":
@@ -137,7 +137,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 ]
             else:
                 chunks = [
-                    "MiMi Nox läuft lokal mit gemma4:e4b. "
+                    "MiMi Nox läuft lokal mit gemma4:12b. "
                     "Du kannst chatten, Bilder analysieren, Dateien prüfen und Skills starten."
                 ]
 

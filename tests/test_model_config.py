@@ -51,14 +51,14 @@ class TestModelConfig:
         """WHEN host='localhost:11434'
         THEN .is_local gibt True zurück"""
         from core.model_config import ModelConfig, ModelTier
-        cfg = ModelConfig(name="gemma4:e4b", tier=ModelTier.FAST)
+        cfg = ModelConfig(name="gemma4:12b", tier=ModelTier.FAST)
         assert cfg.is_local is True
 
     def test_local_config_is_not_remote(self):
         """WHEN host='localhost:11434'
         THEN .is_remote gibt False zurück"""
         from core.model_config import ModelConfig, ModelTier
-        cfg = ModelConfig(name="gemma4:e4b", tier=ModelTier.FAST)
+        cfg = ModelConfig(name="gemma4:12b", tier=ModelTier.FAST)
         assert cfg.is_remote is False
 
     def test_remote_config_is_remote(self):
@@ -87,7 +87,7 @@ class TestModelConfig:
         """WHEN host='localhost:11434'
         THEN .base_url gibt 'http://localhost:11434' zurück"""
         from core.model_config import ModelConfig, ModelTier
-        cfg = ModelConfig(name="gemma4:e4b", tier=ModelTier.FAST)
+        cfg = ModelConfig(name="gemma4:12b", tier=ModelTier.FAST)
         assert cfg.base_url == "http://localhost:11434"
 
     def test_base_url_remote(self):
@@ -105,7 +105,7 @@ class TestModelConfig:
         """WHEN versucht wird, name zu ändern
         THEN wirft es einen FrozenInstanceError"""
         from core.model_config import ModelConfig, ModelTier
-        cfg = ModelConfig(name="gemma4:e4b", tier=ModelTier.FAST)
+        cfg = ModelConfig(name="gemma4:12b", tier=ModelTier.FAST)
         with pytest.raises(Exception):
             cfg.name = "changed"  # type: ignore[misc]
 
@@ -122,12 +122,12 @@ class TestTierMap:
         cfg = get_model_config(ModelTier.OFFLINE)
         assert "e2b" in cfg.name
 
-    def test_fast_tier_uses_e4b(self):
+    def test_fast_tier_uses_12b(self):
         """WHEN get_model_config(FAST) aufgerufen wird
-        THEN gibt es ein Config mit 'e4b' im Namen zurück"""
+        THEN gibt es ein Config mit '12b' im Namen zurück"""
         from core.model_config import ModelTier, get_model_config
         cfg = get_model_config(ModelTier.FAST)
-        assert "e4b" in cfg.name
+        assert "12b" in cfg.name
 
     def test_power_tier_uses_large_model(self):
         """WHEN get_model_config(POWER) aufgerufen wird
@@ -203,7 +203,7 @@ class TestEnvOverride:
 
     def test_no_env_uses_safe_defaults(self):
         """WHEN keine Env-Variablen gesetzt sind
-        THEN werden die sicheren Defaults genutzt (e2b, e4b, 26b)"""
+        THEN werden die sicheren Defaults genutzt (e2b, 12b, 26b)"""
         clean_env = {
             k: v for k, v in os.environ.items()
             if not k.startswith("MIMI_")
@@ -212,5 +212,5 @@ class TestEnvOverride:
             import importlib, core.model_config as m
             importlib.reload(m)
             assert "e2b" in m.get_model_config(m.ModelTier.OFFLINE).name
-            assert "e4b" in m.get_model_config(m.ModelTier.FAST).name
+            assert "12b" in m.get_model_config(m.ModelTier.FAST).name
             importlib.reload(m)

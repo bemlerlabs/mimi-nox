@@ -8,7 +8,7 @@ Given-When-Then Tests:
   1. GIVEN MIMI_NOX_TIMEZONE=Asia/Tokyo WHEN add_job() THEN CronTrigger uses Tokyo
   2. GIVEN default env WHEN add_job() THEN CronTrigger uses Europe/Berlin (fallback)
   3. GIVEN MIMI_NOX_MODEL=llama3.3 WHEN _run_task() THEN react_loop gets llama3.3
-  4. GIVEN default env WHEN _run_task() THEN react_loop gets gemma4:e4b (fallback)
+  4. GIVEN default env WHEN _run_task() THEN react_loop gets gemma4:12b (fallback)
 """
 import os
 from unittest.mock import patch, AsyncMock, MagicMock
@@ -78,11 +78,11 @@ async def test_given_custom_model_when_run_task_then_passes_to_react(monkeypatch
     assert captured_model[0] == "llama3.3"
 
 
-# ── Test 4: GIVEN no model env WHEN _run_task THEN uses gemma4:e4b fallback ───
+# ── Test 4: GIVEN no model env WHEN _run_task THEN uses gemma4:12b fallback ───
 
 @pytest.mark.asyncio
 async def test_given_no_model_env_when_run_task_then_uses_gemma4(monkeypatch):
-    """GIVEN no MIMI_NOX_MODEL set WHEN _run_task() THEN react_loop gets gemma4:e4b."""
+    """GIVEN no MIMI_NOX_MODEL set WHEN _run_task() THEN react_loop gets gemma4:12b."""
     monkeypatch.delenv("MIMI_NOX_MODEL", raising=False)
 
     scheduler = NoxScheduler()
@@ -95,4 +95,4 @@ async def test_given_no_model_env_when_run_task_then_uses_gemma4(monkeypatch):
     with patch("core.react.react_loop", side_effect=fake_react_loop):
         await scheduler._run_task("test task", "test_id")
 
-    assert captured_model[0] == "gemma4:e4b"
+    assert captured_model[0] == "gemma4:12b"

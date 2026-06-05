@@ -2,7 +2,7 @@
 ◑ MiMi Nox – Thinking Stream Parser Tests
 tests/test_thinking.py
 
-TDD Tests für den Gemma4 E4B <|think|> Modus.
+TDD Tests für den Gemma4 12B <|think|> Modus.
 When/Given/Then Spezifikationen.
 """
 from __future__ import annotations

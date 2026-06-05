@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import uuid
 from typing import AsyncGenerator
 
@@ -14,20 +15,114 @@ from pydantic import BaseModel
 from core.chat import OllamaNotReachableError, OllamaModelNotFoundError, OllamaModelBusyError, chat_with_tools
 from core.react import reflect, react_loop
 from core.commands import is_learn_command, extract_learn_topic, is_swarm_command, extract_swarm_task
-from core.skill_builder import build_skill
-from core.skills import SkillLoadError
+from core.skills import SkillLoader, SkillLoadError
+from core.skill_fastpath import run_skill_fast_path
 from core.artifact_detector import ArtifactDetector
+from core.quality import evaluate_quality, normalize_tool_result, validate_artifact
 from core.model_provider import (
     DEFAULT_OLLAMA_BASE_URL,
     ModelProviderConfig,
     ProviderSetupError,
     get_active_provider,
 )
-from core.swarm_v2 import run_swarm_v2
 
 router = APIRouter(tags=["Chat"])
 
-DEFAULT_MODEL = os.environ.get("MIMI_NOX_MODEL", "gemma4:e4b")
+DEFAULT_MODEL = os.environ.get("MIMI_NOX_MODEL", "gemma4:12b")
+FILE_MARKER_MAP = {
+    "PDF_FILE:": ("pdf", "📄 PDF"),
+    "DECK_STUDIO_FILE:": ("deck_studio", "🎛 Slide Studio"),
+    "PITCH_DECK_FILE:": ("pdf", "📄 PDF Slides"),
+    "PPTX_DECK_FILE:": ("pptx", "📊 Editable PPTX"),
+    "PREVIEW_FILE:": ("html", "🌐 Animated Preview"),
+    "CONTACT_SHEET_FILE:": ("html", "🧾 Contact Sheet"),
+    "SCORECARD_FILE:": ("json", "📋 Quality Scorecard"),
+    "QA_FILE:": ("json", "🧪 Deck QA"),
+    "MANIFEST_FILE:": ("json", "🗂 Claim Manifest"),
+    "RENDER_QA_FILE:": ("json", "🧪 Render QA"),
+    "DECK_SPEC_FILE:": ("json", "🧭 Deck Spec"),
+    "VISUAL_QA_FILE:": ("json", "🎨 Visual QA"),
+    "EVIDENCE_LEDGER_FILE:": ("json", "📚 Evidence Ledger"),
+    "SOURCE_BRIEF_FILE:": ("markdown", "📚 Source Brief"),
+}
+
+
+def _resolve_skill_invocation(message: str):
+    """Return (skill, stripped_message) for explicit slash or high-confidence natural skill requests."""
+    stripped = (message or "").strip()
+    if not stripped.startswith("/"):
+        lowered = stripped.lower()
+        if "notebooklm" in lowered or "notebook lm" in lowered or "quellen-notebook" in lowered:
+            notebook_skill = SkillLoader().resolve_trigger("/notebook")
+            if notebook_skill:
+                return notebook_skill, stripped
+        skill = SkillLoader().resolve_for_message(stripped)
+        return skill, stripped
+    parts = stripped.split(maxsplit=1)
+    trigger = parts[0]
+    skill = SkillLoader().resolve_trigger(trigger)
+    if not skill:
+        return None, message
+    user_content = parts[1].strip() if len(parts) > 1 else stripped
+    return skill, user_content
+
+
+def _emit_file_markers(text: str, emit) -> None:
+    emitted: set[tuple[str, str]] = set()
+    for marker, (file_type, label) in FILE_MARKER_MAP.items():
+        if marker not in text:
+            continue
+        path = text.split(marker, 1)[1].splitlines()[0].strip()
+        key = (file_type, path)
+        if path and key not in emitted:
+            emitted.add(key)
+            emit({"type": "file_result", "file_type": file_type, "path": path, "label": label})
+    summary_markers = (
+        (r"Studio PPTX:\s*`([^`]+\.pptx)`", "PPTX_DECK_FILE:"),
+        (r"PDF Slides:\s*`([^`]+\.pdf)`", "PITCH_DECK_FILE:"),
+        (r"Animated Preview:\s*`([^`]+\.preview\.html)`", "PREVIEW_FILE:"),
+        (r"Render QA:\s*`([^`]+\.render-qa\.json)`", "RENDER_QA_FILE:"),
+        (r"Quality Scorecard:\s*`([^`]+\.scorecard\.json)`", "SCORECARD_FILE:"),
+        (r"Contact Sheet:\s*`([^`]+\.contact-sheet\.html)`", "CONTACT_SHEET_FILE:"),
+        (r"Deck Spec:\s*`([^`]+\.deck-spec\.json)`", "DECK_SPEC_FILE:"),
+        (r"Visual QA:\s*`([^`]+\.visual-qa\.json)`", "VISUAL_QA_FILE:"),
+        (r"Evidence Ledger:\s*`([^`]+\.evidence-ledger\.json)`", "EVIDENCE_LEDGER_FILE:"),
+        (r"Source Brief:\s*`([^`]+\.md)`", "SOURCE_BRIEF_FILE:"),
+    )
+    for pattern, marker in summary_markers:
+        file_type, label = FILE_MARKER_MAP[marker]
+        for match in re.findall(pattern, text or ""):
+            path = match.strip()
+            key = (file_type, path)
+            if path and key not in emitted:
+                emitted.add(key)
+                emit({"type": "file_result", "file_type": file_type, "path": path, "label": label})
+
+
+def _normalize_fast_path_tool_results(text: str):
+    results = []
+    for marker in FILE_MARKER_MAP:
+        if marker not in text:
+            continue
+        path = text.split(marker, 1)[1].splitlines()[0].strip()
+        if path:
+            results.append(normalize_tool_result("fast_path", f"{marker}{path}"))
+    summary_markers = (
+        (r"Studio PPTX:\s*`([^`]+\.pptx)`", "PPTX_DECK_FILE:"),
+        (r"PDF Slides:\s*`([^`]+\.pdf)`", "PITCH_DECK_FILE:"),
+        (r"Animated Preview:\s*`([^`]+\.preview\.html)`", "PREVIEW_FILE:"),
+        (r"Render QA:\s*`([^`]+\.render-qa\.json)`", "RENDER_QA_FILE:"),
+        (r"Quality Scorecard:\s*`([^`]+\.scorecard\.json)`", "SCORECARD_FILE:"),
+        (r"Contact Sheet:\s*`([^`]+\.contact-sheet\.html)`", "CONTACT_SHEET_FILE:"),
+        (r"Deck Spec:\s*`([^`]+\.deck-spec\.json)`", "DECK_SPEC_FILE:"),
+        (r"Visual QA:\s*`([^`]+\.visual-qa\.json)`", "VISUAL_QA_FILE:"),
+        (r"Evidence Ledger:\s*`([^`]+\.evidence-ledger\.json)`", "EVIDENCE_LEDGER_FILE:"),
+        (r"Source Brief:\s*`([^`]+\.md)`", "SOURCE_BRIEF_FILE:"),
+    )
+    for pattern, marker in summary_markers:
+        for match in re.findall(pattern, text or ""):
+            results.append(normalize_tool_result("fast_path", f"{marker}{match.strip()}"))
+    return results
 
 
 # ── Pydantic Models ────────────────────────────────────────────────────────
@@ -48,7 +143,7 @@ class StreamRequest(BaseModel):
     model: str = DEFAULT_MODEL
     history: list[dict] = []
     autonomous: bool = False
-    images: list[str] = []       # Base64-kodierte Bilder für E4B Multimodal
+    images: list[str] = []       # Base64-kodierte Bilder für 12B Multimodal
     force_tier: str | None = None  # Optional: "offline" | "fast" | "power"
 
 
@@ -79,6 +174,40 @@ pending_sandbox: dict[str, dict] = {}  # DEPRECATED: nutze get_sandbox()
 # App-weites Token-Registry für Cross-Request Sandbox-Approval
 # (approve_sandbox läuft in eigenem Request-Context, daher kein ContextVar)
 _active_sandbox_events: dict[str, dict] = {}
+
+
+def _friendly_model_error(exc: Exception, provider: ModelProviderConfig | None = None) -> str:
+    """Return a user-facing model error that matches the offline-first setup story."""
+    raw = str(exc)
+    lower = raw.lower()
+    active = provider or get_active_provider()
+
+    if active.provider == "local_ollama" and any(
+        marker in lower
+        for marker in (
+            "failed to connect",
+            "connection",
+            "connecterror",
+            "refused",
+            "socket",
+            "not running",
+        )
+    ):
+        return (
+            "Lokales Ollama ist gerade nicht erreichbar. "
+            "Starte MiMi Nox mit `miminox start` oder prüfe mit `miminox doctor`."
+        )
+
+    if active.provider == "local_ollama" and any(
+        marker in lower
+        for marker in ("not found", "does not exist", "nicht installiert", "missing")
+    ):
+        return (
+            f"Lokales Modell '{active.model}' fehlt oder ist nicht ladbar. "
+            "Starte die Reparatur mit `miminox doctor` und danach `miminox start`."
+        )
+
+    return raw
 
 
 def sandbox_auto_approval_allowed(*, autonomous: bool) -> bool:
@@ -116,7 +245,7 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
 
     Event-Typen (jede Zeile: data: <JSON>\n\n):
       {"type": "chunk",    "data": "..."}          → Token sofort an AI-Bubble
-      {"type": "thinking", "data": "..."}          → Thinking-Token (🧠 Nox denkt)
+      {"type": "thinking_start"}                   → Progress UI without raw reasoning
       {"type": "activity", "cmd": "...", "status": "running|done"} → Terminal-Feed
       {"type": "reflect",  "status": "running|done", "needs_revision": bool}
       {"type": "revision", "reason": "..."}         → Bubble resetten, neue Antwort
@@ -137,8 +266,9 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
 
         async def run() -> None:
             messages = list(request.history)
-            # ── Bilder in User-Message einbauen (E4B Multimodal) ──────────
-            user_msg: dict = {"role": "user", "content": request.message}
+            # ── Bilder in User-Message einbauen (12B Multimodal) ──────────
+            active_skill, user_content = _resolve_skill_invocation(request.message)
+            user_msg: dict = {"role": "user", "content": user_content}
             if request.images:
                 user_msg["images"] = request.images
             messages.append(user_msg)
@@ -193,6 +323,8 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     emit({"type": "swarm_status", "phase": "planning", "message": "🐝 Swarm V2 gestartet — Manager analysiert Aufgabe…"})
 
                     try:
+                        from core.swarm_v2 import run_swarm_v2
+
                         result = await run_swarm_v2(
                             task=swarm_task,
                             model=model,
@@ -237,6 +369,8 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                         emit({"type": "activity", "cmd": f"{name} → {result[:40]}", "status": "done"})
 
                     try:
+                        from core.skill_builder import build_skill
+
                         skill = await build_skill(
                             topic=topic,
                             model=model,
@@ -293,35 +427,61 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     emit({"type": "vision_learned_success", "target": target})
                 set_vision_learned_success_cb(_vision_learned_success_cb)
 
+                async def _shell_confirm_cb(command: str) -> bool:
+                    return await _sandbox_cb("run_shell", {"command": command})
+
+                if active_skill and not request.images:
+                    fast_answer = await run_skill_fast_path(active_skill.name, user_content)
+                    if fast_answer is not None:
+                        emit({"type": "activity", "cmd": f"{active_skill.trigger} fast path", "status": "done"})
+                        _emit_file_markers(fast_answer, emit)
+                        fast_tool_results = _normalize_fast_path_tool_results(fast_answer)
+                        emit({"type": "quality_check", "status": "running", "skill": active_skill.name})
+                        for tool_result in fast_tool_results:
+                            for artifact in tool_result.artifacts:
+                                validation = validate_artifact(artifact)
+                                emit({
+                                    "type": "artifact_check",
+                                    "artifact_type": validation.artifact_type,
+                                    "status": validation.status,
+                                    "path": validation.path,
+                                    "warnings": validation.warnings,
+                                })
+                        quality_report = evaluate_quality(
+                            answer=fast_answer,
+                            skill=active_skill,
+                            tool_results=fast_tool_results,
+                        )
+                        emit({
+                            "type": "quality_check",
+                            "status": quality_report.status,
+                            "skill": active_skill.name,
+                            "issues": quality_report.issues,
+                            "warnings": quality_report.warnings,
+                        })
+                        emit({"type": "chunk", "data": fast_answer})
+                        emit({"type": "done"})
+                        _done_sent = True
+                        return
+
                 # ── Phase 1: Erste Antwort sofort streamen ─────────────────
                 first_chunks: list[str] = []
+                captured_tool_results = []
 
                 def on_chunk(chunk: str) -> None:
                     first_chunks.append(chunk)
                     emit({"type": "chunk", "data": chunk})
 
-                # Thinking-Accumulator: sammelt Wörter bis Satzende/60+ Zeichen
-                _thinking_buf: list[str] = []
-
-                def _flush_thinking_buf() -> None:
-                    text = "".join(_thinking_buf).strip()
-                    _thinking_buf.clear()
-                    if len(text) > 5:
-                        emit({"type": "activity", "cmd": f"🧠 {text[:90]}{'…' if len(text) > 90 else ''}", "status": "running"})
-
                 def on_thinking(chunk: str) -> None:
-                    emit({"type": "thinking", "data": chunk})
-                    # In Buffer sammeln und bei Satzende oder 60+ Zeichen flushen
-                    _thinking_buf.append(chunk)
-                    buf_text = "".join(_thinking_buf)
-                    # Flush bei Satzende oder genug Text
-                    if len(buf_text) >= 60 or any(buf_text.rstrip().endswith(c) for c in ('.', '!', '?', '\n', '…')):
-                        _flush_thinking_buf()
+                    # Internal model reasoning must not cross the API boundary.
+                    _ = chunk
 
                 def on_tool_start(name: str, args: dict) -> None:
                     emit({"type": "activity", "cmd": f"{name}({json.dumps(args, ensure_ascii=False)[:60]})", "status": "running"})
 
                 def on_tool_done(name: str, result: str) -> None:
+                    tool_result = normalize_tool_result(name, result)
+                    captured_tool_results.append(tool_result)
                     # Datei-Outputs speziell behandeln → file_result Event
                     if result.startswith("CHART_FILE:"):
                         path = result[len("CHART_FILE:"):]
@@ -341,6 +501,16 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     else:
                         emit({"type": "activity", "cmd": f"{name} → {result[:40]}", "status": "done"})
 
+                    for artifact in tool_result.artifacts:
+                        validation = validate_artifact(artifact)
+                        emit({
+                            "type": "artifact_check",
+                            "artifact_type": validation.artifact_type,
+                            "status": validation.status,
+                            "path": validation.path,
+                            "warnings": validation.warnings,
+                        })
+
                 def on_phase(phase: str) -> None:
                     emit({"type": "activity", "cmd": phase, "status": "running"})
 
@@ -356,12 +526,30 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     on_tool_done=on_tool_done,
                     on_phase=on_phase,
                     provider_config=active_provider,
+                    allowed_tool_names=active_skill.tools if active_skill else None,
+                    extra_system_prompt=active_skill.system_prompt if active_skill else None,
+                    on_shell_confirm=_shell_confirm_cb,
                 )
 
-                # Restlichen Thinking-Buffer flushen
-                _flush_thinking_buf()
-
                 first_answer = "".join(first_chunks)
+
+                # ── Deterministische lokale Qualitätsprüfung ────────────────
+                skill_quality_passed = False
+                if active_skill:
+                    emit({"type": "quality_check", "status": "running", "skill": active_skill.name})
+                    quality_report = evaluate_quality(
+                        answer=first_answer,
+                        skill=active_skill,
+                        tool_results=captured_tool_results,
+                    )
+                    emit({
+                        "type": "quality_check",
+                        "status": quality_report.status,
+                        "skill": active_skill.name,
+                        "issues": quality_report.issues,
+                        "warnings": quality_report.warnings,
+                    })
+                    skill_quality_passed = quality_report.status == "passed"
 
                 # ── Artifact-Erkennung ─────────────────────────────────────────────
                 _detector    = ArtifactDetector()
@@ -373,12 +561,18 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     for art in _artifacts:
                         emit({"type": "artifact", "artifact": art.to_dict()})
 
+                if active_skill and skill_quality_passed:
+                    emit({"type": "done"})
+                    _done_sent = True
+                    return
+
                 # ── Phase 2: Reflexion ─────────────────────────────────────
                 emit({"type": "reflect", "status": "running"})
                 reflexion = await reflect(
                     response=first_answer,
                     question=request.message,
                     model=model,
+                    provider_config=active_provider,
                 )
                 emit({"type": "reflect", "status": "done", "needs_revision": reflexion.needs_revision})
 
@@ -412,6 +606,9 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     on_tool_done=on_tool_done,
                     on_phase=on_phase,
                     provider_config=active_provider,
+                    allowed_tool_names=active_skill.tools if active_skill else None,
+                    extra_system_prompt=active_skill.system_prompt if active_skill else None,
+                    on_shell_confirm=_shell_confirm_cb,
                 )
 
             except ProviderSetupError as exc:
@@ -423,7 +620,7 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
             except OllamaModelNotFoundError as exc:
                 emit({"type": "error", "msg": f"Modell '{exc.model}' nicht installiert"})
             except Exception as exc:
-                emit({"type": "error", "msg": str(exc)})
+                emit({"type": "error", "msg": _friendly_model_error(exc, active_provider)})
             finally:
                 if not _done_sent:
                     emit({"type": "done"})

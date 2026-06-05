@@ -10,7 +10,7 @@
  *   - Backup / Export (Memories als JSON)
  */
 import { useState, useEffect } from 'react';
-import { SUPPORTED_LANGUAGES, formatLangLabel } from '../../../server/field-tools/lang-store.js';
+import { SUPPORTED_LANGUAGES } from '../../../server/field-tools/lang-store.js';
 
 
 const COUNTRIES = [

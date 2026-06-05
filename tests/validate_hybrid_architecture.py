@@ -102,13 +102,13 @@ class TestScenario2LocalOnly:
         config = await router.resolve()
         assert config.tier == ModelTier.FAST
 
-    async def test_s2_fast_model_is_e4b(self):
+    async def test_s2_fast_model_is_12b(self):
         """WHEN FAST-Tier aktiv ist
-        THEN wird gemma4:e4b als Modell genutzt"""
+        THEN wird gemma4:12b als Modell genutzt"""
         from core.model_router import ModelRouter
         router = ModelRouter(probe=make_probe(local=True, remote=False))
         config = await router.resolve()
-        assert "e4b" in config.name
+        assert "12b" in config.name
 
     async def test_s2_fast_is_local(self):
         """WHEN FAST-Tier aktiv ist

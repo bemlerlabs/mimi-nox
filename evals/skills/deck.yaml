@@ -1,0 +1,21 @@
+cases:
+  - skill: deck-creator
+    prompt: /deck gamma style board deck about local AI
+    expected_tool: create_pptx_deck
+    required_terms: [DECK_STUDIO_FILE, scorecard]
+  - skill: deck-creator
+    prompt: /deck mckinsey style strategy slides
+    expected_tool: create_pitch_deck
+    required_terms: [Slide Studio, PDF Slides]
+  - skill: deck-creator
+    prompt: /deck use existing company pptx template
+    expected_tool: inspect_pptx_template
+    required_terms: [template, QA]
+  - skill: deck-creator
+    prompt: /deck create a pitchdeck with images
+    expected_tool: create_pptx_deck
+    required_terms: [visual, brand, assets]
+  - skill: deck-creator
+    prompt: /deck do not directly give pptx, let user choose download
+    expected_tool: create_pitch_deck
+    required_terms: [DECK_STUDIO_FILE, auswählbaren Downloads]

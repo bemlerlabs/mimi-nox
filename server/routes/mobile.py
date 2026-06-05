@@ -4,7 +4,6 @@ import io
 import base64
 import time
 import os
-import qrcode
 import urllib.request
 from urllib.parse import urlparse
 from fastapi import APIRouter, Request
@@ -126,6 +125,8 @@ def get_mobile_qr(request: Request, mode: Literal["auto", "lan", "public"] = "au
     # Mobile users get the clean chat-only page
     mobile_url = f"{target_url}/mobile.html"
     
+    import qrcode
+
     qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(mobile_url)
     qr.make(fit=True)

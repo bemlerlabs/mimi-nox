@@ -10,10 +10,7 @@
   <title>◑ MiMi Nox</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <link rel="icon" type="image/png" href="favicon.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260507-mobile1" />
+  <link rel="stylesheet" href="style.css?v=20260603-model-picker1" />
   <!-- Markdown Renderer + XSS Protection (locally bundled, no CDN) -->
   <script defer src="lib/marked.min.js"></script>
   <script defer src="lib/purify.min.js"></script>
@@ -94,7 +91,7 @@
       <button class="btn-topbar" id="btn-export-chat" data-i18n="nav.exportChat" data-i18n-title="nav.exportChat">💾 Export Chat</button>
       <button class="btn-topbar" id="btn-mobile-pairing" data-i18n="nav.mobilePairing" data-i18n-title="nav.mobilePairing">📱 Connect Phone</button>
       <button class="btn-topbar" id="btn-provider-settings" data-i18n-title="provider.settingsTitle" title="Model Provider">⚙ Provider</button>
-      <div class="provider-badge" id="provider-badge" aria-live="polite">Local · gemma4:e4b</div>
+      <div class="provider-badge" id="provider-badge" aria-live="polite">Local · gemma4:12b</div>
 
       <div class="status-badge" id="status-badge" aria-live="polite">
         <span class="status-dot" id="status-dot"></span>
@@ -293,7 +290,7 @@
     <div class="modal-box onboarding-box">
       <div class="ob-logo">◑</div>
       <h2 class="ob-title" id="ob-title" data-i18n="onboarding.title">Welcome to MiMi Nox</h2>
-      <p class="ob-sub"><span data-i18n="onboarding.sub">Start local with Ollama and Gemma 4 E4B.</span><br><span data-i18n="onboarding.subLine2">Advanced users can opt in to their own model server or API.</span></p>
+      <p class="ob-sub"><span data-i18n="onboarding.sub">Start local with Ollama and Gemma 4 12B.</span><br><span data-i18n="onboarding.subLine2">Advanced users can opt in to their own model server or API.</span></p>
 
       <div class="ob-categories" id="ob-categories" role="list">
         <button type="button" class="ob-cat" data-cat="dev" aria-pressed="false">
@@ -399,11 +396,14 @@
         <div class="provider-grid">
           <label>
             <span data-i18n="provider.modelLabel">Model</span>
-            <input id="provider-model-input" name="model" value="gemma4:e4b" autocomplete="off" />
+            <select id="provider-model-select" name="local_model" aria-label="Local model"></select>
+            <input id="provider-model-input" name="model" value="gemma4:12b" autocomplete="off" />
+            <small class="provider-model-hint" id="provider-model-hint">Local models are detected from Ollama.</small>
           </label>
           <label>
             <span data-i18n="provider.baseUrlLabel">Base URL</span>
             <input id="provider-base-url-input" name="base_url" placeholder="http://localhost:11434" autocomplete="off" />
+            <button type="button" class="btn-topbar provider-refresh-btn" id="provider-refresh-models">Refresh models</button>
           </label>
         </div>
 
@@ -465,6 +465,7 @@
     <!-- Skill Chips -->
     <div class="skill-chips" id="skill-chips" role="toolbar" aria-label="Skill shortcuts">
       <button type="button" class="skill-chip" data-trigger="/chart" aria-label="/chart Skill auswaehlen" aria-pressed="false" data-i18n-title="chip.chart">📊 /chart</button>
+      <button type="button" class="skill-chip" data-trigger="/deck" aria-label="/deck Skill auswaehlen" aria-pressed="false" title="Pitchdeck erstellen">▣ /deck</button>
       <button type="button" class="skill-chip" data-trigger="/review" aria-label="/review Skill auswaehlen" aria-pressed="false" data-i18n-title="chip.review">💻 /review</button>
       <button type="button" class="skill-chip" data-trigger="/files" aria-label="/files Skill auswaehlen" aria-pressed="false" data-i18n-title="chip.files">📁 /files</button>
       <button type="button" class="skill-chip" data-trigger="/help" aria-label="/help Skill auswaehlen" aria-pressed="false" data-i18n-title="chip.help">⚡ /help</button>
@@ -588,7 +589,7 @@
 
       const appScript = document.createElement('script');
       appScript.type = 'module';
-      appScript.src = 'main.js?v=20260507-frontend1';
+      appScript.src = 'main.js?v=20260603-model-picker1';
       document.body.appendChild(appScript);
     })();
   </script>

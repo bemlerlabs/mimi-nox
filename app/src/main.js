@@ -12,7 +12,11 @@ const API = (window.location.protocol === 'file:' || window.location.protocol ==
             ? 'http://127.0.0.1:8765/api' 
             : '/api';
 const STORE_KEY_HISTORY = 'mimi_nox_history';
-const DEFAULT_MODEL     = 'gemma4:e4b';
+const DEFAULT_MODEL     = 'gemma4:12b';
+const REQUEST_HISTORY_MAX_MESSAGES = 12;
+const REQUEST_HISTORY_MAX_CHARS = 24_000;
+const REQUEST_HISTORY_MESSAGE_MAX_CHARS = 1_600;
+const STREAM_IDLE_TIMEOUT_MS = 120_000;
 
 import { ArtifactStore, ArtifactPanel } from './artifact.js?v=20260507-frontend1';
 import { t, applyTranslations, setLanguage, currentLang, needsLanguageSelection } from './i18n.js?v=20260507-frontend1';
@@ -51,6 +55,7 @@ function getServiceWorker() {
 
 const SKILL_ICONS = Object.freeze({
   '/chart': '📊',
+  '/deck': '▣',
   '/review': '💻',
   '/files': '📁',
   '/help': '⚡',
@@ -268,7 +273,7 @@ class NoxApp {
       // Layout areas (needed for mobile close-menu handler)
       chatArea:       document.getElementById('chat-area'),
       bottombar:      document.querySelector('.bottombar'),
-      // Image Attach (E4B Vision)
+      // Image Attach (12B Vision)
       imgInput:       document.getElementById('img-input'),
       attachBtn:      document.getElementById('attach-btn'),
       imgPreviewBar:  document.getElementById('img-preview-bar'),
@@ -282,7 +287,10 @@ class NoxApp {
       providerForm: document.getElementById('provider-form'),
       providerCloseBtn: document.getElementById('provider-close-btn'),
       providerCancelBtn: document.getElementById('provider-cancel-btn'),
+      providerModelSelect: document.getElementById('provider-model-select'),
       providerModelInput: document.getElementById('provider-model-input'),
+      providerModelHint: document.getElementById('provider-model-hint'),
+      providerRefreshModelsBtn: document.getElementById('provider-refresh-models'),
       providerBaseUrlInput: document.getElementById('provider-base-url-input'),
       providerOnlineWarning: document.getElementById('provider-online-warning'),
       providerOnlineConfirm: document.getElementById('provider-online-confirm'),
@@ -298,7 +306,7 @@ class NoxApp {
     // Mode Toggle
     this._bindModeToggle();
 
-    // Image Attach Button (E4B Vision)
+    // Image Attach Button (12B Vision)
     this._attachedImageB64 = null;
     if (this.el.attachBtn && this.el.imgInput) {
       this.el.attachBtn.addEventListener('click', () => this.el.imgInput.click());
@@ -377,6 +385,14 @@ class NoxApp {
     if (this.el.providerForm) {
       this.el.providerForm.addEventListener('change', () => this._syncProviderModeFields());
       this.el.providerForm.addEventListener('submit', (e) => this._saveProviderSettings(e));
+    }
+    if (this.el.providerModelSelect) {
+      this.el.providerModelSelect.addEventListener('change', () => {
+        if (this.el.providerModelInput) this.el.providerModelInput.value = this.el.providerModelSelect.value || DEFAULT_MODEL;
+      });
+    }
+    if (this.el.providerRefreshModelsBtn) {
+      this.el.providerRefreshModelsBtn.addEventListener('click', () => this._refreshProviderModels());
     }
 
     // Mobile Menu Toggle
@@ -786,6 +802,63 @@ class NoxApp {
     this._clearAttachedImage(); // Bild-Anhang beim neuen Chat zurücksetzen
   }
 
+  _compactTextForRequest(value, maxChars = REQUEST_HISTORY_MESSAGE_MAX_CHARS) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (text.length <= maxChars) return text;
+    const keepHead = Math.floor(maxChars * 0.6);
+    const keepTail = Math.max(0, maxChars - keepHead - 44);
+    return `${text.slice(0, keepHead)} ... [lokal gekuerzt] ... ${text.slice(-keepTail)}`;
+  }
+
+  _historySummaryForRequest(messages) {
+    const snippets = messages
+      .slice(-8)
+      .map((msg) => {
+        const role = msg?.role === 'assistant' ? 'MiMi' : 'User';
+        return `${role}: ${this._compactTextForRequest(msg?.content, 320)}`;
+      })
+      .filter(Boolean);
+    return snippets.join(' | ');
+  }
+
+  _historyForRequest() {
+    const source = Array.isArray(this.history) ? this.history : [];
+    if (source.length === 0) return [];
+
+    const hasOlderContext = source.length > REQUEST_HISTORY_MAX_MESSAGES;
+    const recentLimit = hasOlderContext
+      ? REQUEST_HISTORY_MAX_MESSAGES - 1
+      : REQUEST_HISTORY_MAX_MESSAGES;
+    const older = hasOlderContext ? source.slice(0, -recentLimit) : [];
+    const compacted = source.slice(-recentLimit).map((msg) => ({
+      role: msg?.role === 'assistant' ? 'assistant' : msg?.role === 'system' ? 'system' : 'user',
+      content: this._compactTextForRequest(msg?.content),
+    }));
+
+    if (older.length) {
+      compacted.unshift({
+        role: 'system',
+        content: `Vorheriger Chat-Kontext, lokal kompaktiert: ${this._historySummaryForRequest(older)}`,
+      });
+    }
+
+    while (JSON.stringify(compacted).length > REQUEST_HISTORY_MAX_CHARS && compacted.length > 1) {
+      compacted.shift();
+    }
+
+    while (JSON.stringify(compacted).length > REQUEST_HISTORY_MAX_CHARS) {
+      const longest = compacted.reduce((bestIndex, msg, index) => {
+        const best = compacted[bestIndex]?.content || '';
+        return (msg.content || '').length > best.length ? index : bestIndex;
+      }, 0);
+      const current = compacted[longest].content || '';
+      if (current.length <= 500) break;
+      compacted[longest].content = this._compactTextForRequest(current, Math.max(500, Math.floor(current.length * 0.7)));
+    }
+
+    return compacted;
+  }
+
   // ── Health Check ────────────────────────────────────────
   async checkHealth() {
     try {
@@ -836,7 +909,7 @@ class NoxApp {
 
   _isMissingModelError(message) {
     const text = String(message || '');
-    return /gemma4:e4b/i.test(text) && /modell|model/i.test(text) && /nicht installiert|not installed|missing|not found/i.test(text);
+    return /gemma4:12b/i.test(text) && /modell|model/i.test(text) && /nicht installiert|not installed|missing|not found/i.test(text);
   }
 
   _modelRecoveryHtml(message) {
@@ -898,6 +971,7 @@ class NoxApp {
     const provider = healthData?.active_provider || 'local_ollama';
     const model = healthData?.active_model || this.model || DEFAULT_MODEL;
     const online = healthData?.requires_internet === true;
+    if (model) this.model = model;
     const labels = {
       local_ollama: 'Local',
       custom_ollama: 'LAN',
@@ -924,6 +998,7 @@ class NoxApp {
   _syncProviderModeFields() {
     const provider = this._selectedProviderMode();
     const isApi = provider === 'openai_compatible';
+    const isLocal = provider === 'local_ollama';
     if (this.el.providerOnlineWarning) {
       this.el.providerOnlineWarning.classList.toggle('hidden', !isApi);
     }
@@ -934,6 +1009,77 @@ class NoxApp {
       this.el.providerBaseUrlInput.placeholder = provider === 'openai_compatible'
         ? 'https://api.example.com/v1'
         : 'http://localhost:11434';
+    }
+    if (this.el.providerModelSelect) {
+      this.el.providerModelSelect.classList.toggle('hidden', !isLocal);
+      this.el.providerModelSelect.disabled = !isLocal;
+    }
+    if (this.el.providerModelInput) {
+      this.el.providerModelInput.classList.toggle('hidden', isLocal);
+      this.el.providerModelInput.disabled = isLocal;
+    }
+    if (this.el.providerRefreshModelsBtn) {
+      this.el.providerRefreshModelsBtn.classList.toggle('hidden', !isLocal);
+      this.el.providerRefreshModelsBtn.disabled = !isLocal;
+    }
+    if (this.el.providerModelHint) {
+      this.el.providerModelHint.textContent = isLocal
+        ? 'Local chat models detected from Ollama. Embedding models are hidden.'
+        : 'Enter the exact model name for this provider.';
+    }
+  }
+
+  _populateLocalModelSelect(models = [], activeModel = DEFAULT_MODEL) {
+    const select = this.el.providerModelSelect;
+    if (!select) return;
+    select.innerHTML = '';
+    const options = Array.isArray(models) ? models : [];
+    if (!options.length) {
+      const option = document.createElement('option');
+      option.value = activeModel || DEFAULT_MODEL;
+      option.textContent = `${activeModel || DEFAULT_MODEL} (not detected)`;
+      select.appendChild(option);
+      select.value = option.value;
+      return;
+    }
+
+    let hasActive = false;
+    for (const item of options) {
+      const name = item?.name || item?.model;
+      if (!name) continue;
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = item.label || name;
+      option.title = item.family ? `${item.family} ${item.parameter_size || ''} ${item.quantization || ''}`.trim() : name;
+      select.appendChild(option);
+      if (name === activeModel) hasActive = true;
+    }
+    if (activeModel && !hasActive) {
+      const option = document.createElement('option');
+      option.value = activeModel;
+      option.textContent = `${activeModel} (active, not detected)`;
+      select.insertBefore(option, select.firstChild);
+    }
+    select.value = activeModel || select.value || DEFAULT_MODEL;
+    if (this.el.providerModelInput) this.el.providerModelInput.value = select.value;
+  }
+
+  async _refreshProviderModels() {
+    if (this.el.providerStatus) this.el.providerStatus.textContent = 'Scanning local Ollama models...';
+    try {
+      const res = await fetch(`${API}/model/providers`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const active = data.active || {};
+      this._populateLocalModelSelect(data.local_model_options || [], active.model || this.model || DEFAULT_MODEL);
+      if (this.el.providerStatus) {
+        const count = (data.local_model_options || []).length;
+        this.el.providerStatus.textContent = count
+          ? `${count} local chat models detected.`
+          : 'No local chat models detected. Start Ollama or pull a model.';
+      }
+    } catch {
+      if (this.el.providerStatus) this.el.providerStatus.textContent = 'Could not scan local Ollama models.';
     }
   }
 
@@ -948,13 +1094,15 @@ class NoxApp {
       const data = await res.json();
       const active = data.active || {};
       this._setProviderMode(active.provider || 'local_ollama');
+      this._populateLocalModelSelect(data.local_model_options || [], active.model || DEFAULT_MODEL);
       if (this.el.providerModelInput) this.el.providerModelInput.value = active.model || DEFAULT_MODEL;
       if (this.el.providerBaseUrlInput) this.el.providerBaseUrlInput.value = active.base_url || '';
       if (this.el.providerStatus) this.el.providerStatus.textContent = active.requires_internet
         ? 'Online/API provider selected. Data goes to your configured provider.'
-        : 'Offline-capable provider selected.';
+        : `${(data.local_model_options || []).length} local chat models detected.`;
     } catch {
       this._setProviderMode('local_ollama');
+      this._populateLocalModelSelect([], DEFAULT_MODEL);
       if (this.el.providerModelInput) this.el.providerModelInput.value = DEFAULT_MODEL;
       if (this.el.providerStatus) this.el.providerStatus.textContent = 'Provider API not reachable. Local Ollama remains the default.';
     }
@@ -977,7 +1125,9 @@ class NoxApp {
 
     const payload = {
       provider,
-      model: this.el.providerModelInput?.value.trim() || DEFAULT_MODEL,
+      model: provider === 'local_ollama'
+        ? (this.el.providerModelSelect?.value || this.el.providerModelInput?.value.trim() || DEFAULT_MODEL)
+        : (this.el.providerModelInput?.value.trim() || DEFAULT_MODEL),
       base_url: this.el.providerBaseUrlInput?.value.trim() || null,
       confirm_online: isApi,
     };
@@ -994,6 +1144,7 @@ class NoxApp {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || 'Provider could not be saved.');
       const active = data.active || {};
+      this.model = active.model || payload.model || this.model;
       this._updateProviderBadge({
         active_provider: active.provider,
         active_model: active.model,
@@ -1512,6 +1663,16 @@ class NoxApp {
     let   thinkingBubble = wrap.querySelector('.thinking-panel');
     let   full   = '';
     let   thinkStartTime = 0;
+    let   streamTimeoutId = null;
+    let   timedOut = false;
+    const fileResults = [];
+    const resetStreamWatchdog = () => {
+      if (streamTimeoutId) clearTimeout(streamTimeoutId);
+      streamTimeoutId = setTimeout(() => {
+        timedOut = true;
+        if (this._abortController) this._abortController.abort();
+      }, STREAM_IDLE_TIMEOUT_MS);
+    };
 
     // Activity: Anfrage gestartet
     const activityText = visibleUserText || text;
@@ -1520,10 +1681,7 @@ class NoxApp {
 
     try {
       this._abortController = new AbortController();
-      // Watchdog für langes Warten (Fallbacks)
-      const timeoutId = setTimeout(() => {
-        if (this._abortController) this._abortController.abort(new Error("Timeout"));
-      }, 120_000);
+      resetStreamWatchdog();
 
       const res = await fetch(`${API}/chat/stream`, {
         method:  'POST',
@@ -1531,13 +1689,13 @@ class NoxApp {
         body:    JSON.stringify({ 
           message: text, 
           model: this.model, 
-          history: this.history,
+          history: this._historyForRequest(),
           autonomous: false,
           images: imageB64 ? [imageB64] : [],
         }),
         signal:  this._abortController.signal,
       });
-      clearTimeout(timeoutId);
+      resetStreamWatchdog();
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({detail: 'HTTP ' + res.status}));
@@ -1551,6 +1709,7 @@ class NoxApp {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        resetStreamWatchdog();
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
@@ -1613,6 +1772,30 @@ class NoxApp {
               }
               break;
 
+            case 'quality_check':
+              if (evt.status === 'running') {
+                this._addActivity('cmd', `Quality check: ${evt.skill || 'local gate'}…`);
+              } else if (evt.status === 'passed') {
+                this._addActivity('done', `✓ Quality OK${evt.skill ? ` (${evt.skill})` : ''}`);
+              } else if (evt.status === 'failed') {
+                const issue = (evt.issues || evt.warnings || []).join('; ').slice(0, 120);
+                this._addActivity('warning', `Quality failed${issue ? `: ${issue}` : ''}`);
+              } else {
+                this._addActivity('warning', `Quality ${evt.status || 'check'}${evt.skill ? ` (${evt.skill})` : ''}`);
+              }
+              break;
+
+            case 'artifact_check': {
+              const name = (evt.path || '').split('/').pop() || evt.artifact_type || 'artifact';
+              if (evt.status === 'passed') {
+                this._addActivity('done_inline', `Artifact OK: ${name}`);
+              } else {
+                const warning = (evt.warnings || []).join('; ').slice(0, 120);
+                this._addActivity('warning', `Artifact check failed: ${name}${warning ? ` — ${warning}` : ''}`);
+              }
+              break;
+            }
+
             case 'revision':
               // Falls sie schon losgeredet hat: Stille!
               if (this._currentAudio) this._currentAudio.pause();
@@ -1641,12 +1824,14 @@ class NoxApp {
               bubble.classList.remove('streaming-cursor');
               if (window.marked && full) {
                 try {
-                  const rawHtml = window.marked.parse(full, { breaks: true, gfm: true });
+                  const rawHtml = window.marked.parse(this._chatDisplayText(full), { breaks: true, gfm: true });
                   bubble.innerHTML = window.DOMPurify
                     ? window.DOMPurify.sanitize(rawHtml)
                     : rawHtml;
                 } catch { /* markdown parse fehler ignorieren */ }
               }
+              bubble.querySelectorAll('.file-result-btn,.file-result-chart').forEach(node => node.remove());
+              fileResults.forEach(fr => this._appendFileResult(bubble, fr, false));
               
               // Walkie-Talkie: Automatisch vorlesen, wenn per Voice gefragt wurde
               if (this._isVoiceConversation && full) {
@@ -1671,51 +1856,9 @@ class NoxApp {
               break;
 
             case 'file_result': {
-              // Chart/PDF/SVG Tool-Output → direkt in Bubble anzeigen
               const fr = evt;
-              const fileName = fr.path.split('/').pop();
-
-              if (fr.file_type === 'chart') {
-                // Chart als Bild einbetten
-                const imgUrl = `/charts/${fileName}`;
-                const imgWrap = document.createElement('div');
-                imgWrap.className = 'file-result-chart';
-                imgWrap.innerHTML = `
-                  <img src="${imgUrl}" alt="${fr.label}" class="chart-img"
-                       style="max-width:100%; border-radius:12px; margin:12px 0; display:block;"
-                       onerror="this.style.display='none'" />
-                  <a href="${imgUrl}" download="${fileName}" class="file-result-dl">
-                    ⬇ Chart herunterladen
-                  </a>
-                `;
-                bubble.appendChild(imgWrap);
-                this._addActivity('done_inline', fr.label);
-
-              } else if (fr.file_type === 'pdf') {
-                // PDF als Download-Button
-                const dlBtn = document.createElement('a');
-                dlBtn.href = `/api/download?path=${encodeURIComponent(fr.path)}`;
-                dlBtn.download = fileName;
-                dlBtn.className = 'file-result-btn';
-                dlBtn.innerHTML = `<span>📄</span><span>${fileName}</span><span class="file-result-dl">⬇ PDF öffnen</span>`;
-                dlBtn.title = 'PDF in Downloads gespeichert: ' + fr.path;
-                // Fallback: Pfad im Activity Panel zeigen
-                bubble.appendChild(dlBtn);
-                this._addActivity('done_inline', `${fr.label} → ${fr.path}`);
-
-              } else if (fr.file_type === 'svg') {
-                // SVG als Inline-Preview + Download
-                const svgWrap = document.createElement('div');
-                svgWrap.className = 'file-result-chart';
-                svgWrap.innerHTML = `
-                  <a href="/api/download?path=${encodeURIComponent(fr.path)}" download="${fileName}"
-                     class="file-result-btn">
-                    <span>🎨</span><span>${fileName}</span><span class="file-result-dl">⬇ SVG speichern</span>
-                  </a>
-                `;
-                bubble.appendChild(svgWrap);
-                this._addActivity('done_inline', `${fr.label} → ${fr.path}`);
-              }
+              fileResults.push(fr);
+              this._appendFileResult(bubble, fr);
               break;
             }
 
@@ -1875,6 +2018,9 @@ class NoxApp {
               } else if (evt.tool === 'vision_type' && evt.args.text) {
                 niceMessage = `MiMi möchte deine Tastatur bedienen und folgenden Text tippen:`;
                 niceCode = `⌨️  Text "${evt.args.text}" tippen ${evt.args.press_enter ? '(+ Enter)' : ''}`;
+              } else if (evt.tool === 'run_shell' && evt.args.command) {
+                niceMessage = `MiMi möchte diesen Terminal-Befehl ausführen:`;
+                niceCode = `$ ${evt.args.command}`;
               }
               
               const wrapConf = document.createElement('div');
@@ -1925,6 +2071,8 @@ class NoxApp {
 
       // Finaler synchroner Markdown-Render (löscht Debounce-Timer)
       this._finalRender(bubble);
+      bubble.querySelectorAll('.file-result-btn,.file-result-chart').forEach(node => node.remove());
+      fileResults.forEach(fr => this._appendFileResult(bubble, fr, false));
       bubble.classList.remove('streaming-cursor');
 
       // Thinking Panel: auf "Gedacht für Xs" umschalten
@@ -1951,15 +2099,25 @@ class NoxApp {
     } catch (err) {
       bubble.classList.remove('streaming-cursor');
       if (err.name === 'AbortError') {
-        this._addActivity('warning', '🛑 Generation durch Benutzer abgebrochen');
-        this._appendChunk(bubble, '\n\n*[Verarbeitung gestoppt]*');
-        if (!full) full = '[Gestoppt]';
+        if (timedOut) {
+          this._addActivity('warning', '⏱ Stream-Zeitlimit erreicht');
+          this._appendChunk(bubble, '\n\n*[Keine neue Antwort vom Modell erhalten. Bitte erneut senden.]*');
+          if (!full) full = '[Zeitlimit: keine neue Antwort vom Modell erhalten]';
+        } else {
+          this._addActivity('warning', '🛑 Generation durch Benutzer abgebrochen');
+          this._appendChunk(bubble, '\n\n*[Verarbeitung gestoppt]*');
+          if (!full) full = '[Gestoppt]';
+        }
       } else {
-        if (!full) bubble.textContent = `⚠ ${err.message}`;
+        if (!full) {
+          bubble.textContent = `⚠ ${err.message}`;
+          full = bubble.textContent;
+        }
         this._addActivity('error', `Fehler: ${err.message}`);
         this._setStatus('offline');
       }
     } finally {
+      if (streamTimeoutId) clearTimeout(streamTimeoutId);
       this.history.push({ role: 'user',      content: visibleUserText || text });
       this.history.push({ role: 'assistant', content: full });
       this._saveToHistory(visibleUserText || text, full);
@@ -2007,13 +2165,16 @@ class NoxApp {
         body: JSON.stringify({ preferred_language: LANG_NAMES[lang] || lang }),
       }).catch(() => {}); // fire-and-forget
 
-      // Smooth fade-out
-      overlay.classList.add('fade-out');
-      overlay.addEventListener('animationend', () => {
+      // Smooth fade-out with timeout fallback for browsers that skip animationend.
+      const finishLanguageSelection = () => {
+        if (!overlay.isConnected) return;
         overlay.style.display = 'none';
         overlay.remove();
         this._initOnboarding();
-      }, { once: true });
+      };
+      overlay.classList.add('fade-out');
+      overlay.addEventListener('animationend', finishLanguageSelection, { once: true });
+      setTimeout(finishLanguageSelection, 450);
     });
   }
 
@@ -2092,15 +2253,99 @@ class NoxApp {
     bubble._renderTimer = setTimeout(() => {
       if (window.marked && window.DOMPurify) {
         bubble.innerHTML = DOMPurify.sanitize(
-          marked.parse(bubble._rawText),
+          marked.parse(this._chatDisplayText(bubble._rawText)),
           { USE_PROFILES: { html: true } }
         );
       } else {
         // Fallback falls libs noch nicht geladen
-        bubble.textContent = bubble._rawText;
+        bubble.textContent = this._chatDisplayText(bubble._rawText);
       }
     }, 80);
 
+    this._scrollToBottom();
+  }
+
+  _chatDisplayText(text) {
+    const markerPattern = /^(DECK_STUDIO_FILE|PITCH_DECK_FILE|PPTX_DECK_FILE|PREVIEW_FILE|CONTACT_SHEET_FILE|SCORECARD_FILE|QA_FILE|MANIFEST_FILE|RENDER_QA_FILE|DECK_SPEC_FILE|VISUAL_QA_FILE|EVIDENCE_LEDGER_FILE|SOURCE_BRIEF_FILE):.*$/gm;
+    return String(text || '')
+      .replace(markerPattern, '')
+      .replace(/\n?### Enthaltene Artefakte\n(?:- [^\n]*(?:\n|$))+/m, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  _appendFileResult(bubble, fr, announce = true) {
+    const filePath = fr.path || '';
+    const fileName = filePath.split('/').pop() || 'artifact';
+    const fileType = fr.file_type || 'file';
+
+    if (fileType === 'chart') {
+      const div = document.createElement('div');
+      div.className = 'file-result-chart';
+
+      const img = document.createElement('img');
+      img.src = `${API}/charts/${encodeURIComponent(fileName)}`;
+      img.className = 'chart-img';
+      img.alt = fileName;
+
+      const link = document.createElement('a');
+      link.href = `${API}/charts/${encodeURIComponent(fileName)}`;
+      link.download = fileName;
+      link.className = 'file-result-dl';
+      link.textContent = `📥 ${fileName}`;
+
+      div.appendChild(img);
+      div.appendChild(link);
+      bubble.appendChild(div);
+      if (announce) this._addActivity('done_inline', `📊 Chart erstellt: ${fileName}`);
+      this._scrollToBottom();
+      return;
+    }
+
+    const iconMap = {
+      pdf: '📄',
+      svg: '◇',
+      pptx: '📊',
+      html: '🌐',
+      deck_studio: '🎬',
+      markdown: '📝',
+      json: '🧪',
+    };
+    const actionMap = {
+      pdf: 'PDF öffnen',
+      svg: 'SVG öffnen',
+      pptx: 'PPTX laden',
+      html: 'Preview öffnen',
+      deck_studio: 'Studio öffnen',
+      markdown: 'Brief öffnen',
+      json: 'QA öffnen',
+    };
+
+    const link = document.createElement('a');
+    link.className = 'file-result-btn';
+    link.href = `${API}/files/${encodeURIComponent(fileName)}`;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.download = fileType === 'pptx' ? fileName : undefined;
+    link.setAttribute('aria-label', `${actionMap[fileType] || 'Datei öffnen'}: ${fileName}`);
+
+    const icon = document.createElement('span');
+    icon.className = 'file-result-icon';
+    icon.textContent = iconMap[fileType] || '📎';
+
+    const name = document.createElement('span');
+    name.className = 'file-result-name';
+    name.textContent = fileName;
+
+    const action = document.createElement('span');
+    action.className = 'file-result-dl';
+    action.textContent = actionMap[fileType] || 'Öffnen';
+
+    link.appendChild(icon);
+    link.appendChild(name);
+    link.appendChild(action);
+    bubble.appendChild(link);
+    if (announce) this._addActivity('done_inline', `${iconMap[fileType] || '📎'} Datei erstellt: ${fileName}`);
     this._scrollToBottom();
   }
 
@@ -2108,13 +2353,14 @@ class NoxApp {
   _finalRender(bubble) {
     clearTimeout(bubble._renderTimer);
     if (!bubble._rawText) return;
+    const displayText = this._chatDisplayText(bubble._rawText);
     if (window.marked && window.DOMPurify) {
       bubble.innerHTML = DOMPurify.sanitize(
-        marked.parse(bubble._rawText),
+        marked.parse(displayText),
         { USE_PROFILES: { html: true } }
       );
     } else {
-      bubble.textContent = bubble._rawText;
+      bubble.textContent = displayText;
     }
   }
 
@@ -2597,6 +2843,10 @@ class NoxApp {
           <button class="memory-delete-btn" data-id="${this._escHtml(e.id)}" title="Löschen">🗑</button>
         `;
         card.querySelector('.memory-delete-btn').addEventListener('click', async (ev) => {
+          const confirmed = confirm(currentLang() === 'de'
+            ? 'Memory-Eintrag wirklich löschen?'
+            : 'Delete this memory entry?');
+          if (!confirmed) return;
           const id = ev.target.dataset.id;
           await this._deleteMemoryEntry(id, card);
         });
@@ -3181,6 +3431,7 @@ if (document.readyState === 'loading') {
 if (serviceWorker && window.location.protocol !== 'file:') {
   window.addEventListener('load', async () => {
     try {
+      if (!serviceWorker || typeof serviceWorker.register !== 'function') return;
       const reg = await serviceWorker.register('/service-worker.js');
 
       // Check for updates periodically

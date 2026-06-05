@@ -29,6 +29,11 @@ class SkillSummary(BaseModel):
     description: str
     tools: list[str]
     is_builtin: bool = False
+    quality_profile: str = "standard"
+    artifact_types: list[str] = []
+    has_references: bool = False
+    when_to_use: list[str] = []
+    when_not_to_use: list[str] = []
 
 
 class SkillDetail(BaseModel):
@@ -38,6 +43,13 @@ class SkillDetail(BaseModel):
     tools: list[str]
     system_prompt: str
     is_builtin: bool = False
+    quality_profile: str = "standard"
+    artifact_types: list[str] = []
+    has_references: bool = False
+    when_to_use: list[str] = []
+    when_not_to_use: list[str] = []
+    reference_text: str = ""
+    example_text: str = ""
 
 
 class SkillsListResponse(BaseModel):
@@ -67,6 +79,11 @@ async def list_skills() -> SkillsListResponse:
             description=s.description,
             tools=s.tools,
             is_builtin=loader.is_builtin(s.name),
+            quality_profile=s.quality_profile,
+            artifact_types=s.artifact_types,
+            has_references=s.has_references,
+            when_to_use=s.when_to_use,
+            when_not_to_use=s.when_not_to_use,
         )
         for s in skills
     ]
@@ -94,6 +111,13 @@ async def create_skill(request: SkillCreateRequest) -> SkillDetail:
         tools=skill.tools,
         system_prompt=skill.system_prompt,
         is_builtin=False,
+        quality_profile=skill.quality_profile,
+        artifact_types=skill.artifact_types,
+        has_references=skill.has_references,
+        when_to_use=skill.when_to_use,
+        when_not_to_use=skill.when_not_to_use,
+        reference_text=skill.reference_text,
+        example_text=skill.example_text,
     )
 
 
@@ -112,6 +136,13 @@ async def get_skill(name: str) -> SkillDetail:
         tools=skill.tools,
         system_prompt=skill.system_prompt,
         is_builtin=loader.is_builtin(name),
+        quality_profile=skill.quality_profile,
+        artifact_types=skill.artifact_types,
+        has_references=skill.has_references,
+        when_to_use=skill.when_to_use,
+        when_not_to_use=skill.when_not_to_use,
+        reference_text=skill.reference_text,
+        example_text=skill.example_text,
     )
 
 
@@ -141,6 +172,13 @@ async def update_skill(name: str, request: SkillCreateRequest) -> SkillDetail:
         tools=skill.tools,
         system_prompt=skill.system_prompt,
         is_builtin=False,
+        quality_profile=skill.quality_profile,
+        artifact_types=skill.artifact_types,
+        has_references=skill.has_references,
+        when_to_use=skill.when_to_use,
+        when_not_to_use=skill.when_not_to_use,
+        reference_text=skill.reference_text,
+        example_text=skill.example_text,
     )
 
 

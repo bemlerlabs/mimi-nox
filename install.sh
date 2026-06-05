@@ -9,7 +9,7 @@ NC='\033[0m'
 
 REPO_URL="${MIMI_NOX_REPO_URL:-https://github.com/MimiTechAi/mimi-nox.git}"
 INSTALL_DIR="${MIMI_NOX_INSTALL_DIR:-$HOME/Documents/MiMi-Nox}"
-MODEL="${MIMI_NOX_MODEL:-gemma4:e4b}"
+MODEL="${MIMI_NOX_MODEL:-gemma4:12b}"
 EMBED_MODEL="${MIMI_NOX_EMBED_MODEL:-nomic-embed-text}"
 PORT="${MIMI_NOX_PORT:-8765}"
 NO_START="${MIMI_NOX_NO_START:-0}"
@@ -177,10 +177,11 @@ fi
 
 find_ollama() {
   for candidate in \
-    "$(command -v ollama 2>/dev/null || true)" \
-    "/opt/homebrew/bin/ollama" \
+    "/Applications/Ollama.app/Contents/Resources/ollama" \
     "/usr/local/bin/ollama" \
-    "/Applications/Ollama.app/Contents/Resources/ollama"; do
+    "/opt/homebrew/opt/ollama/bin/ollama" \
+    "/opt/homebrew/bin/ollama" \
+    "$(command -v ollama 2>/dev/null || true)"; do
     [[ -n "$candidate" && -x "$candidate" ]] && { echo "$candidate"; return 0; }
   done
   return 1
@@ -224,7 +225,7 @@ if [[ "$SKIP_MODEL" != "1" ]]; then
   if "$OLLAMA_BIN" show "$MODEL" >/dev/null 2>&1; then
     ok "$MODEL bereits installiert"
   else
-    info "Download: ca. 9.6 GB, 128K Kontext. Abbruch ist sicher, erneuter Start setzt fort."
+    info "Gemma 4 12B: 16GB RAM/Unified Memory empfohlen, 256K Kontext. Abbruch ist sicher, erneuter Start setzt fort."
     run "$OLLAMA_BIN" pull "$MODEL"
     ok "$MODEL bereit"
   fi

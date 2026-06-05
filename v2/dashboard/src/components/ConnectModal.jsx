@@ -31,8 +31,7 @@ function QRCanvas({ url }) {
 
     const doRender = () => {
       try {
-        // eslint-disable-next-line no-new
-        new window.QRCode(el, {
+        void new window.QRCode(el, {
           text:         url,
           width:        220,
           height:       220,

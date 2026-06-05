@@ -14,8 +14,13 @@ const SKILL_LABELS = {
   testing: 'Testing',
 };
 
-const ROLE_EMOJIS = { ceo: '👩', cto: '👨', developer: '👨‍💻', qa: '👩‍🔬' };
-const ROLE_NAMES = { ceo: 'Alice CEO', cto: 'Bob CTO', developer: 'Charlie Dev', qa: 'Diana QA' };
+const ROLE_EMOJIS = { medic: '🚑', engineer: '🛠️', navigator: '🗺️', sensor: '⚡' };
+const ROLE_NAMES = {
+  medic: 'Mimi-Medic',
+  engineer: 'Mimi-Engineer',
+  navigator: 'Mimi-Navigator',
+  sensor: 'Mimi-Sensor',
+};
 
 function getBarClass(value) {
   if (value < 35) return 'low';

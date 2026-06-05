@@ -6,10 +6,10 @@
  * Diese werden vom LLM als Tool-Calls aufgerufen.
  *
  * Tools:
- *   assign_task  — CEO/CTO delegiert Aufgabe → Ticket + Chat
- *   submit_work  — Dev reicht Arbeit ein → Ticket → testing + QA Benachrichtigung
- *   reject_work  — QA lehnt ab → Ticket → in_progress + Bug Detection XP
- *   approve_work — QA genehmigt → Ticket → done + Code Quality XP
+ *   assign_task  — Agent delegates work → ticket + chat
+ *   submit_work  — Agent submits work → ticket → testing + reviewer notification
+ *   reject_work  — Reviewer rejects → ticket → in_progress
+ *   approve_work — Reviewer approves → ticket → done + skill XP
  */
 
 export class CommTools {
@@ -20,11 +20,12 @@ export class CommTools {
    * @param {import('./kanban.js').KanbanEngine} deps.kanban
    * @param {import('./skill-system.js').SkillSystem} deps.skills
    */
-  constructor({ store, bus, kanban, skills }) {
+  constructor({ store, bus, kanban, skills, reviewerId = 'sensor_agent' }) {
     this._store = store;
     this._bus = bus;
     this._kanban = kanban;
     this._skills = skills;
+    this._reviewerId = reviewerId;
   }
 
   /**
@@ -58,7 +59,7 @@ export class CommTools {
     this._kanban.moveTicket(ticketId, 'testing');
 
     const ticket = this._kanban.getTicket(ticketId);
-    const qaAgent = 'diana_qa'; // Always route to QA
+    const qaAgent = this._reviewerId;
 
     this._bus.send({
       from,

@@ -57,7 +57,7 @@ class TestResolveAutomatic:
         router = ModelRouter(probe=make_fake_probe(local=True, remote=False))
         cfg = await router.resolve()
         assert cfg.tier == ModelTier.FAST
-        assert "e4b" in cfg.name
+        assert "12b" in cfg.name
 
     async def test_resolve_power_when_dgx_available(self):
         """GIVEN lokales Ollama + DGX beide erreichbar

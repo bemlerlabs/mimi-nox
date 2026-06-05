@@ -6,7 +6,7 @@ This backlog keeps the root PWA release path test-driven.
 
 - Offline-first desktop PWA.
 - LAN-first mobile PWA via QR code.
-- Local Ollama provider with `gemma4:e4b`.
+- Local Ollama provider with `gemma4:12b`.
 - Optional online features only after visible opt-in.
 - Approval-gated shell, screenshot, and GUI actions.
 
@@ -16,11 +16,11 @@ This backlog keeps the root PWA release path test-driven.
 
 GIVEN a fresh checkout on macOS or Linux
 WHEN the user runs the documented install command
-THEN MiMi Nox installs into the expected folder, checks Ollama, checks `gemma4:e4b`, starts the server, and prints one local URL.
+THEN MiMi Nox installs into the expected folder, checks Ollama, checks `gemma4:12b`, starts the server, and prints one local URL.
 
 ### Missing Model
 
-GIVEN Ollama is running but `gemma4:e4b` is missing
+GIVEN Ollama is running but `gemma4:12b` is missing
 WHEN the user starts chat
 THEN the UI explains the missing model and shows `miminox doctor` plus `miminox start`.
 

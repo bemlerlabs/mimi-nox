@@ -10,6 +10,7 @@ Given-When-Then Tests:
   3. GIVEN mss schlägt fehl → WHEN take_screenshot() → THEN graceful error message
 """
 import asyncio
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -87,3 +88,20 @@ async def test_given_mss_fails_when_screenshot_then_graceful_error(image_dir, mo
 
     assert "Screenshot fehlgeschlagen" in result
     assert "No display available" in result
+
+
+@pytest.mark.asyncio
+async def test_given_macos_screencapture_blocked_when_screenshot_then_actionable_error(image_dir, monkeypatch):
+    """GIVEN macOS blocks screen recording WHEN take_screenshot() THEN the user gets an actionable error."""
+    from core.tools import take_screenshot
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setenv("MIMI_NOX_IMAGE_DIR", str(image_dir))
+
+    with patch("core.tools.subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.CalledProcessError(1, ["screencapture", "-x", "out.png"])
+        result = await take_screenshot()
+
+    assert "Screenshot fehlgeschlagen" in result
+    assert "Bildschirmaufnahme" in result
+    assert "Systemeinstellungen" in result

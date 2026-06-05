@@ -93,7 +93,7 @@ async def _get_bounding_box(b64_image: str, target: str, reference_crop_b64: str
     client = ollama.AsyncClient()
     try:
         response = await client.generate(
-            model=os.environ.get("MIMI_NOX_VISION_MODEL", os.environ.get("MIMI_NOX_MODEL", "gemma4:e4b")),
+            model=os.environ.get("MIMI_NOX_VISION_MODEL", os.environ.get("MIMI_NOX_MODEL", "gemma4:12b")),
             prompt=system_prompt,
             images=images,
             options={"temperature": 0.0}
@@ -204,19 +204,15 @@ ON_VISION_LEARNING = None        # Wird in vision_click() durch ContextVar erset
 ON_VISION_LEARNED_SUCCESS = None # Wird in vision_click() durch ContextVar ersetzt
 
 async def check_sandbox(tool_name: str, args: dict):
-    from os import environ
-    # autonomous_mode bypasses confirmation
-    is_autonomous = environ.get("MIMI_NOX_AUTONOMOUS_MODE", "0") == "1"
-
-    if not is_autonomous:
-        # T-03: ContextVar zuerst prüfen (Request-scoped), Fallback auf Legacy-Global
-        cb = _sandbox_cb_var.get() or ON_SANDBOX_CONFIRM
-        if cb:
-            approved = await cb(tool_name, args)
-            if not approved:
-                raise Exception("Action aborted by User Intervention")
-        else:
-            raise SandboxConfirmationRequired(tool_name, args)
+    # T-03: ContextVar zuerst prüfen (Request-scoped), Fallback auf Legacy-Global.
+    # Risky desktop-control tools must always have an explicit UI approval path.
+    cb = _sandbox_cb_var.get() or ON_SANDBOX_CONFIRM
+    if cb:
+        approved = await cb(tool_name, args)
+        if not approved:
+            raise Exception("Action aborted by User Intervention")
+    else:
+        raise SandboxConfirmationRequired(tool_name, args)
 
 
 async def vision_click(target_description: str) -> str:

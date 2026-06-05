@@ -256,7 +256,7 @@ async def main():
 
     # 31. Chat (sync)
     r = requests.post(f"{API}/chat",
-                      json={"message": "Sage nur OK", "model": "gemma4:e4b"},
+                      json={"message": "Sage nur OK", "model": "gemma4:12b"},
                       timeout=60)
     resp_text = r.json().get("response", "") if r.ok else ""
     test("POST /chat", r.ok and len(resp_text) > 0,
@@ -264,7 +264,7 @@ async def main():
 
     # 32. SSE Stream endpoint (connect only)
     r = requests.post(f"{API}/chat/stream",
-                      json={"message": "Sage OK", "model": "gemma4:e4b",
+                      json={"message": "Sage OK", "model": "gemma4:12b",
                             "history": [], "autonomous": False},
                       stream=True, timeout=10)
     first = b""

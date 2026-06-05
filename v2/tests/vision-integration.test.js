@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Orchestrator } from '../server/agents/orchestrator.js';
-import { OllamaClient } from '../llm/ollama-client.js';
 
 describe('Vision Integration (Phase 6)', () => {
   let orch;
@@ -15,7 +14,7 @@ describe('Vision Integration (Phase 6)', () => {
     };
     
     const mocks = {
-      store: { updateAgent: vi.fn(), addChatMessage: vi.fn() },
+      store: { updateAgent: vi.fn(), addChatMessage: vi.fn(), getAllMemories: () => [] },
       bus: { send: vi.fn(), getHistory: () => [] },
       kanban: {},
       skills: { getProfile: () => ({ skills: {} }) },

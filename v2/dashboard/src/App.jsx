@@ -107,6 +107,12 @@ function App() {
     localStorage.getItem('miminox_mode') || 'crisis'
   );
 
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+
   // Poll chat history (1.5s for responsive updates during streaming)
   useEffect(() => {
     let lastCount = 0;
@@ -264,7 +270,7 @@ function App() {
       setIsThinking(false);
       showToast('Offline — Antwort kommt aus dem lokalen Wissen');
     }
-  }, [showOnboarding]);
+  }, [showOnboarding, showToast]);
 
   // Handle photo submit — Feature #1: Vision
   const handlePhoto = useCallback(async (file, promptText = '') => {
@@ -299,20 +305,13 @@ function App() {
       setIsThinking(false);
       showToast('Foto konnte nicht analysiert werden — offline?');
     }
-  }, []);
+  }, [showToast]);
 
   // Privacy dismiss
   const handlePrivacyDismiss = useCallback(() => {
     setShowPrivacy(false);
     localStorage.setItem('miminox_privacy_seen', 'true');
   }, []);
-
-  function showToast(msg) {
-    setToast(msg);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 3000);
-  }
-
 
   const displayName = assistantName || 'MiMiNox';
 

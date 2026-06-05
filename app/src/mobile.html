@@ -377,7 +377,7 @@
       0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); }
       50%      { box-shadow: 0 0 10px 3px rgba(239,68,68,0.15); }
     }
-    /* Kamera-Button (E4B Vision) */
+    /* Kamera-Button (12B Vision) */
     .camera-btn {
       width: 44px; height: 44px;
       border-radius: 50%;
@@ -553,7 +553,7 @@
     /* ── Utility ── */
     .hidden { display: none !important; }
 
-    /* ── Thinking Bubble (E4B Thinking Mode) ── */
+    /* ── Thinking Bubble (12B Thinking Mode) ── */
     .mobile-thinking {
       align-self: flex-start;
       background: rgba(34, 197, 94, 0.04);
@@ -812,7 +812,7 @@
         <button type="button" id="online-confirm-start">Online starten</button>
       </div>
       <div class="input-wrap">
-        <!-- Kamera / Galerie (E4B Vision) -->
+        <!-- Kamera / Galerie (12B Vision) -->
         <input type="file" id="img-input" accept="image/*,image/heic,image/heif" style="display:none" />
         <button class="camera-btn" id="camera-btn" title="📷 Foto / Galerie" aria-label="Foto oder Galerie öffnen">📷</button>
         <textarea class="chat-input" id="input" rows="1" placeholder="Message…" autocomplete="off" autocorrect="off" spellcheck="true"></textarea>
@@ -827,7 +827,7 @@
 
   <script>
     const API = '/api';
-    const MODEL = 'gemma4:e4b';
+    const MODEL = 'gemma4:12b';
     const MOBILE_DEFAULT_SKILLS = [
       { trigger: '/help', icon: '⚡', description: 'Lokale Funktionen anzeigen' },
       { trigger: '/files', icon: '📁', description: 'Lokale Dateien nutzen' },
@@ -837,6 +837,7 @@
     ];
     const SKILL_ICONS = new Map([
       ['/chart', '📊'],
+      ['/deck', '▣'],
       ['/files', '📁'],
       ['/help', '⚡'],
       ['/pdf', '📄'],
@@ -1098,7 +1099,7 @@
 
     function isMissingModelError(message) {
       const text = String(message || '');
-      return /gemma4:e4b/i.test(text) && /modell|model/i.test(text) && /nicht installiert|not installed|missing|not found/i.test(text);
+      return /gemma4:12b/i.test(text) && /modell|model/i.test(text) && /nicht installiert|not installed|missing|not found/i.test(text);
     }
 
     function modelRecoveryHTML(message) {
@@ -1112,7 +1113,7 @@
       `;
     }
 
-    // ── Kamera / Bild-Anhang (E4B Vision) ──
+    // ── Kamera / Bild-Anhang (12B Vision) ──
     let attachedImageB64 = null;
     const cameraBtn  = $('camera-btn');
     const imgInput   = $('img-input');

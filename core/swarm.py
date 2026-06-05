@@ -6,7 +6,7 @@ Multi-agent pipeline that distributes a task across specialized LLM agents:
     /swarm <task>
 
     ┌──────────────┐
-    │   PLANER     │  gemma4:e4b: zerlegt Aufgabe in Teilaufgaben
+    │   PLANER     │  gemma4:12b: zerlegt Aufgabe in Teilaufgaben
     └──────┬───────┘
            │ N Teilaufgaben
     ┌──────▼─────────────────────────────┐
@@ -38,7 +38,7 @@ import ollama
 from core.chat import OllamaModelNotFoundError, OllamaNotReachableError
 from core.types import Message
 
-# Max parallel specialist agents – optimized for E4B (~4B active params, ~3GB each)
+# Max parallel specialist agents – optimized for 12B (~4B active params, ~3GB each)
 MAX_SPECIALISTS = 3
 
 

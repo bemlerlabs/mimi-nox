@@ -1,6 +1,6 @@
 param(
   [string]$InstallDir = "$HOME\Documents\MiMi-Nox",
-  [string]$Model = "gemma4:e4b",
+  [string]$Model = "gemma4:12b",
   [int]$Port = 8765,
   [switch]$NoStart,
   [switch]$SkipModel
@@ -91,7 +91,7 @@ if (-not $SkipModel) {
   if ($LASTEXITCODE -eq 0) {
     Ok "$Model already installed"
   } else {
-    Write-Host "  Download: about 9.6 GB, 128K context. Restarting resumes the download." -ForegroundColor DarkGray
+    Write-Host "  Gemma 4 12B: 16GB RAM/unified memory recommended, 256K context. Restarting resumes the download." -ForegroundColor DarkGray
     & $Ollama.Source pull $Model
   }
 

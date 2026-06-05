@@ -6,11 +6,11 @@
 
 **Offline-first local AI assistant for chat, images, files, memory, and approval-gated tools. Optional online/API features are always opt-in.**
 
-MiMi Nox starts with local Ollama and `gemma4:e4b`. Custom Ollama servers, public mobile access, web research, text-to-speech services, and OpenAI-compatible APIs are optional opt-in paths.
+MiMi Nox starts with local Ollama and `gemma4:12b`. Custom Ollama servers, public mobile access, web research, text-to-speech services, and OpenAI-compatible APIs are optional opt-in paths.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Ollama](https://img.shields.io/badge/Default-Ollama-111827?style=for-the-badge)](https://ollama.com)
-[![Model](https://img.shields.io/badge/Model-gemma4%3Ae4b-22c55e?style=for-the-badge)](https://ollama.com)
+[![Model](https://img.shields.io/badge/Model-gemma4%3A12b-22c55e?style=for-the-badge)](https://ollama.com/library/gemma4)
 [![License](https://img.shields.io/badge/License-Apache%202.0-22c55e?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
 [![Tests](https://github.com/MimiTechAi/mimi-nox/actions/workflows/tests.yml/badge.svg)](https://github.com/MimiTechAi/mimi-nox/actions/workflows/tests.yml)
 
@@ -25,13 +25,13 @@ curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.sh
 <details>
 <summary>What this command does</summary>
 
-The installer targets `~/Documents/MiMi-Nox`, checks or installs Ollama where possible, pulls `gemma4:e4b`, prepares Python, starts the local server, and opens:
+The installer targets `~/Documents/MiMi-Nox`, checks or installs Ollama where possible, pulls `gemma4:12b`, prepares Python, starts the local server, and opens:
 
 ```text
 http://127.0.0.1:8765
 ```
 
-First run downloads the Ollama artifact for `gemma4:e4b` (**about 9.6 GB**, **128K context**). If the download is interrupted, run the same command again.
+First run downloads the Ollama artifact for `gemma4:12b` (**16GB RAM/unified memory recommended**, **256K context**). If the download is interrupted, run the same command again.
 
 </details>
 
@@ -62,7 +62,7 @@ MiMi Nox is a local web app and Python backend for a personal AI assistant:
 
 | Capability | Default behavior | Network behavior |
 |---|---|---|
-| Chat with `gemma4:e4b` | Local Ollama | No internet required once model is installed |
+| Chat with `gemma4:12b` | Local Ollama | No internet required once model is installed |
 | Image understanding / OCR | Local Ollama | No internet required once model is installed |
 | Files, PDFs, profile, memory | Local disk | No internet required |
 | QR phone access | Local network | Public mobile tunnel is Optional Online |

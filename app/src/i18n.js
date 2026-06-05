@@ -155,8 +155,8 @@ const translations = {
 
     // ── Onboarding ──
     'onboarding.title': 'Willkommen bei MiMi Nox',
-    'onboarding.sub': 'Starte lokal mit Ollama und Gemma 4 E4B.',
-    'onboarding.subLine2': 'Default: gemma4:e4b · 9.6 GB · 128K Kontext. Eigene Modellserver oder APIs sind Advanced Opt-in.',
+    'onboarding.sub': 'Starte lokal mit Ollama und Gemma 4 12B.',
+    'onboarding.subLine2': 'Default: gemma4:12b · 16GB RAM empfohlen · 256K Kontext. Eigene Modellserver oder APIs sind Advanced Opt-in.',
     'onboarding.dev': 'Entwickler',
     'onboarding.devDesc': 'Code reviewen, Shell-Befehle, Debugging',
     'onboarding.research': 'Forscher',
@@ -360,8 +360,8 @@ const translations = {
 
     // ── Onboarding ──
     'onboarding.title': 'Welcome to MiMi Nox',
-    'onboarding.sub': 'Start locally with Ollama and Gemma 4 E4B.',
-    'onboarding.subLine2': 'Default: gemma4:e4b · 9.6 GB · 128K context. Your own model server or API is Advanced Opt-in.',
+    'onboarding.sub': 'Start locally with Ollama and Gemma 4 12B.',
+    'onboarding.subLine2': 'Default: gemma4:12b · 16GB RAM recommended · 256K context. Your own model server or API is Advanced Opt-in.',
     'onboarding.dev': 'Developer',
     'onboarding.devDesc': 'Code review, shell commands, debugging',
     'onboarding.research': 'Researcher',

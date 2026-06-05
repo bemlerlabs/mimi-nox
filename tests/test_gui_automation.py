@@ -12,11 +12,16 @@ from core.vision import vision_click, SandboxConfirmationRequired
 @pytest.fixture
 def mock_config():
     with patch.dict(os.environ, {"MIMI_NOX_AUTONOMOUS_MODE": "0"}):
-        # We also need to mock pyautogui to prevent early exit
         mock_gui = MagicMock()
         mock_gui.FailSafeException = Exception
-        with patch("core.vision.pyautogui", mock_gui):
-            yield
+        token = core.vision._sandbox_cb_var.set(None)
+        with patch("core.vision.pyautogui", mock_gui), \
+             patch("core.vision.mss", MagicMock()), \
+             patch("core.vision.Image", MagicMock()):
+            try:
+                yield
+            finally:
+                core.vision._sandbox_cb_var.reset(token)
 
 @pytest.mark.asyncio
 async def test_rule_1_sandbox_on_no_ui_callback_raises(mock_config):
@@ -102,6 +107,28 @@ async def test_vision_type_sandbox_raises(mock_config):
         with pytest.raises(SandboxConfirmationRequired):
             await vision_type("Hallo Welt", False)
 
+
+@pytest.mark.asyncio
+async def test_vision_type_autonomous_mode_still_requires_ui_callback():
+    """
+    GIVEN Autonomous Mode is ON
+    WHEN vision_type is called without WebUI approval callback
+    THEN SandboxConfirmationRequired is still raised.
+    """
+    mock_gui = MagicMock()
+    mock_gui.FailSafeException = Exception
+    with patch.dict(os.environ, {"MIMI_NOX_AUTONOMOUS_MODE": "1"}), \
+         patch("core.vision.pyautogui", mock_gui), \
+         patch("core.vision.mss", MagicMock()), \
+         patch("core.vision.Image", MagicMock()), \
+         patch("core.vision.ON_SANDBOX_CONFIRM", None):
+        token = core.vision._sandbox_cb_var.set(None)
+        try:
+            with pytest.raises(SandboxConfirmationRequired):
+                await vision_type("Hallo Welt", False)
+        finally:
+            core.vision._sandbox_cb_var.reset(token)
+
 @pytest.mark.asyncio
 async def test_vision_type_with_enter(mock_config):
     """
@@ -141,4 +168,3 @@ async def test_vision_type_without_enter(mock_config):
         mock_press.assert_not_called()
         
         assert "Text erfolgreich eingetippt" in res
-

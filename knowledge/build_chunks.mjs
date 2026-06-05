@@ -65,7 +65,7 @@ const DOMAINS = {
 /**
  * Chunkt eine Markdown-Datei in sinnvolle Abschnitte.
  * Jede Überschrift (##, ###) startet einen neuen Chunk.
- * Max. Chunk-Größe: 800 Zeichen (optimal für Gemma 4 E4B Kontext).
+ * Max. Chunk-Größe: 800 Zeichen (konservativ für lokale Gemma-Modelle).
  */
 function chunkMarkdown(content, domain, filename) {
   const lines = content.split('\n');

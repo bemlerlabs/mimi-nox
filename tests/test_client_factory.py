@@ -25,7 +25,7 @@ class TestBuildLocal:
         THEN wird ollama.AsyncClient() OHNE host-Argument erstellt"""
         from core.client_factory import OllamaClientFactory
         from core.model_config import ModelConfig, ModelTier
-        cfg = ModelConfig(name="gemma4:e4b", tier=ModelTier.FAST)
+        cfg = ModelConfig(name="gemma4:12b", tier=ModelTier.FAST)
 
         with patch("core.client_factory.ollama.AsyncClient") as mock_cls:
             mock_cls.return_value = MagicMock()
@@ -39,7 +39,7 @@ class TestBuildLocal:
         THEN gibt es ein ollama.AsyncClient Objekt zurück"""
         from core.client_factory import OllamaClientFactory
         from core.model_config import ModelConfig, ModelTier
-        cfg = ModelConfig(name="gemma4:e4b", tier=ModelTier.FAST)
+        cfg = ModelConfig(name="gemma4:12b", tier=ModelTier.FAST)
 
         with patch("core.client_factory.ollama.AsyncClient") as mock_cls:
             fake_client = MagicMock()

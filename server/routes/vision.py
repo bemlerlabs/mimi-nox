@@ -1,7 +1,7 @@
 """server/routes/vision.py – POST /api/vision/analyze
 
 Nimmt ein Bild als multipart/form-data entgegen,
-speichert es temporär und analysiert es mit Gemma4 E4B Vision.
+speichert es temporär und analysiert es mit Gemma4 12B Vision.
 
 Endpunkte:
   POST /api/vision/analyze   – Bild hochladen + Frage stellen
@@ -22,7 +22,7 @@ from core.model_provider import ProviderSetupError, build_provider_client, get_a
 
 router = APIRouter(tags=["Vision"])
 
-DEFAULT_MODEL = os.environ.get("MIMI_NOX_MODEL", "gemma4:e4b")
+DEFAULT_MODEL = os.environ.get("MIMI_NOX_MODEL", "gemma4:12b")
 
 # Erlaubte Bildformate
 ALLOWED_MIME = {
@@ -51,7 +51,7 @@ async def analyze_uploaded_image(
     model: str = Form(default=DEFAULT_MODEL),
 ):
     """
-    Bild hochladen und via Gemma4 E4B Vision analysieren.
+    Bild hochladen und via Gemma4 12B Vision analysieren.
 
     - Akzeptiert: PNG, JPG, WEBP, GIF, BMP (max 20 MB)
     - Gibt zurück: { analysis: str, filename: str, model: str }
@@ -86,7 +86,7 @@ async def analyze_uploaded_image(
     tmp_path = tmp_dir / filename
     tmp_path.write_bytes(raw)
 
-    # ── Gemma4 E4B Vision aufrufen ────────────────────────────────────────────
+    # ── Gemma4 12B Vision aufrufen ────────────────────────────────────────────
     image_b64 = base64.b64encode(raw).decode("utf-8")
 
     try:
@@ -129,7 +129,7 @@ async def analyze_base64_image(req: VisionBase64Request):
     """
     Bild als Base64-String analysieren (für Frontend das kein FormData nutzen kann).
 
-    Body: { image_b64: "...", question: "...", model: "gemma4:e4b" }
+    Body: { image_b64: "...", question: "...", model: "gemma4:12b" }
     """
     if not req.image_b64:
         raise HTTPException(status_code=400, detail="image_b64 darf nicht leer sein.")

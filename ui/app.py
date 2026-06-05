@@ -64,7 +64,7 @@ class ClawDashApp(App):
 
     # ── Init ─────────────────────────────────────────────────────────────────
 
-    def __init__(self, model: str = "gemma4:e4b", reset: bool = False) -> None:
+    def __init__(self, model: str = "gemma4:12b", reset: bool = False) -> None:
         super().__init__()
         self.model = model
         self._reset_on_start = reset
@@ -176,7 +176,7 @@ class ClawDashApp(App):
                     f"   ollama pull {self.model}\n\n"
                     f"   Oder starte mit einem vorhandenen Modell:\n"
                     f"{model_list}\n\n"
-                    f"   Tipp: ollama pull gemma4:e4b  (★ neu, Tool-Calling, 3GB)",
+                    f"   Tipp: ollama pull gemma4:12b  (★ neu, Tool-Calling, 3GB)",
                     style="error-msg",
                 )
             )

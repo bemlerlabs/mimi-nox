@@ -1,4 +1,4 @@
-# ◑ MiMi Nox – Optimized Gemma 4 E4B
+# ◑ MiMi Nox - Optimized Gemma 4 12B
 #
 # Optimiertes Modelfile für maximale Qualität auf Consumer-Hardware.
 # Erstellen:  ollama create mimi-nox -f Modelfile
@@ -6,7 +6,7 @@
 #
 # MiMi Tech AI UG – Bad Liebenzell, Schwarzwald
 
-FROM gemma4:e4b
+FROM gemma4:12b
 
 # ── Kontextfenster ──────────────────────────────────────────────────────────
 # 32K ist der Sweet-Spot: Deckt 95% der Use-Cases ab (ganze Dateien, lange

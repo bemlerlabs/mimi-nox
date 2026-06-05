@@ -17,9 +17,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-
 logger = logging.getLogger(__name__)
 
 # Persistente Job-Liste
@@ -31,16 +28,24 @@ _job_results: list[dict] = []
 
 class NoxScheduler:
     def __init__(self):
-        self._scheduler = AsyncIOScheduler()
+        self._scheduler = None
         self._on_result_callback: Callable[[dict], None] | None = None
 
+    def _ensure_scheduler(self):
+        if self._scheduler is None:
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            self._scheduler = AsyncIOScheduler()
+        return self._scheduler
+
     def start(self):
-        self._scheduler.start()
+        scheduler = self._ensure_scheduler()
+        scheduler.start()
         self._load_persisted_jobs()
         logger.info("◑ NoxScheduler gestartet.")
 
     def stop(self):
-        self._scheduler.shutdown(wait=False)
+        if self._scheduler is not None:
+            self._scheduler.shutdown(wait=False)
 
     def set_result_callback(self, cb: Callable[[dict], None]):
         """Callback, den das SSE-Streaming bei neuen Job-Ergebnissen aufruft."""
@@ -48,7 +53,8 @@ class NoxScheduler:
 
     def list_jobs(self) -> list[dict]:
         jobs = []
-        for job in self._scheduler.get_jobs():
+        scheduler = self._ensure_scheduler()
+        for job in scheduler.get_jobs():
             jobs.append({
                 "id": job.id,
                 "name": job.name,
@@ -58,7 +64,8 @@ class NoxScheduler:
 
     def remove_job(self, job_id: str) -> bool:
         try:
-            self._scheduler.remove_job(job_id)
+            scheduler = self._ensure_scheduler()
+            scheduler.remove_job(job_id)
             self._persist_jobs()
             return True
         except Exception:
@@ -85,6 +92,7 @@ class NoxScheduler:
             raise ValueError(f"Ungültiger Cron-Ausdruck: '{cron_expr}'. Erwartet: 'min hour dom month dow'")
 
         minute, hour, day, month, day_of_week = parts
+        from apscheduler.triggers.cron import CronTrigger
         trigger = CronTrigger(
             minute=minute,
             hour=hour,
@@ -94,7 +102,8 @@ class NoxScheduler:
             timezone=os.environ.get("MIMI_NOX_TIMEZONE", "Europe/Berlin"),
         )
 
-        self._scheduler.add_job(
+        scheduler = self._ensure_scheduler()
+        scheduler.add_job(
             func=self._run_task,
             trigger=trigger,
             id=job_id,
@@ -120,7 +129,7 @@ class NoxScheduler:
         try:
             result = await react_loop(
                 question=task_description,
-                model=os.environ.get("MIMI_NOX_MODEL", "gemma4:e4b"),
+                model=os.environ.get("MIMI_NOX_MODEL", "gemma4:12b"),
                 context=[],
             )
         except Exception as exc:
@@ -154,7 +163,9 @@ class NoxScheduler:
     def _persist_jobs(self):
         _JOBS_FILE.parent.mkdir(parents=True, exist_ok=True)
         jobs_data = []
-        for job in self._scheduler.get_jobs():
+        scheduler = self._ensure_scheduler()
+        from apscheduler.triggers.cron import CronTrigger
+        for job in scheduler.get_jobs():
             trigger = job.trigger
             if isinstance(trigger, CronTrigger):
                 fields = {f.name: str(f) for f in trigger.fields}

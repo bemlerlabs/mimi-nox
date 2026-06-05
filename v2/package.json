@@ -1,7 +1,7 @@
 {
   "name": "miminox-v2",
   "version": "2.0.0",
-  "description": "MiMiNox v2 — Zero Human Company OS",
+  "description": "MiMiNox v2 — Experimental offline-first agent runtime",
   "type": "module",
   "main": "server/index.js",
   "scripts": {

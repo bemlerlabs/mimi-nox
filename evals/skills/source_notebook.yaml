@@ -1,0 +1,22 @@
+cases:
+  - skill: source-notebook
+    prompt: /notebook build a source notebook from ~/Documents/report.pdf
+    expected_tool: create_source_notebook
+    required_terms: [SOURCE_NOTEBOOK_FILE, Evidence, Source]
+  - skill: source-notebook
+    prompt: /notebook answer only from these sources
+    expected_tool: query_source_notebook
+    required_terms: [citation, source]
+  - skill: source-notebook
+    prompt: /notebook export a source brief
+    expected_tool: export_source_brief
+    required_terms: [SOURCE_BRIEF_FILE, Evidence Register]
+  - skill: source-notebook
+    prompt: erstelle mir ein notebook lm slides für ki architektur mit bilder
+    expected_tool: create_pptx_deck
+    required_terms: [DECK_STUDIO_FILE, PDF Slides, Studio PPTX]
+  - skill: source-notebook
+    prompt: NotebookLM slides aus lokalen Quellen mit fehlenden Bildern
+    expected_tool: create_source_notebook
+    required_terms: [not found, sources, Studio]
+

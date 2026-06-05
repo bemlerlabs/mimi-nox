@@ -25,7 +25,12 @@ import re
 from dataclasses import dataclass
 from typing import Callable
 
-from core.chat import chat_with_tools, OllamaNotReachableError, OllamaModelNotFoundError
+from core.chat import (
+    _native_thinking_kwargs,
+    chat_with_tools,
+    OllamaNotReachableError,
+    OllamaModelNotFoundError,
+)
 from core.model_provider import ModelProviderConfig, build_provider_client, get_active_provider
 
 
@@ -116,6 +121,7 @@ async def reflect(
                     {"role": "user",   "content": prompt},
                 ],
                 stream=False,
+                **_native_thinking_kwargs(model),
             ),
             timeout=30.0,
         )

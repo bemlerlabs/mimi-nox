@@ -10,7 +10,10 @@ const SOCKET_URL = 'http://localhost:3001';
 export function useSocket(onEvent) {
   const socketRef = useRef(null);
   const onEventRef = useRef(onEvent);
-  onEventRef.current = onEvent;
+
+  useEffect(() => {
+    onEventRef.current = onEvent;
+  }, [onEvent]);
 
   useEffect(() => {
     try {

@@ -17,9 +17,6 @@ from pathlib import Path
 # Sicherstellen dass das MiMi-Nox-Verzeichnis im Pfad ist
 sys.path.insert(0, str(Path(__file__).parent))
 
-import uvicorn
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="◑ MiMi Nox API Server")
     parser.add_argument("--host", default="127.0.0.1", help="Host (default: 127.0.0.1)")
@@ -45,6 +42,8 @@ def main() -> None:
     print(f"  Docs:   http://{args.host}:{args.port}/api/docs")
     print(f"  Reload: {'aktiviert' if args.reload else 'deaktiviert'}")
     print(f"  ─────────────────────────────────────\n")
+
+    import uvicorn
 
     uvicorn.run(
         "server.main:app",

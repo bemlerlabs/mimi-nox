@@ -7,8 +7,6 @@
  * Feel: Leather notebook at night — warm, intimate, private
  */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
-
 /* ── Design Tokens ──────────────────────────────────────────────── */
 :root {
   /* Ink-Night — not black, deep blue-black */
@@ -51,8 +49,8 @@
   --radius: 12px;
 
   /* Font */
-  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", Menlo, Consolas, monospace;
 
   /* Layout */
   --max-width: 680px;
@@ -580,6 +578,55 @@ body {
   .msg-user .msg-bubble,
   .msg-nox .msg-card {
     max-width: 92%;
+  }
+}
+
+@media (max-width: 430px) {
+  .header {
+    gap: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .header-logo {
+    min-width: 0;
+    max-width: 64px;
+    gap: 4px;
+    font-size: 13px;
+  }
+
+  .header-logo svg {
+    flex: 0 0 auto;
+  }
+
+  .header-logo {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-actions {
+    flex: 1;
+    justify-content: flex-end;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .header-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 15px;
+  }
+
+  .mode-switcher {
+    padding: 0.25rem 0.45rem;
+    gap: 0.2rem;
+  }
+
+  .mode-label,
+  .header-status span:last-child {
+    display: none;
   }
 }
 

@@ -4,7 +4,7 @@ This document tracks the current product direction for MiMi Nox.
 
 ## Positioning
 
-MiMi Nox is an offline-first local AI assistant. The root PWA is the main product surface. The default model path is local Ollama with `gemma4:e4b`.
+MiMi Nox is an offline-first local AI assistant. The root PWA is the main product surface. The default model path is local Ollama with `gemma4:12b`.
 
 Optional online paths are allowed only when they are visible and user-controlled:
 

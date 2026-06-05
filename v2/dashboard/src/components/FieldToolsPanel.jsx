@@ -4,7 +4,7 @@
  *
  * Tabs: Licht · Ton · Navigation · Kamera · Chat
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 // ── Pure-Logic Imports (alle TDD-getestet) ───────────────────
 import { toggleTorch, createTorchState, TORCH_ON } from '../../../server/field-tools/torch.js';
@@ -48,12 +48,13 @@ function useTorch() {
 // ── GPS Hook ─────────────────────────────────────────────────
 function useGps() {
   const [pos, setPos] = useState(null);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(() => (
+    navigator.geolocation ? null : 'GPS nicht verfügbar'
+  ));
   const watchRef = useRef(null);
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setError('GPS nicht verfügbar');
       return;
     }
     watchRef.current = navigator.geolocation.watchPosition(
@@ -155,17 +156,14 @@ function useMorse() {
 
 // ── Sun Panel ────────────────────────────────────────────────
 function SunPanel({ pos }) {
-  const [sun, setSun] = useState(null);
-
-  useEffect(() => {
+  const sun = useMemo(() => {
     if (!pos) return;
     const times   = getSunTimes(new Date(), pos.latitude, pos.longitude);
     const minsLeft = getMinutesUntilSunset(new Date(), pos.latitude, pos.longitude);
-    setSun({ times, minsLeft });
+    return { times, minsLeft };
   }, [pos]);
 
   if (!pos) return <p className="ft-hint">GPS aktivieren für Sonnenzeiten.</p>;
-  if (!sun)  return <p className="ft-hint">Berechne…</p>;
 
   const { times, minsLeft } = sun;
   const isNight = minsLeft < 0;

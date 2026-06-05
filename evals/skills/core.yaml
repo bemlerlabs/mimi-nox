@@ -1,0 +1,105 @@
+cases:
+  - skill: pdf-creator
+    prompt: /pdf Create a report about local AI quality
+    expected_tool: create_pdf
+    required_terms: [PDF, Executive Summary]
+  - skill: pdf-creator
+    prompt: /pdf Schreibe eine Projektanalyse als PDF
+    expected_tool: create_pdf
+    required_terms: [PDF, Ist-Zustand]
+  - skill: pdf-creator
+    prompt: /pdf Create a checklist PDF for release readiness
+    expected_tool: create_pdf
+    required_terms: [PDF, checklist]
+  - skill: pdf-creator
+    prompt: /pdf Build a source-backed brief
+    expected_tool: create_pdf
+    required_terms: [PDF, source]
+  - skill: pdf-creator
+    prompt: /pdf Create an appendix-heavy technical report
+    expected_tool: create_pdf
+    required_terms: [PDF, appendix]
+
+  - skill: project-assistant
+    prompt: /project finde mimi-nox und analysiere Ist-Zustand
+    expected_tool: discover_projects
+    required_terms: [Ist-Zustand, tests]
+  - skill: project-assistant
+    prompt: /project analyze /Users/test/project
+    expected_tool: analyze_project
+    required_terms: [stack, risks]
+  - skill: project-assistant
+    prompt: /project find my Python repo
+    expected_tool: discover_projects
+    required_terms: [project, test]
+  - skill: project-assistant
+    prompt: /project what is the start command here
+    expected_tool: analyze_project
+    required_terms: [start, command]
+  - skill: project-assistant
+    prompt: /project list quick wins for this repo
+    expected_tool: analyze_project
+    required_terms: [quick, wins]
+
+  - skill: vision-assistant
+    prompt: /scan ~/Desktop/screenshot.png
+    expected_tool: analyze_image
+    required_terms: [image, text]
+  - skill: vision-assistant
+    prompt: /scan read this invoice image
+    expected_tool: analyze_image
+    required_terms: [invoice, fields]
+  - skill: vision-assistant
+    prompt: /scan what is broken in this UI screenshot
+    expected_tool: analyze_image
+    required_terms: [UI, issue]
+  - skill: vision-assistant
+    prompt: /scan extract code from this screenshot
+    expected_tool: analyze_image
+    required_terms: [code]
+  - skill: vision-assistant
+    prompt: /scan describe this uploaded image
+    expected_tool: analyze_image
+    required_terms: [image]
+
+  - skill: code-reviewer
+    prompt: /review inspect this Python file
+    expected_tool: read_file
+    required_terms: [finding, severity]
+  - skill: code-reviewer
+    prompt: /review run tests and review failures
+    expected_tool: run_shell
+    required_terms: [test, finding]
+  - skill: code-reviewer
+    prompt: /review scan the workspace
+    expected_tool: load_workspace
+    required_terms: [risk, evidence]
+  - skill: code-reviewer
+    prompt: /review find imports for this module
+    expected_tool: file_search
+    required_terms: [import]
+  - skill: code-reviewer
+    prompt: /review list security concerns
+    expected_tool: read_file
+    required_terms: [security, impact]
+
+  - skill: file-assistant
+    prompt: /files list my Desktop
+    expected_tool: list_directory
+    required_terms: [Desktop]
+  - skill: file-assistant
+    prompt: /files find report.pdf
+    expected_tool: file_search
+    required_terms: [report.pdf]
+  - skill: file-assistant
+    prompt: /files read this local file
+    expected_tool: read_file
+    required_terms: [file]
+  - skill: file-assistant
+    prompt: /files summarize README.md
+    expected_tool: read_file
+    required_terms: [summary]
+  - skill: file-assistant
+    prompt: /files what is in Downloads
+    expected_tool: list_directory
+    required_terms: [Downloads]

@@ -32,6 +32,31 @@ import { networkInterfaces } from 'node:os';
 // QR-Code wird client-seitig generiert (Frontend, Vite-Bundle)
 
 const VERSION = '2.0.0';
+const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+];
+
+function allowedOrigins() {
+  const extra = (process.env.MIMINOX_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+  return new Set([...DEFAULT_ALLOWED_ORIGINS, ...extra]);
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  return allowedOrigins().has(origin);
+}
+
+const corsOptions = {
+  origin(origin, callback) {
+    callback(null, isAllowedOrigin(origin) ? origin || true : false);
+  },
+};
 
 /**
  * Detect the machine's primary local network IP (not loopback).
@@ -177,11 +202,15 @@ export function createServer(opts = {}) {
   const app = express();
   const server = createHttpServer(app);
   const io = new SocketIOServer(server, {
-    cors: { origin: '*' },
+    cors: {
+      origin(origin, callback) {
+        callback(null, isAllowedOrigin(origin));
+      },
+    },
   });
 
   // ── Middleware ─────────────────────────────────────────────────────
-  app.use(cors());
+  app.use(cors(corsOptions));
   // 10MB limit: vision payloads (base64 1024px JPEG ~200-800KB) exceed the 100KB default
   app.use(express.json({ limit: '10mb' }));
 

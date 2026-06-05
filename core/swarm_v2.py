@@ -3,14 +3,14 @@
 core/swarm_v2.py
 
 Autonomes Swarm-System mit:
-  - Manager-Agent (Gemma4 E4B) entscheidet via Function Calling über Spawning
+  - Manager-Agent (Gemma4 12B) entscheidet via Function Calling über Spawning
   - SwarmAgent: autonomer Worker mit eigenem Ollama-Client + Tool-Zugriff
   - SwarmOrchestrator: steuert Lifecycle, SSE-Events, Synthese
 
 Architektur:
 
     ┌──────────────┐
-    │  MANAGER     │  Gemma4 E4B + spawn_swarm Tool
+    │  MANAGER     │  Gemma4 12B + spawn_swarm Tool
     └──────┬───────┘
            │ spawn_swarm({count, role, subtasks})
     ┌──────▼─────────────────────────────────┐
@@ -384,7 +384,7 @@ class SwarmOrchestrator:
     Usage:
         orchestrator = SwarmOrchestrator(
             task="Analysiere 3 KI-Trends",
-            model="gemma4:e4b",
+            model="gemma4:12b",
             on_event=emit,
         )
         result = await orchestrator.run()

@@ -20,11 +20,11 @@ else
   echo "✅ Ollama vorhanden ($(ollama --version 2>/dev/null | head -1))"
 fi
 
-# ── 2. Gemma 4 E4B laden ───────────────────────────────────────
+# ── 2. Gemma 4 12B laden ───────────────────────────────────────
 echo ""
-echo "► Gemma 4 E4B wird geladen (~3GB, einmalig)..."
+echo "► Gemma 4 12B wird geladen (einmalig)..."
 echo "  Das dauert je nach Internetverbindung 5-15 Minuten."
-ollama pull gemma4:e4b && echo "✅ Gemma 4 E4B bereit"
+ollama pull gemma4:12b && echo "✅ Gemma 4 12B bereit"
 
 # ── 3. Node.js-Abhängigkeiten ──────────────────────────────────
 echo ""

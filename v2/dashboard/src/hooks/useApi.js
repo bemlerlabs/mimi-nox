@@ -59,7 +59,7 @@ export function useApi(path, pollInterval = 2000) {
         if (DEMO_DATA[key]) setData(DEMO_DATA[key]);
       }
     }
-  }, [path]);
+  }, [path, data]);
 
   useEffect(() => {
     fetchData();

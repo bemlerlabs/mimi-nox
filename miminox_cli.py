@@ -14,17 +14,18 @@ import webbrowser
 from pathlib import Path
 
 
-DEFAULT_MODEL = "gemma4:e4b"
+DEFAULT_MODEL = "gemma4:12b"
 DEFAULT_PORT = 8765
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 
 def _ollama_binary() -> str | None:
     candidates = [
-        shutil.which("ollama"),
-        "/opt/homebrew/bin/ollama",
-        "/usr/local/bin/ollama",
         "/Applications/Ollama.app/Contents/Resources/ollama",
+        "/usr/local/bin/ollama",
+        "/opt/homebrew/opt/ollama/bin/ollama",
+        "/opt/homebrew/bin/ollama",
+        shutil.which("ollama"),
     ]
     for candidate in candidates:
         if candidate and Path(candidate).exists():
@@ -215,6 +216,7 @@ def cmd_start(args: argparse.Namespace) -> int:
 
     env = os.environ.copy()
     env["MIMI_NOX_MODEL"] = args.model
+    env.setdefault("MIMI_LOCAL_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     host = "0.0.0.0" if args.lan else args.host
     env["MIMI_NOX_HOST"] = host
     env["MIMI_NOX_PORT"] = str(args.port)

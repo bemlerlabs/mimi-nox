@@ -25,6 +25,7 @@ Skill-Verzeichnisse (Priorität):
 from __future__ import annotations
 
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -34,6 +35,8 @@ if TYPE_CHECKING:
 
 DEFAULT_USER_SKILLS_DIR = Path.home() / ".mimi-nox" / "skills"
 BUILTIN_SKILLS_DIR = Path(__file__).parent.parent / "skills"
+SKILL_CACHE_TTL_SECONDS = 60.0
+_SKILL_LIST_CACHE: dict[tuple[str, str], tuple[float, list["Skill"]]] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +60,14 @@ class Skill:
     system_prompt: str
     tools: list[str] = field(default_factory=list)
     test: SkillTest = field(default_factory=SkillTest)
+    when_to_use: list[str] = field(default_factory=list)
+    when_not_to_use: list[str] = field(default_factory=list)
+    quality_profile: str = "standard"
+    artifact_types: list[str] = field(default_factory=list)
+    allowed_tools: list[str] = field(default_factory=list)
+    has_references: bool = False
+    reference_text: str = ""
+    example_text: str = ""
 
 
 @dataclass
@@ -81,34 +92,106 @@ class SkillLoadError(Exception):
 # Parser
 # ---------------------------------------------------------------------------
 
-def _parse_skill(name: str, content: str) -> Skill:
+def _parse_frontmatter(content: str) -> tuple[dict[str, object], str]:
+    if not content.startswith("---\n"):
+        return {}, content
+    end = content.find("\n---", 4)
+    if end == -1:
+        return {}, content
+    raw = content[4:end].strip()
+    body = content[end + 4:].lstrip()
+    meta: dict[str, object] = {}
+    current_key: str | None = None
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        if line.startswith("  - ") and current_key:
+            values = meta.setdefault(current_key, [])
+            if isinstance(values, list):
+                values.append(line[4:].strip())
+            continue
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        current_key = key.strip()
+        value = value.strip()
+        if value.startswith("[") and value.endswith("]"):
+            items = [item.strip().strip("'\"") for item in value[1:-1].split(",") if item.strip()]
+            meta[current_key] = items
+        elif value:
+            meta[current_key] = value.strip("'\"")
+        else:
+            meta[current_key] = []
+    return meta, body
+
+
+def _as_list(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [str(value).strip()] if str(value).strip() else []
+
+
+def _read_supporting_text(skill_dir: Path, folder_name: str) -> tuple[bool, str, str]:
+    reference_parts: list[str] = []
+    example_parts: list[str] = []
+    for rel, target in (("references", reference_parts), ("examples", example_parts)):
+        directory = skill_dir / rel
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob("*.md")):
+            target.append(f"# {folder_name}/{rel}/{path.name}\n{path.read_text(encoding='utf-8')}")
+    return bool(reference_parts or example_parts), "\n\n".join(reference_parts), "\n\n".join(example_parts)
+
+
+def _phrase_score(message: str, reference: str) -> int:
+    stop = {
+        "a", "an", "and", "the", "for", "with", "user", "asks", "ask", "use",
+        "to", "of", "in", "my", "me", "please", "bitte", "und", "der", "die",
+        "das", "für", "nur", "only",
+    }
+    message_words = set(re.findall(r"[a-zA-Z0-9_-]{3,}", message.lower())) - stop
+    reference_words = set(re.findall(r"[a-zA-Z0-9_-]{3,}", reference.lower())) - stop
+    return len(message_words & reference_words)
+
+
+def _parse_skill(name: str, content: str, *, skill_dir: Path | None = None) -> Skill:
     """
     Parst eine Markdown-Skill-Datei.
 
     Raises:
         SkillLoadError: wenn Pflichtfelder fehlen
     """
+    meta, body = _parse_frontmatter(content)
+
     # Trigger
-    trigger_match = re.search(r"\*\*Trigger\*\*:\s*(\S+)", content)
+    trigger_match = re.search(r"\*\*Trigger\*\*:\s*(\S+)", body)
+    trigger = str(meta.get("trigger", "") or "").strip()
     if not trigger_match:
-        raise SkillLoadError(
-            f"Skill '{name}': Fehlendes Pflichtfeld '**Trigger**:'"
-        )
+        if not trigger:
+            raise SkillLoadError(
+                f"Skill '{name}': Fehlendes Pflichtfeld '**Trigger**:'"
+            )
+    else:
+        trigger = trigger_match.group(1).strip()
 
     # Description
-    desc_match = re.search(r"\*\*Description\*\*:\s*(.+)", content)
-    description = desc_match.group(1).strip() if desc_match else ""
+    desc_match = re.search(r"\*\*Description\*\*:\s*(.+)", body)
+    description = str(meta.get("description", "") or "").strip()
+    if desc_match:
+        description = desc_match.group(1).strip()
 
     # Tools
-    tools_match = re.search(r"\*\*Tools\*\*:\s*(.+)", content)
-    tools: list[str] = []
+    tools_match = re.search(r"^\*\*Tools\*\*:[ \t]*(.*)$", body, re.MULTILINE)
+    tools: list[str] = _as_list(meta.get("tools"))
     if tools_match:
         tools = [t.strip() for t in tools_match.group(1).split(",") if t.strip()]
 
     # System Prompt (zwischen ## System Prompt und ## Test oder Ende)
     sp_match = re.search(
         r"##\s+System Prompt\s*\n(.*?)(?=##|\Z)",
-        content,
+        body,
         re.DOTALL,
     )
     if not sp_match:
@@ -123,7 +206,7 @@ def _parse_skill(name: str, content: str) -> Skill:
 
     # Test Block (optional)
     skill_test = SkillTest()
-    test_block_match = re.search(r"##\s+Test\s*\n(.*?)(?:\Z)", content, re.DOTALL)
+    test_block_match = re.search(r"##\s+Test\s*\n(.*?)(?:\Z)", body, re.DOTALL)
     if test_block_match:
         tb = test_block_match.group(1)
         inp = re.search(r"\*\*Input\*\*:\s*(.+)", tb)
@@ -136,13 +219,36 @@ def _parse_skill(name: str, content: str) -> Skill:
             expect_contains=exp_contains.group(1).strip() if exp_contains else "",
         )
 
+    has_references = False
+    reference_text = ""
+    example_text = ""
+    if skill_dir:
+        has_references, reference_text, example_text = _read_supporting_text(skill_dir, name)
+
+    artifact_types = _as_list(meta.get("artifact_types"))
+    if not artifact_types:
+        lowered = f"{name} {trigger} {' '.join(tools)}".lower()
+        artifact_types = [
+            artifact
+            for marker, artifact in (("pdf", "pdf"), ("svg", "svg"), ("chart", "chart"), ("deck", "deck"), ("presentation", "deck"))
+            if marker in lowered
+        ]
+
     return Skill(
-        name=name,
-        trigger=trigger_match.group(1).strip(),
+        name=str(meta.get("name", name) or name),
+        trigger=trigger,
         description=description,
         system_prompt=system_prompt,
         tools=tools,
         test=skill_test,
+        when_to_use=_as_list(meta.get("when_to_use")),
+        when_not_to_use=_as_list(meta.get("when_not_to_use")),
+        quality_profile=str(meta.get("quality_profile", "") or ("artifact" if artifact_types else "standard")),
+        artifact_types=artifact_types,
+        allowed_tools=_as_list(meta.get("allowed_tools")) or list(tools),
+        has_references=has_references,
+        reference_text=reference_text,
+        example_text=example_text,
     )
 
 
@@ -179,15 +285,18 @@ class SkillLoader:
             SkillLoadError: wenn Datei nicht gefunden oder ungültig
         """
         for directory in [self._user_dir, self._builtin_dir]:
-            path = directory / f"{name}.md"
-            if path.exists():
-                content = path.read_text(encoding="utf-8")
-                return _parse_skill(name, content)
+            for path in [directory / f"{name}.md", directory / name / "SKILL.md"]:
+                if path.exists():
+                    content = path.read_text(encoding="utf-8")
+                    skill_dir = path.parent if path.name == "SKILL.md" else directory / name
+                    return _parse_skill(name, content, skill_dir=skill_dir)
 
         raise SkillLoadError(
             f"Skill '{name}' nicht gefunden in:\n"
             f"  {self._user_dir}/{name}.md\n"
-            f"  {self._builtin_dir}/{name}.md"
+            f"  {self._user_dir}/{name}/SKILL.md\n"
+            f"  {self._builtin_dir}/{name}.md\n"
+            f"  {self._builtin_dir}/{name}/SKILL.md"
         )
 
     def load_all(self) -> list[Skill]:
@@ -198,23 +307,34 @@ class SkillLoader:
         Returns:
             Liste aller gültigen Skills.
         """
+        cache_key = (str(self._user_dir.resolve()), str(self._builtin_dir.resolve()))
+        now = time.monotonic()
+        cached = _SKILL_LIST_CACHE.get(cache_key)
+        if cached and now - cached[0] < SKILL_CACHE_TTL_SECONDS:
+            return cached[1]
+
         skills: list[Skill] = []
         seen_names: set[str] = set()
 
         for directory in [self._user_dir, self._builtin_dir]:
             if not directory.exists():
                 continue
-            for md_file in sorted(directory.glob("*.md")):
-                name = md_file.stem
+            candidates = [(md_file.stem, md_file, directory / md_file.stem) for md_file in sorted(directory.glob("*.md"))]
+            candidates.extend(
+                (skill_dir.name, skill_dir / "SKILL.md", skill_dir)
+                for skill_dir in sorted(p for p in directory.iterdir() if p.is_dir() and (p / "SKILL.md").exists())
+            )
+            for name, skill_file, skill_dir in candidates:
                 if name in seen_names:
                     continue  # Nutzer-Skill hat Vorrang, nicht nochmal laden
                 try:
-                    skill = _parse_skill(name, md_file.read_text(encoding="utf-8"))
+                    skill = _parse_skill(name, skill_file.read_text(encoding="utf-8"), skill_dir=skill_dir)
                     skills.append(skill)
                     seen_names.add(name)
                 except SkillLoadError:
                     continue  # Fehlerhafte Datei überspringen
 
+        _SKILL_LIST_CACHE[cache_key] = (now, skills)
         return skills
 
     def resolve_trigger(self, trigger: str) -> Skill | None:
@@ -229,13 +349,27 @@ class SkillLoader:
                 return skill
         return None
 
+    def resolve_for_message(self, message: str) -> Skill | None:
+        """Best-effort automatic skill resolver using positive and negative trigger metadata."""
+        text = (message or "").lower()
+        best: tuple[int, Skill] | None = None
+        for skill in self.load_all():
+            negative_text = " ".join(skill.when_not_to_use).lower()
+            if negative_text and _phrase_score(text, negative_text) >= 2:
+                continue
+            haystack = " ".join([skill.description, *skill.when_to_use, skill.trigger]).lower()
+            score = _phrase_score(text, haystack)
+            if score > 0 and (best is None or score > best[0]):
+                best = (score, skill)
+        return best[1] if best else None
+
     def is_builtin(self, name: str) -> bool:
         """Gibt True zurück wenn der Skill ein Built-in ist (nicht löschbar)."""
-        return (self._builtin_dir / f"{name}.md").exists()
+        return (self._builtin_dir / f"{name}.md").exists() or (self._builtin_dir / name / "SKILL.md").exists()
 
     def is_user_skill(self, name: str) -> bool:
         """Gibt True zurück wenn ein Nutzer-Skill mit diesem Namen existiert."""
-        return (self._user_dir / f"{name}.md").exists()
+        return (self._user_dir / f"{name}.md").exists() or (self._user_dir / name / "SKILL.md").exists()
 
     def save(
         self,
@@ -291,6 +425,7 @@ class SkillLoader:
         _parse_skill(safe_name, content)  # raises SkillLoadError if invalid
 
         path.write_text(content, encoding="utf-8")
+        self._clear_cache()
         return _parse_skill(safe_name, content)
 
     def delete(self, name: str) -> None:
@@ -309,6 +444,10 @@ class SkillLoader:
         if not path.exists():
             raise SkillLoadError(f"Nutzer-Skill '{name}' nicht gefunden.")
         path.unlink()
+        self._clear_cache()
+
+    def _clear_cache(self) -> None:
+        _SKILL_LIST_CACHE.pop((str(self._user_dir.resolve()), str(self._builtin_dir.resolve())), None)
 
     async def run_test(self, name: str) -> SkillTestResult:
         """
@@ -351,7 +490,7 @@ class SkillLoader:
 
         try:
             import os
-            model = os.environ.get("MIMI_NOX_MODEL", "gemma4:e4b")
+            model = os.environ.get("MIMI_NOX_MODEL", "gemma4:12b")
             response = await chat_with_tools(
                 model=model,
                 history=history,

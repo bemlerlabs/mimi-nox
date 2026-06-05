@@ -16,15 +16,15 @@ def test_given_install_script_when_checked_then_one_command_bootstrap_installs_m
     """
     GIVEN Josef runs the public installer
     WHEN the script is inspected
-    THEN it bootstraps into Documents, installs Gemma 4 E4B and starts the local app.
+    THEN it bootstraps into Documents, installs Gemma 4 12B and starts the local app.
     """
     script = (ROOT / "install.sh").read_text(encoding="utf-8")
 
     assert "MIMI_NOX_INSTALL_DIR:-$HOME/Documents/MiMi-Nox" in script
-    assert "MIMI_NOX_MODEL:-gemma4:e4b" in script
+    assert "MIMI_NOX_MODEL:-gemma4:12b" in script
     assert "git clone \"$REPO_URL\" \"$INSTALL_DIR\"" in script
     assert "pull \"$MODEL\"" in script
-    assert "9.6 GB" in script
+    assert "16GB RAM" in script
     assert "miminox start" in script
     assert "brew install python" in script
     assert "astral.sh/uv/install.sh" in script
@@ -89,21 +89,21 @@ def test_given_miminox_doctor_when_model_is_listed_but_not_loadable_then_reports
     """
     import miminox_cli
 
-    args = miminox_cli.build_parser().parse_args(["doctor", "--model", "gemma4:e4b"])
+    args = miminox_cli.build_parser().parse_args(["doctor", "--model", "gemma4:12b"])
     with patch("miminox_cli._ollama_binary", return_value="/usr/local/bin/ollama"), \
          patch("miminox_cli._model_installed", return_value=True), \
          patch("miminox_cli._json_get") as json_get, \
          patch("miminox_cli._model_loadable", return_value=(False, "unable to load model: missing blob")):
         json_get.side_effect = [
-            {"models": [{"name": "gemma4:e4b"}]},
+            {"models": [{"name": "gemma4:12b"}]},
             {"status": "ok"},
         ]
         code = args.func(args)
 
     out = capsys.readouterr().out
     assert code == 1
-    assert "Model gemma4:e4b load test" in out
-    assert "repair: ollama pull gemma4:e4b" in out
+    assert "Model gemma4:12b load test" in out
+    assert "repair: ollama pull gemma4:12b" in out
 
 
 def test_given_miminox_doctor_when_model_load_test_passes_then_setup_is_ok(capsys):
@@ -114,20 +114,20 @@ def test_given_miminox_doctor_when_model_load_test_passes_then_setup_is_ok(capsy
     """
     import miminox_cli
 
-    args = miminox_cli.build_parser().parse_args(["doctor", "--model", "gemma4:e4b"])
+    args = miminox_cli.build_parser().parse_args(["doctor", "--model", "gemma4:12b"])
     with patch("miminox_cli._ollama_binary", return_value="/usr/local/bin/ollama"), \
          patch("miminox_cli._model_installed", return_value=True), \
          patch("miminox_cli._json_get") as json_get, \
          patch("miminox_cli._model_loadable", return_value=(True, "test generation ok")):
         json_get.side_effect = [
-            {"models": [{"name": "gemma4:e4b"}]},
+            {"models": [{"name": "gemma4:12b"}]},
             {"status": "ok"},
         ]
         code = args.func(args)
 
     out = capsys.readouterr().out
     assert code == 0
-    assert "Model gemma4:e4b load test" in out
+    assert "Model gemma4:12b load test" in out
     assert "test generation ok" in out
 
 
@@ -139,7 +139,7 @@ def test_given_miminox_start_when_model_is_missing_then_it_pulls_before_starting
     """
     import miminox_cli
 
-    args = miminox_cli.build_parser().parse_args(["start", "--model", "gemma4:e4b", "--skip-model-check"])
+    args = miminox_cli.build_parser().parse_args(["start", "--model", "gemma4:12b", "--skip-model-check"])
     args.skip_model_check = False
     args.open = False
     args.reload = False
@@ -149,15 +149,15 @@ def test_given_miminox_start_when_model_is_missing_then_it_pulls_before_starting
 
     with patch("miminox_cli._ensure_ollama_service", return_value=(True, "Ollama service is running")), \
          patch("miminox_cli._model_installed", return_value=False), \
-         patch("miminox_cli._pull_model", return_value=(True, "pulled gemma4:e4b")) as pull_model, \
+         patch("miminox_cli._pull_model", return_value=(True, "pulled gemma4:12b")) as pull_model, \
          patch("miminox_cli._model_loadable", return_value=(True, "test generation ok")), \
          patch("miminox_cli._run") as run:
         run.return_value.returncode = 0
         code = args.func(args)
 
     assert code == 0
-    pull_model.assert_called_once_with("gemma4:e4b")
-    assert "Model gemma4:e4b ready" in capsys.readouterr().out
+    pull_model.assert_called_once_with("gemma4:12b")
+    assert "Model gemma4:12b ready" in capsys.readouterr().out
 
 
 def test_given_miminox_start_when_model_is_installed_but_broken_then_it_repairs_before_starting():
@@ -168,7 +168,7 @@ def test_given_miminox_start_when_model_is_installed_but_broken_then_it_repairs_
     """
     import miminox_cli
 
-    args = miminox_cli.build_parser().parse_args(["start", "--model", "gemma4:e4b", "--skip-model-check"])
+    args = miminox_cli.build_parser().parse_args(["start", "--model", "gemma4:12b", "--skip-model-check"])
     args.skip_model_check = False
     args.open = False
     args.reload = False
@@ -179,7 +179,7 @@ def test_given_miminox_start_when_model_is_installed_but_broken_then_it_repairs_
     with patch("miminox_cli._ensure_ollama_service", return_value=(True, "Ollama service is running")), \
          patch("miminox_cli._model_installed", return_value=True), \
          patch("miminox_cli._model_loadable") as model_loadable, \
-         patch("miminox_cli._pull_model", return_value=(True, "pulled gemma4:e4b")) as pull_model, \
+         patch("miminox_cli._pull_model", return_value=(True, "pulled gemma4:12b")) as pull_model, \
          patch("miminox_cli._run") as run:
         model_loadable.side_effect = [
             (False, "unable to load model: missing blob"),
@@ -189,7 +189,7 @@ def test_given_miminox_start_when_model_is_installed_but_broken_then_it_repairs_
         code = args.func(args)
 
     assert code == 0
-    pull_model.assert_called_once_with("gemma4:e4b")
+    pull_model.assert_called_once_with("gemma4:12b")
     assert model_loadable.call_count == 2
 
 

@@ -80,13 +80,13 @@ def test_given_readme_feature_matrix_when_network_feature_exists_then_marked_opt
 
 def test_given_gemma_copy_when_checked_then_model_size_and_context_are_correct():
     """
-    GIVEN Gemma 4 E4B is the default model story
+    GIVEN Gemma 4 12B is the default model story
     WHEN public copy is checked
     THEN the Ollama name, artifact size and context length are accurate.
     """
     text = _public_text()
-    assert "gemma4:e4b" in text
-    assert "9.6 GB" in text
+    assert "gemma4:12b" in text
+    assert "16GB RAM" in text
     assert "128K" in text
 
 

@@ -120,6 +120,28 @@ class TestReflect:
         assert isinstance(result, ReflexionResult)
         assert isinstance(result.needs_revision, bool)
 
+    @pytest.mark.asyncio
+    async def test_given_gemma4_12b_when_reflect_runs_then_native_thinking_is_disabled(self):
+        """
+        GIVEN Gemma 4 12B can put short non-streaming answers into native thinking
+        WHEN reflect evaluates an answer
+        THEN it sends think=False so the critique result remains visible.
+        """
+        with patch("core.react.build_provider_client") as mock_build_client:
+            client = AsyncMock()
+            client.chat = AsyncMock(return_value=MagicMock(
+                message=MagicMock(content="Korrekt. REVISION: NEIN")
+            ))
+            mock_build_client.return_value = client
+
+            await reflect(
+                response=GOOD_ANSWER,
+                question=QUESTION,
+                model="gemma4:12b",
+            )
+
+        assert client.chat.call_args.kwargs.get("think") is False
+
 
 # ---------------------------------------------------------------------------
 # Tests: react_loop()
