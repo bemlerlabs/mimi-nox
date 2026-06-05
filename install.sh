@@ -192,6 +192,48 @@ find_ollama() {
   return 1
 }
 
+update_ollama() {
+  info "Ollama ist zu alt fuer ${MODEL}. Update wird versucht."
+  if [[ "$OS_NAME" == "Darwin" ]]; then
+    if command -v brew >/dev/null 2>&1; then
+      run brew update || true
+      run brew reinstall --cask --force ollama || run brew upgrade --cask ollama || run brew install --cask --force ollama || run brew reinstall --cask --force ollama-app || run brew upgrade --cask ollama-app || run brew install --cask --force ollama-app
+      OLLAMA_BIN="$(find_ollama || true)"
+      [[ -n "$OLLAMA_BIN" ]] || fail "Ollama wurde nach dem Update nicht gefunden."
+      pkill -x Ollama >/dev/null 2>&1 || true
+      pkill -f "ollama serve" >/dev/null 2>&1 || true
+      sleep 2
+      return 0
+    fi
+    fail "Deine Ollama-Version ist zu alt. Bitte installiere die neueste Version von https://ollama.com/download und starte den Installer erneut."
+  fi
+  run sh -c "curl -fsSL https://ollama.com/install.sh | sh"
+  OLLAMA_BIN="$(find_ollama || true)"
+  [[ -n "$OLLAMA_BIN" ]] || fail "Ollama wurde nach dem Update nicht gefunden."
+}
+
+pull_ollama_model() {
+  local model="$1"
+  local log_file="/tmp/mimi-nox-ollama-pull-${model//[^A-Za-z0-9_.-]/_}.log"
+  if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$model" 2>&1 | tee "$log_file"; then
+    return 0
+  fi
+  if grep -qi "requires a newer version of Ollama" "$log_file"; then
+    update_ollama
+    if [[ "$OS_NAME" == "Darwin" && -d "/Applications/Ollama.app" ]]; then
+      run open -a Ollama
+      sleep 3
+    fi
+    for _ in $(seq 1 30); do
+      curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1 && break
+      sleep 1
+    done
+    env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$model"
+    return $?
+  fi
+  return 1
+}
+
 step "Ollama prüfen"
 OLLAMA_BIN="$(find_ollama || true)"
 if [[ -z "$OLLAMA_BIN" ]]; then
@@ -234,7 +276,7 @@ if [[ "$SKIP_MODEL" != "1" ]]; then
     ok "$MODEL bereits installiert"
   else
     info "Gemma 4 12B: 16GB RAM/Unified Memory empfohlen, 256K Kontext. Abbruch ist sicher, erneuter Start setzt fort."
-    run env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$MODEL"
+    run pull_ollama_model "$MODEL"
     ok "$MODEL bereit"
   fi
 
@@ -242,7 +284,7 @@ if [[ "$SKIP_MODEL" != "1" ]]; then
   if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" show "$EMBED_MODEL" >/dev/null 2>&1; then
     ok "$EMBED_MODEL bereits installiert"
   else
-    run env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$EMBED_MODEL"
+    run pull_ollama_model "$EMBED_MODEL"
     ok "$EMBED_MODEL bereit"
   fi
 fi

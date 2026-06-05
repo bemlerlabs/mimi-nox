@@ -142,10 +142,66 @@ def _pull_model(model: str) -> tuple[bool, str]:
     if not ollama:
         return False, "Ollama CLI not found"
 
-    result = subprocess.run([ollama, "pull", model], cwd=PROJECT_ROOT, text=True, env=_ollama_env())
+    result = subprocess.run(
+        [ollama, "pull", model],
+        cwd=PROJECT_ROOT,
+        text=True,
+        env=_ollama_env(),
+        capture_output=True,
+    )
     if result.returncode == 0:
         return True, f"pulled {model}"
+    combined = f"{result.stdout or ''}\n{result.stderr or ''}"
+    if "requires a newer version of Ollama" in combined:
+        upgraded, upgrade_detail = _upgrade_ollama()
+        if not upgraded:
+            return False, f"{upgrade_detail}; then retry: ollama pull {model}"
+        ollama = _ollama_binary()
+        if not ollama:
+            return False, "Ollama updated but CLI not found"
+        retry = subprocess.run(
+            [ollama, "pull", model],
+            cwd=PROJECT_ROOT,
+            text=True,
+            env=_ollama_env(),
+            capture_output=True,
+        )
+        if retry.returncode == 0:
+            return True, f"pulled {model} after Ollama update"
+        return False, f"Ollama updated but pull still failed: {(retry.stderr or retry.stdout or '').strip()}"
     return False, f"ollama pull {model} failed"
+
+
+def _upgrade_ollama() -> tuple[bool, str]:
+    if sys.platform == "darwin":
+        if not shutil.which("brew"):
+            return False, "Ollama is too old. Install the latest version from https://ollama.com/download"
+        commands = [
+            ["brew", "reinstall", "--cask", "ollama"],
+            ["brew", "upgrade", "--cask", "ollama"],
+            ["brew", "install", "--cask", "ollama"],
+            ["brew", "reinstall", "--cask", "ollama-app"],
+            ["brew", "upgrade", "--cask", "ollama-app"],
+            ["brew", "install", "--cask", "ollama-app"],
+        ]
+        for command in commands:
+            result = subprocess.run(command, cwd=PROJECT_ROOT, text=True)
+            if result.returncode == 0:
+                subprocess.run(["pkill", "-x", "Ollama"], cwd=PROJECT_ROOT, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(["pkill", "-f", "ollama serve"], cwd=PROJECT_ROOT, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                time.sleep(2)
+                _ensure_ollama_service()
+                return True, "Ollama updated"
+        return False, "Ollama update failed via Homebrew; install latest from https://ollama.com/download"
+
+    result = subprocess.run(
+        ["sh", "-c", "curl -fsSL https://ollama.com/install.sh | sh"],
+        cwd=PROJECT_ROOT,
+        text=True,
+    )
+    if result.returncode == 0:
+        return True, "Ollama updated"
+    return False, "Ollama update failed"
 
 
 def _venv_python() -> str:

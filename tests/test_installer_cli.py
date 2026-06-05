@@ -23,7 +23,7 @@ def test_given_install_script_when_checked_then_one_command_bootstrap_installs_m
     assert "MIMI_NOX_INSTALL_DIR:-$HOME/Documents/MiMi-Nox" in script
     assert "MIMI_NOX_MODEL:-gemma4:12b" in script
     assert "git clone \"$REPO_URL\" \"$INSTALL_DIR\"" in script
-    assert "pull \"$MODEL\"" in script
+    assert 'pull_ollama_model "$MODEL"' in script
     assert "16GB RAM" in script
     assert "miminox start" in script
     assert "brew install python" in script
@@ -44,7 +44,21 @@ def test_given_global_ollama_host_when_installing_then_installer_forces_loopback
     assert 'LOCAL_OLLAMA_HOST="${MIMI_NOX_OLLAMA_HOST:-127.0.0.1:11434}"' in script
     assert 'env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" serve' in script
     assert 'env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" show "$MODEL"' in script
-    assert 'env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$MODEL"' in script
+    assert 'env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$model"' in script
+
+
+def test_given_old_ollama_when_model_pull_requires_newer_version_then_installer_repairs_ollama():
+    """
+    GIVEN Ollama rejects Gemma 4 12B because the local app is too old
+    WHEN the installer pulls the model
+    THEN it detects the newer-version error, updates Ollama, and retries once.
+    """
+    script = (ROOT / "install.sh").read_text(encoding="utf-8")
+
+    assert "pull_ollama_model()" in script
+    assert "requires a newer version of Ollama" in script
+    assert "update_ollama()" in script
+    assert 'pull_ollama_model "$MODEL"' in script
 
 
 def test_given_install_scripts_when_parsed_then_shell_syntax_is_valid():
@@ -258,6 +272,33 @@ def test_given_miminox_cli_when_shell_has_bad_ollama_host_then_ollama_commands_u
     assert ok is True
     for call_args in run.call_args_list:
         assert call_args.kwargs["env"]["OLLAMA_HOST"] == "127.0.0.1:11434"
+
+
+def test_given_old_ollama_when_pull_model_runs_then_cli_upgrades_and_retries(monkeypatch):
+    """
+    GIVEN Ollama says the model requires a newer Ollama version
+    WHEN the CLI pulls a model
+    THEN it upgrades Ollama and retries the pull once.
+    """
+    import miminox_cli
+
+    monkeypatch.setenv("OLLAMA_HOST", "100.105.13.60:11434")
+    old = subprocess.CompletedProcess(
+        ["ollama", "pull", "gemma4:12b"],
+        1,
+        stdout="",
+        stderr="The model you are attempting to pull requires a newer version of Ollama.",
+    )
+    ok = subprocess.CompletedProcess(["ollama", "pull", "gemma4:12b"], 0, stdout="pulled", stderr="")
+    with patch("miminox_cli._ollama_binary", return_value="/usr/local/bin/ollama"), \
+         patch("miminox_cli._upgrade_ollama", return_value=(True, "Ollama updated")) as upgrade, \
+         patch("miminox_cli.subprocess.run", side_effect=[old, ok]) as run:
+        success, detail = miminox_cli._pull_model("gemma4:12b")
+
+    assert success is True
+    assert "after Ollama update" in detail
+    upgrade.assert_called_once()
+    assert run.call_count == 2
 
 
 def test_given_miminox_start_when_model_is_installed_but_broken_then_it_repairs_before_starting():
