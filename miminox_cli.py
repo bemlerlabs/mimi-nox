@@ -16,6 +16,8 @@ from pathlib import Path
 
 DEFAULT_MODEL = "gemma4:12b"
 DEFAULT_PORT = 8765
+LOCAL_OLLAMA_HOST = "127.0.0.1:11434"
+LOCAL_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 
@@ -41,6 +43,12 @@ def _run(cmd: list[str], *, check: bool = False, env: dict[str, str] | None = No
         env=env,
         check=check,
     )
+
+
+def _ollama_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env["OLLAMA_HOST"] = LOCAL_OLLAMA_HOST
+    return env
 
 
 def _json_get(url: str, timeout: float = 3.0) -> dict | None:
@@ -73,6 +81,7 @@ def _model_installed(model: str) -> bool:
     result = subprocess.run(
         [ollama, "show", model],
         text=True,
+        env=_ollama_env(),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -81,7 +90,7 @@ def _model_installed(model: str) -> bool:
 
 def _model_loadable(model: str) -> tuple[bool, str]:
     response = _json_post(
-        "http://127.0.0.1:11434/api/generate",
+        f"{LOCAL_OLLAMA_BASE_URL}/api/generate",
         {"model": model, "prompt": "OK", "stream": False, "options": {"num_predict": 1}},
         timeout=30.0,
     )
@@ -95,14 +104,14 @@ def _model_loadable(model: str) -> tuple[bool, str]:
 def _wait_for_ollama_service(timeout: float = 15.0) -> bool:
     deadline = time.time() + timeout
     while time.time() < deadline:
-        if _json_get("http://127.0.0.1:11434/api/tags", timeout=1.0) is not None:
+        if _json_get(f"{LOCAL_OLLAMA_BASE_URL}/api/tags", timeout=1.0) is not None:
             return True
         time.sleep(0.5)
     return False
 
 
 def _ensure_ollama_service() -> tuple[bool, str]:
-    if _json_get("http://127.0.0.1:11434/api/tags", timeout=1.0) is not None:
+    if _json_get(f"{LOCAL_OLLAMA_BASE_URL}/api/tags", timeout=1.0) is not None:
         return True, "Ollama service is running"
 
     ollama = _ollama_binary()
@@ -112,12 +121,13 @@ def _ensure_ollama_service() -> tuple[bool, str]:
     subprocess.Popen(
         [ollama, "serve"],
         cwd=PROJECT_ROOT,
+        env=_ollama_env(),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
     if _wait_for_ollama_service():
         return True, "Ollama service started"
-    return False, "Ollama service did not become ready on http://127.0.0.1:11434"
+    return False, f"Ollama service did not become ready on {LOCAL_OLLAMA_BASE_URL}"
 
 
 def _pull_model(model: str) -> tuple[bool, str]:
@@ -125,7 +135,7 @@ def _pull_model(model: str) -> tuple[bool, str]:
     if not ollama:
         return False, "Ollama CLI not found"
 
-    result = subprocess.run([ollama, "pull", model], cwd=PROJECT_ROOT, text=True)
+    result = subprocess.run([ollama, "pull", model], cwd=PROJECT_ROOT, text=True, env=_ollama_env())
     if result.returncode == 0:
         return True, f"pulled {model}"
     return False, f"ollama pull {model} failed"
@@ -170,11 +180,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
     ollama_running = False
     local_models: list[str] = []
-    tags = _json_get("http://127.0.0.1:11434/api/tags")
+    tags = _json_get(f"{LOCAL_OLLAMA_BASE_URL}/api/tags")
     if tags is not None:
         ollama_running = True
         local_models = [item.get("name", "") for item in tags.get("models", [])]
-    checks.append(("Ollama service", ollama_running, "http://127.0.0.1:11434"))
+    checks.append(("Ollama service", ollama_running, LOCAL_OLLAMA_BASE_URL))
 
     model_installed = _model_installed(args.model)
     model_ready = False
@@ -215,8 +225,9 @@ def cmd_start(args: argparse.Namespace) -> int:
             return 1
 
     env = os.environ.copy()
+    env["OLLAMA_HOST"] = LOCAL_OLLAMA_HOST
     env["MIMI_NOX_MODEL"] = args.model
-    env.setdefault("MIMI_LOCAL_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    env.setdefault("MIMI_LOCAL_OLLAMA_BASE_URL", LOCAL_OLLAMA_BASE_URL)
     host = "0.0.0.0" if args.lan else args.host
     env["MIMI_NOX_HOST"] = host
     env["MIMI_NOX_PORT"] = str(args.port)
@@ -255,6 +266,7 @@ def cmd_update(args: argparse.Namespace) -> int:
         return 1
 
     env = os.environ.copy()
+    env["OLLAMA_HOST"] = LOCAL_OLLAMA_HOST
     env["MIMI_NOX_MODEL"] = args.model
     env["MIMI_NOX_NO_START"] = "1"
     return _run(["bash", str(installer), "--no-start"], env=env).returncode

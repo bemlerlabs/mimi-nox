@@ -33,6 +33,20 @@ def test_given_install_script_when_checked_then_one_command_bootstrap_installs_m
     assert "No cloud" not in script
 
 
+def test_given_global_ollama_host_when_installing_then_installer_forces_loopback_ollama():
+    """
+    GIVEN a user's shell exports OLLAMA_HOST for a stale LAN/Tailscale address
+    WHEN the public installer starts/pulls local Ollama
+    THEN each Ollama CLI call is forced to loopback so install does not bind to the stale address.
+    """
+    script = (ROOT / "install.sh").read_text(encoding="utf-8")
+
+    assert 'LOCAL_OLLAMA_HOST="${MIMI_NOX_OLLAMA_HOST:-127.0.0.1:11434}"' in script
+    assert 'env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" serve' in script
+    assert 'env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" show "$MODEL"' in script
+    assert 'env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$MODEL"' in script
+
+
 def test_given_install_scripts_when_parsed_then_shell_syntax_is_valid():
     """
     GIVEN install scripts are a critical first-run surface
@@ -158,6 +172,26 @@ def test_given_miminox_start_when_model_is_missing_then_it_pulls_before_starting
     assert code == 0
     pull_model.assert_called_once_with("gemma4:12b")
     assert "Model gemma4:12b ready" in capsys.readouterr().out
+
+
+def test_given_miminox_cli_when_shell_has_bad_ollama_host_then_ollama_commands_use_loopback(monkeypatch):
+    """
+    GIVEN OLLAMA_HOST points to a stale non-local address
+    WHEN miminox checks or pulls models
+    THEN subprocesses get OLLAMA_HOST=127.0.0.1:11434 explicitly.
+    """
+    import miminox_cli
+
+    monkeypatch.setenv("OLLAMA_HOST", "100.105.13.60:11434")
+    with patch("miminox_cli._ollama_binary", return_value="/usr/local/bin/ollama"), \
+         patch("miminox_cli.subprocess.run") as run:
+        run.return_value.returncode = 0
+        assert miminox_cli._model_installed("gemma4:12b") is True
+        ok, _ = miminox_cli._pull_model("gemma4:12b")
+
+    assert ok is True
+    for call_args in run.call_args_list:
+        assert call_args.kwargs["env"]["OLLAMA_HOST"] == "127.0.0.1:11434"
 
 
 def test_given_miminox_start_when_model_is_installed_but_broken_then_it_repairs_before_starting():

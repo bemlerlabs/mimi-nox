@@ -12,6 +12,11 @@ INSTALL_DIR="${MIMI_NOX_INSTALL_DIR:-$HOME/Documents/MiMi-Nox}"
 MODEL="${MIMI_NOX_MODEL:-gemma4:12b}"
 EMBED_MODEL="${MIMI_NOX_EMBED_MODEL:-nomic-embed-text}"
 PORT="${MIMI_NOX_PORT:-8765}"
+LOCAL_OLLAMA_HOST="${MIMI_NOX_OLLAMA_HOST:-127.0.0.1:11434}"
+LOCAL_OLLAMA_URL="$LOCAL_OLLAMA_HOST"
+if [[ "$LOCAL_OLLAMA_URL" != http://* && "$LOCAL_OLLAMA_URL" != https://* ]]; then
+  LOCAL_OLLAMA_URL="http://${LOCAL_OLLAMA_URL}"
+fi
 NO_START="${MIMI_NOX_NO_START:-0}"
 SKIP_MODEL="${MIMI_NOX_SKIP_MODEL:-0}"
 DRY_RUN="${MIMI_NOX_DRY_RUN:-0}"
@@ -206,35 +211,38 @@ fi
 ok "$OLLAMA_BIN"
 
 step "Ollama Service starten"
-if ! curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+if [[ "${OLLAMA_HOST:-}" != "" && "${OLLAMA_HOST}" != "$LOCAL_OLLAMA_HOST" && "${OLLAMA_HOST}" != "$LOCAL_OLLAMA_URL" ]]; then
+  info "Ignoriere globales OLLAMA_HOST=${OLLAMA_HOST}; MiMi nutzt lokal ${LOCAL_OLLAMA_HOST}."
+fi
+if ! curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1; then
   if [[ "$OS_NAME" == "Darwin" && -d "/Applications/Ollama.app" ]]; then
     run open -a Ollama
   fi
-  run "$OLLAMA_BIN" serve >/tmp/mimi-nox-ollama.log 2>&1 &
+  run env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" serve >/tmp/mimi-nox-ollama.log 2>&1 &
   sleep 3
 fi
 for _ in $(seq 1 30); do
-  curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break
+  curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1 && break
   sleep 1
 done
-curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1 || fail "Ollama Service antwortet nicht."
+curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1 || fail "Ollama Service antwortet nicht auf ${LOCAL_OLLAMA_URL}. Log: /tmp/mimi-nox-ollama.log"
 ok "Ollama läuft"
 
 if [[ "$SKIP_MODEL" != "1" ]]; then
   step "KI-Modell installieren: ${MODEL}"
-  if "$OLLAMA_BIN" show "$MODEL" >/dev/null 2>&1; then
+  if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" show "$MODEL" >/dev/null 2>&1; then
     ok "$MODEL bereits installiert"
   else
     info "Gemma 4 12B: 16GB RAM/Unified Memory empfohlen, 256K Kontext. Abbruch ist sicher, erneuter Start setzt fort."
-    run "$OLLAMA_BIN" pull "$MODEL"
+    run env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$MODEL"
     ok "$MODEL bereit"
   fi
 
   step "Memory-Modell installieren: ${EMBED_MODEL}"
-  if "$OLLAMA_BIN" show "$EMBED_MODEL" >/dev/null 2>&1; then
+  if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" show "$EMBED_MODEL" >/dev/null 2>&1; then
     ok "$EMBED_MODEL bereits installiert"
   else
-    run "$OLLAMA_BIN" pull "$EMBED_MODEL"
+    run env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$EMBED_MODEL"
     ok "$EMBED_MODEL bereit"
   fi
 fi
