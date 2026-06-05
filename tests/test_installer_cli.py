@@ -95,6 +95,21 @@ def test_given_miminox_cli_when_help_requested_then_core_commands_exist():
     assert "update" in result.stdout
 
 
+def test_given_miminox_doctor_help_when_checked_then_fix_mode_is_documented():
+    """
+    GIVEN doctor should be able to repair common local drift
+    WHEN doctor help is shown
+    THEN --fix is available as an explicit opt-in action.
+    """
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "miminox_cli.py"), "doctor", "--help"],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    assert "--fix" in result.stdout
+
+
 def test_given_miminox_doctor_when_model_is_listed_but_not_loadable_then_reports_repair_action(capsys):
     """
     GIVEN Ollama lists Gemma but a test generation fails
@@ -143,6 +158,57 @@ def test_given_miminox_doctor_when_model_load_test_passes_then_setup_is_ok(capsy
     assert code == 0
     assert "Model gemma4:12b load test" in out
     assert "test generation ok" in out
+
+
+def test_given_miminox_doctor_fix_when_invoked_then_repairs_repo_deps_and_model(capsys):
+    """
+    GIVEN the user runs miminox doctor --fix after repo/runtime drift
+    WHEN repairs are mocked as successful
+    THEN doctor runs repo, dependency and model repair before reporting checks.
+    """
+    import miminox_cli
+
+    args = miminox_cli.build_parser().parse_args(["doctor", "--fix", "--model", "gemma4:12b"])
+    with patch("miminox_cli._repair_repo", return_value=(True, "repo up to date")) as repo, \
+         patch("miminox_cli._repair_dependencies", return_value=(True, "dependencies installed")) as deps, \
+         patch("miminox_cli._ensure_model_ready_for_start", return_value=(True, "test generation ok")) as model, \
+         patch("miminox_cli._ollama_binary", return_value="/usr/local/bin/ollama"), \
+         patch("miminox_cli._model_installed", return_value=True), \
+         patch("miminox_cli._json_get") as json_get, \
+         patch("miminox_cli._model_loadable", return_value=(True, "test generation ok")):
+        json_get.side_effect = [
+            {"models": [{"name": "gemma4:12b"}]},
+            {"status": "ok"},
+        ]
+        code = args.func(args)
+
+    out = capsys.readouterr().out
+    assert code == 0
+    repo.assert_called_once()
+    deps.assert_called_once()
+    model.assert_called_once_with("gemma4:12b")
+    assert "Repair repo" in out
+    assert "Repair dependencies" in out
+    assert "Repair model gemma4:12b" in out
+
+
+def test_given_dirty_repo_when_repair_repo_runs_then_it_does_not_pull():
+    """
+    GIVEN local user edits exist
+    WHEN doctor --fix considers updating the repo
+    THEN it refuses to git pull instead of overwriting local work.
+    """
+    import miminox_cli
+
+    with patch("miminox_cli._run") as run:
+        run.side_effect = [
+            subprocess.CompletedProcess(["git", "status"], 0, stdout=" M README.md\n"),
+        ]
+        ok, detail = miminox_cli._repair_repo()
+
+    assert ok is False
+    assert "local changes" in detail
+    assert len(run.call_args_list) == 1
 
 
 def test_given_miminox_start_when_model_is_missing_then_it_pulls_before_starting(capsys):

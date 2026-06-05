@@ -35,13 +35,20 @@ def _ollama_binary() -> str | None:
     return None
 
 
-def _run(cmd: list[str], *, check: bool = False, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+def _run(
+    cmd: list[str],
+    *,
+    check: bool = False,
+    env: dict[str, str] | None = None,
+    capture_output: bool = False,
+) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd,
         cwd=PROJECT_ROOT,
         text=True,
         env=env,
         check=check,
+        capture_output=capture_output,
     )
 
 
@@ -141,6 +148,52 @@ def _pull_model(model: str) -> tuple[bool, str]:
     return False, f"ollama pull {model} failed"
 
 
+def _venv_python() -> str:
+    candidate = PROJECT_ROOT / ".venv" / "bin" / "python"
+    return str(candidate) if candidate.exists() else sys.executable
+
+
+def _repair_repo() -> tuple[bool, str]:
+    if not (PROJECT_ROOT / ".git").exists():
+        return True, "not a git checkout"
+
+    status = _run(["git", "status", "--short"], env=os.environ.copy(), capture_output=True)
+    if status.returncode != 0:
+        return False, "could not inspect git status"
+    if (status.stdout or "").strip():
+        return False, "local changes present; skip git pull to protect your work"
+
+    fetch = _run(["git", "fetch", "--quiet", "origin"], env=os.environ.copy())
+    if fetch.returncode != 0:
+        return False, "git fetch failed"
+
+    branch = _run(["git", "branch", "--show-current"], env=os.environ.copy(), capture_output=True)
+    branch_name = (branch.stdout or "").strip() if branch.returncode == 0 else ""
+    if not branch_name:
+        return True, "detached HEAD; skip auto-update"
+
+    behind = _run(["git", "rev-list", "--count", f"HEAD..origin/{branch_name}"], env=os.environ.copy(), capture_output=True)
+    if behind.returncode != 0:
+        return False, "could not compare with origin"
+    if (behind.stdout or "").strip() in ("", "0"):
+        return True, "repo up to date"
+
+    pull = _run(["git", "pull", "--ff-only"], env=os.environ.copy())
+    if pull.returncode != 0:
+        return False, "git pull --ff-only failed"
+    return True, "repo updated"
+
+
+def _repair_dependencies() -> tuple[bool, str]:
+    if not (PROJECT_ROOT / "pyproject.toml").exists():
+        return False, "pyproject.toml missing"
+    cmd = [_venv_python(), "-m", "pip", "install", "-e", ".[gui,voice]"]
+    result = _run(cmd, env=os.environ.copy())
+    if result.returncode == 0:
+        return True, "dependencies installed"
+    return False, "dependency install failed"
+
+
 def _ensure_model_ready_for_start(model: str) -> tuple[bool, str]:
     service_ok, service_detail = _ensure_ollama_service()
     if not service_ok:
@@ -171,7 +224,27 @@ def _print_check(ok: bool, label: str, detail: str = "") -> None:
     print(f"{status:7} {label}{suffix}")
 
 
+def _run_doctor_repairs(args: argparse.Namespace) -> list[tuple[str, bool, str]]:
+    repairs: list[tuple[str, bool, str]] = []
+    if os.environ.get("OLLAMA_HOST") not in (None, "", LOCAL_OLLAMA_HOST, LOCAL_OLLAMA_BASE_URL):
+        repairs.append(("Normalize OLLAMA_HOST", True, f"MiMi commands use {LOCAL_OLLAMA_HOST}; shell value is ignored"))
+
+    repo_ok, repo_detail = _repair_repo()
+    repairs.append(("Repair repo", repo_ok, repo_detail))
+
+    deps_ok, deps_detail = _repair_dependencies()
+    repairs.append(("Repair dependencies", deps_ok, deps_detail))
+
+    model_ok, model_detail = _ensure_model_ready_for_start(args.model)
+    repairs.append((f"Repair model {args.model}", model_ok, model_detail))
+    return repairs
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
+    repairs: list[tuple[str, bool, str]] = []
+    if args.fix:
+        repairs = _run_doctor_repairs(args)
+
     checks: list[tuple[str, bool, str]] = []
     ollama = _ollama_binary()
     checks.append(("Python", sys.version_info >= (3, 10), sys.version.split()[0]))
@@ -202,7 +275,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     checks.append(("MiMi Nox server", server_health is not None, f"http://127.0.0.1:{args.port}"))
 
     payload = {
-        "ok": all(ok for _, ok, _ in checks[:-1]) and model_ready,
+        "ok": all(ok for _, ok, _ in checks[:-1]) and model_ready and all(ok for _, ok, _ in repairs),
+        "repairs": [{"name": name, "ok": ok, "detail": detail} for name, ok, detail in repairs],
         "checks": [{"name": name, "ok": ok, "detail": detail} for name, ok, detail in checks],
         "local_models": local_models,
         "server": server_health,
@@ -210,6 +284,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(payload, indent=2))
     else:
+        if repairs:
+            for name, ok, detail in repairs:
+                _print_check(ok, name, detail)
+            print("")
         for name, ok, detail in checks:
             _print_check(ok, name, detail)
         if local_models:
@@ -307,6 +385,7 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--model", default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL))
     doctor.add_argument("--port", type=int, default=DEFAULT_PORT)
     doctor.add_argument("--json", action="store_true")
+    doctor.add_argument("--fix", action="store_true", help="Repair safe local drift: repo fast-forward, dependencies, Ollama service and model")
     doctor.set_defaults(func=cmd_doctor)
 
     update = sub.add_parser("update", help="Update repo, dependencies and local model")
