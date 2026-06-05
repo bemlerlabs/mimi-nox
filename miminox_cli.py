@@ -24,15 +24,22 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 def _ollama_binary() -> str | None:
     candidates = [
         "/Applications/Ollama.app/Contents/Resources/ollama",
-        "/usr/local/bin/ollama",
         "/opt/homebrew/opt/ollama/bin/ollama",
         "/opt/homebrew/bin/ollama",
+        "/usr/local/bin/ollama",
         shutil.which("ollama"),
     ]
     for candidate in candidates:
         if candidate and Path(candidate).exists():
             return str(candidate)
     return None
+
+
+def _ollama_model_candidates(model: str) -> list[str]:
+    candidates = [model]
+    if sys.platform == "darwin" and model == "gemma4:12b":
+        candidates.extend(["gemma4:12b-mlx", "gemma4:12b-nvfp4"])
+    return list(dict.fromkeys(candidates))
 
 
 def _run(
@@ -142,33 +149,48 @@ def _pull_model(model: str) -> tuple[bool, str]:
     if not ollama:
         return False, "Ollama CLI not found"
 
-    result = subprocess.run(
-        [ollama, "pull", model],
-        cwd=PROJECT_ROOT,
-        text=True,
-        env=_ollama_env(),
-        capture_output=True,
-    )
-    if result.returncode == 0:
-        return True, f"pulled {model}"
-    combined = f"{result.stdout or ''}\n{result.stderr or ''}"
-    if "requires a newer version of Ollama" in combined:
+    saw_version_error = False
+    attempted_upgrade = False
+    for candidate in _ollama_model_candidates(model):
+        result = subprocess.run(
+            [ollama, "pull", candidate],
+            cwd=PROJECT_ROOT,
+            text=True,
+            env=_ollama_env(),
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            suffix = "" if candidate == model else f" as {candidate}"
+            return True, f"pulled {model}{suffix}"
+        combined = f"{result.stdout or ''}\n{result.stderr or ''}"
+        if "requires a newer version of Ollama" not in combined:
+            continue
+        saw_version_error = True
+        if attempted_upgrade:
+            continue
+        attempted_upgrade = True
         upgraded, upgrade_detail = _upgrade_ollama()
         if not upgraded:
-            return False, f"{upgrade_detail}; then retry: ollama pull {model}"
+            continue
         ollama = _ollama_binary()
         if not ollama:
             return False, "Ollama updated but CLI not found"
         retry = subprocess.run(
-            [ollama, "pull", model],
+            [ollama, "pull", candidate],
             cwd=PROJECT_ROOT,
             text=True,
             env=_ollama_env(),
             capture_output=True,
         )
         if retry.returncode == 0:
-            return True, f"pulled {model} after Ollama update"
-        return False, f"Ollama updated but pull still failed: {(retry.stderr or retry.stdout or '').strip()}"
+            suffix = "" if candidate == model else f" as {candidate}"
+            return True, f"pulled {model}{suffix} after Ollama update"
+    if saw_version_error:
+        version_detail = _ollama_version_detail(_ollama_binary())
+        return False, (
+            "Ollama is still too old for this Gemma 4 manifest. "
+            f"Install the latest Ollama from https://ollama.com/download and retry. {version_detail}"
+        )
     return False, f"ollama pull {model} failed"
 
 
@@ -176,13 +198,15 @@ def _upgrade_ollama() -> tuple[bool, str]:
     if sys.platform == "darwin":
         if not shutil.which("brew"):
             return False, "Ollama is too old. Install the latest version from https://ollama.com/download"
+        if subprocess.run(["brew", "list", "--formula", "ollama"], cwd=PROJECT_ROOT, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+            subprocess.run(["brew", "uninstall", "--formula", "ollama"], cwd=PROJECT_ROOT, text=True)
         commands = [
-            ["brew", "reinstall", "--cask", "ollama"],
-            ["brew", "upgrade", "--cask", "ollama"],
-            ["brew", "install", "--cask", "ollama"],
             ["brew", "reinstall", "--cask", "ollama-app"],
             ["brew", "upgrade", "--cask", "ollama-app"],
             ["brew", "install", "--cask", "ollama-app"],
+            ["brew", "reinstall", "--cask", "ollama"],
+            ["brew", "upgrade", "--cask", "ollama"],
+            ["brew", "install", "--cask", "ollama"],
         ]
         for command in commands:
             result = subprocess.run(command, cwd=PROJECT_ROOT, text=True)
@@ -202,6 +226,14 @@ def _upgrade_ollama() -> tuple[bool, str]:
     if result.returncode == 0:
         return True, "Ollama updated"
     return False, "Ollama update failed"
+
+
+def _ollama_version_detail(ollama: str | None) -> str:
+    if not ollama:
+        return "Ollama CLI not found."
+    result = subprocess.run([ollama, "--version"], cwd=PROJECT_ROOT, text=True, capture_output=True)
+    output = (result.stdout or result.stderr or "").strip()
+    return f"Current CLI: {output}" if output else f"Current CLI: {ollama}"
 
 
 def _venv_python() -> str:

@@ -61,6 +61,33 @@ def test_given_old_ollama_when_model_pull_requires_newer_version_then_installer_
     assert 'pull_ollama_model "$MODEL"' in script
 
 
+def test_given_macos_gemma4_12b_when_installer_pulls_then_it_has_12b_mlx_fallbacks():
+    """
+    GIVEN Gemma 4 12B is a brand-new model with Mac-specific Ollama tags
+    WHEN the installer pulls the default model on macOS
+    THEN it can fall back to 12B MLX variants instead of dying on the first manifest error.
+    """
+    script = (ROOT / "install.sh").read_text(encoding="utf-8")
+
+    assert "preferred_ollama_models()" in script
+    assert 'echo "gemma4:12b-mlx"' in script
+    assert 'echo "gemma4:12b-nvfp4"' in script
+    assert 'MODEL="$model"' in script
+
+
+def test_given_homebrew_formula_conflict_when_installer_updates_ollama_then_formula_is_removed_first():
+    """
+    GIVEN /opt/homebrew/bin/ollama from the formula can shadow the cask app binary
+    WHEN the installer updates Ollama
+    THEN it removes the formula before reinstalling the app cask.
+    """
+    script = (ROOT / "install.sh").read_text(encoding="utf-8")
+
+    assert "brew list --formula ollama" in script
+    assert "brew uninstall --formula ollama" in script
+    assert '"/Applications/Ollama.app/Contents/Resources/ollama"' in script
+
+
 def test_given_install_scripts_when_parsed_then_shell_syntax_is_valid():
     """
     GIVEN install scripts are a critical first-run surface
@@ -299,6 +326,49 @@ def test_given_old_ollama_when_pull_model_runs_then_cli_upgrades_and_retries(mon
     assert "after Ollama update" in detail
     upgrade.assert_called_once()
     assert run.call_count == 2
+
+
+def test_given_macos_gemma4_12b_when_cli_pulls_then_it_knows_12b_fallback_candidates(monkeypatch):
+    """
+    GIVEN a Mac user requests the default Gemma 4 12B model
+    WHEN the CLI builds local pull candidates
+    THEN it keeps the requested model first and includes MLX-compatible 12B variants.
+    """
+    import miminox_cli
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+
+    assert miminox_cli._ollama_model_candidates("gemma4:12b") == [
+        "gemma4:12b",
+        "gemma4:12b-mlx",
+        "gemma4:12b-nvfp4",
+    ]
+
+
+def test_given_all_gemma4_12b_candidates_need_newer_ollama_when_cli_pulls_then_error_is_actionable(monkeypatch):
+    """
+    GIVEN every 12B candidate is rejected by the manifest-version gate
+    WHEN the CLI pull finishes
+    THEN it reports the Ollama upgrade requirement clearly instead of a generic pull failure.
+    """
+    import miminox_cli
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    old = subprocess.CompletedProcess(
+        ["ollama", "pull", "gemma4:12b"],
+        1,
+        stdout="",
+        stderr="The model you are attempting to pull requires a newer version of Ollama.",
+    )
+    version = subprocess.CompletedProcess(["ollama", "--version"], 0, stdout="client version is 0.30.5", stderr="")
+    with patch("miminox_cli._ollama_binary", return_value="/usr/local/bin/ollama"), \
+         patch("miminox_cli._upgrade_ollama", return_value=(False, "update failed")), \
+         patch("miminox_cli.subprocess.run", side_effect=[old, old, old, version]):
+        success, detail = miminox_cli._pull_model("gemma4:12b")
+
+    assert success is False
+    assert "latest Ollama" in detail
+    assert "0.30.5" in detail
 
 
 def test_given_miminox_start_when_model_is_installed_but_broken_then_it_repairs_before_starting():

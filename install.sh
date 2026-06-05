@@ -183,13 +183,26 @@ fi
 find_ollama() {
   for candidate in \
     "/Applications/Ollama.app/Contents/Resources/ollama" \
-    "/usr/local/bin/ollama" \
     "/opt/homebrew/opt/ollama/bin/ollama" \
     "/opt/homebrew/bin/ollama" \
+    "/usr/local/bin/ollama" \
     "$(command -v ollama 2>/dev/null || true)"; do
     [[ -n "$candidate" && -x "$candidate" ]] && { echo "$candidate"; return 0; }
   done
   return 1
+}
+
+ollama_version_text() {
+  "$OLLAMA_BIN" --version 2>&1 || true
+}
+
+preferred_ollama_models() {
+  local requested="$1"
+  echo "$requested"
+  if [[ "$OS_NAME" == "Darwin" && "$requested" == "gemma4:12b" ]]; then
+    echo "gemma4:12b-mlx"
+    echo "gemma4:12b-nvfp4"
+  fi
 }
 
 update_ollama() {
@@ -197,7 +210,11 @@ update_ollama() {
   if [[ "$OS_NAME" == "Darwin" ]]; then
     if command -v brew >/dev/null 2>&1; then
       run brew update || true
-      run brew reinstall --cask --force ollama || run brew upgrade --cask ollama || run brew install --cask --force ollama || run brew reinstall --cask --force ollama-app || run brew upgrade --cask ollama-app || run brew install --cask --force ollama-app
+      if brew list --formula ollama >/dev/null 2>&1; then
+        info "Entferne Homebrew-Formula 'ollama', damit die aktuelle Ollama.app-CLI nicht verdeckt wird."
+        run brew uninstall --formula ollama || true
+      fi
+      run brew reinstall --cask --force ollama-app || run brew upgrade --cask ollama-app || run brew install --cask --force ollama-app || run brew reinstall --cask --force ollama || run brew upgrade --cask ollama || run brew install --cask --force ollama
       OLLAMA_BIN="$(find_ollama || true)"
       [[ -n "$OLLAMA_BIN" ]] || fail "Ollama wurde nach dem Update nicht gefunden."
       pkill -x Ollama >/dev/null 2>&1 || true
@@ -213,23 +230,42 @@ update_ollama() {
 }
 
 pull_ollama_model() {
-  local model="$1"
-  local log_file="/tmp/mimi-nox-ollama-pull-${model//[^A-Za-z0-9_.-]/_}.log"
-  if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$model" 2>&1 | tee "$log_file"; then
-    return 0
-  fi
-  if grep -qi "requires a newer version of Ollama" "$log_file"; then
-    update_ollama
-    if [[ "$OS_NAME" == "Darwin" && -d "/Applications/Ollama.app" ]]; then
-      run open -a Ollama
-      sleep 3
+  local requested="$1"
+  local tried_update="0"
+  local saw_newer_error="0"
+  local model
+
+  for model in $(preferred_ollama_models "$requested"); do
+    local log_file="/tmp/mimi-nox-ollama-pull-${model//[^A-Za-z0-9_.-]/_}.log"
+    info "Versuche Modell: ${model}"
+    if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$model" 2>&1 | tee "$log_file"; then
+      MODEL="$model"
+      return 0
     fi
-    for _ in $(seq 1 30); do
-      curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1 && break
-      sleep 1
-    done
-    env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$model"
-    return $?
+    if grep -qi "requires a newer version of Ollama" "$log_file"; then
+      saw_newer_error="1"
+      if [[ "$tried_update" != "1" ]]; then
+        tried_update="1"
+        update_ollama
+        if [[ "$OS_NAME" == "Darwin" && -d "/Applications/Ollama.app" ]]; then
+          run open -a Ollama
+          sleep 3
+        fi
+        for _ in $(seq 1 30); do
+          curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1 && break
+          sleep 1
+        done
+        info "Ollama CLI nach Update: $(ollama_version_text | tr '\n' ' ')"
+        if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$model" 2>&1 | tee "$log_file"; then
+          MODEL="$model"
+          return 0
+        fi
+      fi
+    fi
+  done
+
+  if [[ "$saw_newer_error" == "1" ]]; then
+    fail "Ollama ist weiterhin zu alt fuer ${requested}. Installiere die neueste Ollama-Version direkt von https://ollama.com/download, beende Ollama komplett und starte den Installer erneut. Aktuelle CLI: $(ollama_version_text | tr '\n' ' ')"
   fi
   return 1
 }
