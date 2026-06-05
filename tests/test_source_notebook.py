@@ -2,6 +2,7 @@ from pathlib import Path
 import asyncio
 import json
 import zipfile
+from unittest.mock import AsyncMock, patch
 
 
 def test_given_local_sources_when_create_notebook_then_manifest_has_citeable_chunks(tmp_path):
@@ -199,6 +200,82 @@ def test_given_notebook_slides_request_when_studio_created_then_qa_and_manifest_
     assert "Open Claim Manifest" in studio_html
     assert ".qa.json" in studio_html
     assert ".manifest.json" in studio_html
+
+
+def test_given_web_notebook_request_when_fast_path_runs_then_real_source_notebook_is_created(monkeypatch, tmp_path):
+    """
+    GIVEN the user asks for a NotebookLM-style artifact from current web research
+    WHEN the source-notebook fast path handles it
+    THEN MiMi creates a real source notebook and source brief instead of waiting for model analysis.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from core.skill_fastpath import run_skill_fast_path
+
+    search_result = "\n\n".join([
+        "[1] Official AI News",
+        "    URL: https://example.com/ai-news",
+        "    Source quality: general",
+        "    Current AI news requires evidence and citations.",
+    ])
+
+    with patch("core.skill_fastpath.web_search", new=AsyncMock(return_value=search_result)):
+        answer = asyncio.run(
+            run_skill_fast_path(
+                "source-notebook",
+                "/notebook aktuelle KI News recherchieren und als Source Brief erstellen",
+            )
+        )
+
+    assert answer is not None
+    assert "Quellen-Notebook aus Web-Recherche erstellt" in answer
+    assert "SOURCE_NOTEBOOK_FILE:" in answer
+    assert "SOURCE_BRIEF_FILE:" in answer
+
+
+def test_given_current_news_pdf_request_when_fast_path_runs_then_web_research_is_used(monkeypatch, tmp_path):
+    """
+    GIVEN a PDF request explicitly asks for current internet news
+    WHEN the PDF fast path runs
+    THEN it performs web_search before creating the PDF content.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from core.skill_fastpath import run_skill_fast_path
+
+    search_result = "\n\n".join([
+        "[1] AI News Source",
+        "    URL: https://example.com/current-ai",
+        "    Source quality: general",
+        "    AI market news and model releases are moving quickly.",
+    ])
+
+    with patch("core.skill_fastpath.web_search", new=AsyncMock(return_value=search_result)) as search:
+        answer = asyncio.run(
+            run_skill_fast_path(
+                "pdf-creator",
+                "/pdf erstelle eine PDF zu aktuellen KI News und suche im Internet danach",
+            )
+        )
+
+    search.assert_awaited_once()
+    assert "PDF_FILE:" in answer
+    pdf_path = Path(answer.split("PDF_FILE:", 1)[1].splitlines()[0].strip())
+    assert pdf_path.exists()
+
+
+def test_given_contextualized_followup_when_topic_is_extracted_then_previous_intent_wins():
+    """
+    GIVEN a vague follow-up was contextualized with the previous user request
+    WHEN the deterministic topic extractor runs
+    THEN filenames and deck titles use the previous substantive topic, not 'das jetzt richtig'.
+    """
+    from core.skill_fastpath import _topic_from_text
+
+    topic = _topic_from_text(
+        "mach das jetzt richtig\n\nKontext aus vorheriger Anfrage: Erstelle NotebookLM Slides zu KI Architektur 2026 mit Bildern",
+        default="Fallback",
+    )
+
+    assert topic == "KI Architektur 2026"
 
 
 def test_given_source_artifacts_when_normalized_then_quality_can_validate(tmp_path):

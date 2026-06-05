@@ -125,6 +125,46 @@ def _normalize_fast_path_tool_results(text: str):
     return results
 
 
+def _contextualize_fast_path_content(user_content: str, history: list[dict]) -> str:
+    """Attach the last substantive user intent for vague follow-up commands."""
+    content = (user_content or "").strip()
+    if not _is_vague_followup(content):
+        return content
+
+    previous = _last_substantive_user_message(history)
+    if not previous:
+        return content
+    return "\n\n".join([
+        content,
+        f"Kontext aus vorheriger Anfrage: {previous}",
+    ])
+
+
+def _is_vague_followup(content: str) -> bool:
+    stripped = re.sub(r"^/\w+\s*", " ", content or "", flags=re.IGNORECASE).strip().lower()
+    if not stripped:
+        return True
+    substantive = re.sub(
+        r"\b(mach(e|en)?|erstell(e|en)?|erstelle|das|die|der|den|mir|jetzt|etzt|richtig|nochmal|noch|file|datei|bitte|ok|ja)\b",
+        " ",
+        stripped,
+        flags=re.IGNORECASE,
+    )
+    substantive = " ".join(substantive.split())
+    return len(substantive) < 12
+
+
+def _last_substantive_user_message(history: list[dict]) -> str:
+    for item in reversed(history or []):
+        if item.get("role") != "user":
+            continue
+        content = str(item.get("content") or "").strip()
+        if not content or _is_vague_followup(content):
+            continue
+        return content[:1200]
+    return ""
+
+
 # ── Pydantic Models ────────────────────────────────────────────────────────
 
 class ChatRequest(BaseModel):
@@ -431,7 +471,8 @@ async def chat_stream(request: StreamRequest) -> StreamingResponse:
                     return await _sandbox_cb("run_shell", {"command": command})
 
                 if active_skill and not request.images:
-                    fast_answer = await run_skill_fast_path(active_skill.name, user_content)
+                    fast_user_content = _contextualize_fast_path_content(user_content, request.history)
+                    fast_answer = await run_skill_fast_path(active_skill.name, fast_user_content)
                     if fast_answer is not None:
                         emit({"type": "activity", "cmd": f"{active_skill.trigger} fast path", "status": "done"})
                         _emit_file_markers(fast_answer, emit)

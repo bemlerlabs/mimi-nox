@@ -367,6 +367,40 @@ class TestChatEndpoint:
         assert '"type": "artifact_check"' in body
         assert '"artifact_type": "deck_studio"' in body
 
+    def test_given_vague_followup_skill_when_streaming_then_fast_path_receives_previous_intent(self, client):
+        """
+        GIVEN the user follows up with 'mach das jetzt richtig'
+        WHEN /api/chat/stream resolves a deterministic skill fast path
+        THEN the last substantive user request is attached before the model fallback can stall.
+        """
+        captured: dict = {}
+
+        async def fake_fast_path(skill_name: str, user_content: str):
+            captured["skill_name"] = skill_name
+            captured["user_content"] = user_content
+            return "## Quellen-Notebook braucht Quellen\nFast follow-up handled"
+
+        history = [
+            {"role": "user", "content": "Erstelle NotebookLM Slides zu KI Architektur 2026 mit Bildern"},
+            {"role": "assistant", "content": "Ich kann daraus Slides erzeugen."},
+        ]
+        with patch("server.routes.chat.run_skill_fast_path", new=fake_fast_path), patch(
+            "server.routes.chat.chat_with_tools",
+            new=AsyncMock(side_effect=AssertionError("model path should not run")),
+        ):
+            with client.stream(
+                "POST",
+                "/api/chat/stream",
+                json={"message": "/notebook mach das jetzt richtig", "model": "gemma4:12b", "history": history},
+            ) as response:
+                body = "".join(response.iter_text())
+
+        assert response.status_code == 200
+        assert captured["skill_name"] == "source-notebook"
+        assert "Kontext aus vorheriger Anfrage" in captured["user_content"]
+        assert "KI Architektur 2026" in captured["user_content"]
+        assert "Fast follow-up handled" in body
+
     def test_given_project_skill_trigger_when_streaming_then_project_tools_are_scoped(self, client):
         """
         GIVEN a user invokes /project

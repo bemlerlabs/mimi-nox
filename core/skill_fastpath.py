@@ -18,6 +18,7 @@ from core.tools import (
     list_directory,
     query_source_notebook,
     read_file,
+    web_search,
 )
 
 
@@ -65,7 +66,14 @@ async def _file_fast_path(text: str) -> str | None:
 async def _pdf_fast_path(text: str) -> str:
     topic = _topic_from_text(text, default="MiMi Nox Executive Briefing")
     filename = f"{_filename_slug(topic)}_briefing.pdf"
-    content = _build_pdf_brief_content(topic, text)
+    research_result = ""
+    if _needs_web_research(text):
+        query = _research_query_from_text(text, topic)
+        try:
+            research_result = await web_search(query, max_results=6)
+        except Exception as exc:
+            research_result = f"[Web-Recherche fehlgeschlagen: {exc}]"
+    content = _build_pdf_brief_content(topic, text, research_result=research_result)
     result = await create_pdf(
         title=topic,
         content=content,
@@ -86,9 +94,31 @@ async def _pdf_fast_path(text: str) -> str:
     ])
 
 
-def _build_pdf_brief_content(topic: str, original_request: str) -> str:
+def _build_pdf_brief_content(topic: str, original_request: str, research_result: str = "") -> str:
     today = datetime.now().strftime("%d.%m.%Y")
     cleaned_request = re.sub(r"^/\w+\s*", "", original_request or "").strip()
+    research_sections = _research_sections(research_result)
+    if research_sections:
+        key_points = research_sections["key_points"]
+        source_notes = research_sections["source_notes"]
+    elif research_result:
+        key_points = [
+            "- Die angeforderte Web-Recherche konnte nicht belastbar abgeschlossen werden.",
+            "- Das Dokument markiert diese Einschränkung sichtbar statt aktuelle Fakten zu erfinden.",
+            "- Fuer belastbare News bitte Internetzugang pruefen oder Quellen/Links anhaengen.",
+        ]
+        source_notes = [f"- Recherche-Status: {research_result}"]
+    else:
+        key_points = [
+            "- Zielbild, Nutzen und naechste Schritte sind getrennt dargestellt.",
+            "- Offene Annahmen werden nicht als belegte Fakten ausgegeben.",
+            "- Der Inhalt ist fuer schnelle Management- oder Projektentscheidungen strukturiert.",
+        ]
+        source_notes = [
+            f"- Erstellt lokal am {today} aus der Nutzeranfrage.",
+            f"- Nutzeranfrage: {cleaned_request or topic}",
+            "- Keine externen Quellen oder Datei-Anhaenge wurden fuer dieses Briefing bereitgestellt.",
+        ]
     return "\n".join([
         "# Executive Summary",
         (
@@ -97,9 +127,7 @@ def _build_pdf_brief_content(topic: str, original_request: str) -> str:
         ),
         "",
         "## Key Points",
-        "- Zielbild, Nutzen und naechste Schritte sind getrennt dargestellt.",
-        "- Offene Annahmen werden nicht als belegte Fakten ausgegeben.",
-        "- Der Inhalt ist fuer schnelle Management- oder Projektentscheidungen strukturiert.",
+        *key_points,
         "",
         "## Empfehlungen",
         "1. Zielgruppe, Entscheidung und gewuenschtes Ergebnis vor dem finalen Versand pruefen.",
@@ -107,9 +135,7 @@ def _build_pdf_brief_content(topic: str, original_request: str) -> str:
         "3. Fuer Board-, Kunden- oder Investorenmaterial danach ein Deck oder Source Notebook ableiten.",
         "",
         "### Source Notes",
-        f"- Erstellt lokal am {today} aus der Nutzeranfrage.",
-        f"- Nutzeranfrage: {cleaned_request or topic}",
-        "- Keine externen Quellen oder Datei-Anhaenge wurden fuer dieses Briefing bereitgestellt.",
+        *source_notes,
     ])
 
 
@@ -130,7 +156,17 @@ async def _source_notebook_fast_path(text: str) -> str | None:
         return await _deck_fast_path(text, notebook_mode=True)
     path = _extract_existing_path(text)
     if not path:
-        return None
+        if _needs_web_research(text):
+            return await _web_source_notebook_fast_path(text)
+        return "\n".join([
+            "## Quellen-Notebook braucht Quellen",
+            "Für ein echtes NotebookLM-artiges Quellen-Notebook brauche ich lokale Dateien, Ordner, PDFs, PPTX/DOCX oder eine Web-Recherche-Anfrage.",
+            "",
+            "Beispiele:",
+            "- `/notebook /Users/sanji/Documents/report.pdf fasse die Quellen zusammen`",
+            "- `/notebook aktuelle KI News recherchieren und als Source Brief erstellen`",
+            "- `/notebook NotebookLM Slides zu /Users/sanji/Documents/Quellen`",
+        ])
     created = await create_source_notebook(
         paths=[str(path)],
         title=_topic_from_text(text, default="MiMi Nox Source Notebook"),
@@ -151,6 +187,43 @@ async def _source_notebook_fast_path(text: str) -> str | None:
         "## Quellengebundene Antwort",
         queried,
         "## Briefing",
+        brief,
+    ])
+
+
+async def _web_source_notebook_fast_path(text: str) -> str:
+    topic = _topic_from_text(text, default="MiMi Nox Source Notebook")
+    query = _research_query_from_text(text, topic)
+    try:
+        research_result = await web_search(query, max_results=8)
+    except Exception as exc:
+        return "\n".join([
+            "## Quellen-Notebook fehlgeschlagen",
+            f"Die Web-Recherche konnte nicht abgeschlossen werden: {exc}",
+            "Ich habe kein Notebook simuliert.",
+        ])
+
+    source_file = _write_web_research_source(topic, query, research_result)
+    created = await create_source_notebook(
+        paths=[str(source_file)],
+        title=f"{topic} Source Notebook",
+    )
+    notebook_path = _extract_marker_path(created, "SOURCE_NOTEBOOK_FILE:")
+    if not notebook_path:
+        return created
+    question = _clean_notebook_question(text)
+    queried = await query_source_notebook(notebook_path=notebook_path, question=question, max_chunks=8)
+    brief = await export_source_brief(
+        notebook_path=notebook_path,
+        question=question,
+        filename=f"{_filename_slug(topic)}_source_brief.md",
+    )
+    return "\n\n".join([
+        "## Quellen-Notebook aus Web-Recherche erstellt",
+        created,
+        "## Quellengebundene Antwort",
+        queried,
+        "## Source Brief",
         brief,
     ])
 
@@ -264,9 +337,12 @@ def _wants_deck(text: str) -> bool:
 
 
 def _topic_from_text(text: str, default: str) -> str:
-    cleaned = re.sub(r"^/\w+\s*", " ", text or "").strip()
+    cleaned = text or ""
+    if "Kontext aus vorheriger Anfrage:" in cleaned:
+        cleaned = cleaned.rsplit("Kontext aus vorheriger Anfrage:", 1)[1]
+    cleaned = re.sub(r"^/\w+\s*", " ", cleaned).strip()
     cleaned = re.sub(
-        r"\b(erstell(e|en)?|mach(e|en)?|notebook\s*lm|slides?|folien|pitch\s*deck|pitchdeck|pptx|powerpoint|mit bilder(n)?|bilder|für|fuer|mir|ein|eine|einen)\b",
+        r"\b(erstell(e|en)?|mach(e|en)?|notebook\s*lm|slides?|folien|pitch\s*deck|pitchdeck|pptx|powerpoint|mit bilder(n)?|bilder|für|fuer|zu|mir|ein|eine|einen)\b",
         " ",
         cleaned,
         flags=re.IGNORECASE,
@@ -301,6 +377,97 @@ def _filename_slug(value: str) -> str:
 
 def _wants_images(text: str) -> bool:
     return bool(re.search(r"\b(bild|bilder|image|images|visuals?|grafiken|graphics)\b", text or "", re.IGNORECASE))
+
+
+def _needs_web_research(text: str) -> bool:
+    return bool(re.search(
+        r"\b(aktuell(e|en|er|es)?|news|nachrichten|internet|web|online|recherch(e|ier)|suche|search|latest|today|heute)\b",
+        text or "",
+        re.IGNORECASE,
+    ))
+
+
+def _research_query_from_text(text: str, topic: str) -> str:
+    cleaned = text or ""
+    if "Kontext aus vorheriger Anfrage:" in cleaned:
+        cleaned = cleaned.rsplit("Kontext aus vorheriger Anfrage:", 1)[1]
+    cleaned = re.sub(r"^/\w+\s*", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(
+        r"\b(erstell(e|en)?|mach(e|en)?|mir|bitte|pdf|file|datei|notebook|richtig|jetzt|etzt|das|die|der|eine|einen|ein)\b",
+        " ",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    query = " ".join(cleaned.split()).strip(" .,:;-")
+    if not query or len(query) < 8:
+        query = topic
+    return f"{query} {datetime.now().year}".strip()
+
+
+def _research_sections(research_result: str) -> dict[str, list[str]]:
+    if not research_result or research_result.startswith("[Web-Recherche fehlgeschlagen"):
+        return {}
+    entries = _parse_search_entries(research_result)
+    if not entries:
+        return {}
+    key_points = []
+    source_notes = [f"- Erstellt lokal am {datetime.now().strftime('%d.%m.%Y')} mit Web-Recherche."]
+    for entry in entries[:6]:
+        body = entry["body"].strip()
+        summary = body[:180].rstrip()
+        if len(body) > 180:
+            summary += "..."
+        key_points.append(f"- {entry['title']}: {summary} ({entry['url']})")
+        source_notes.append(f"- {entry['title']} - {entry['url']} [{entry['quality']}]")
+    return {"key_points": key_points, "source_notes": source_notes}
+
+
+def _parse_search_entries(research_result: str) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+    body_lines: list[str] = []
+    for raw_line in (research_result or "").splitlines():
+        line = raw_line.rstrip()
+        match = re.match(r"^\[(\d+)\]\s+(.+)$", line)
+        if match:
+            if current:
+                current["body"] = " ".join(body_lines).strip()
+                entries.append(current)
+            current = {"title": match.group(2).strip(), "url": "", "quality": "unknown", "body": ""}
+            body_lines = []
+            continue
+        if not current:
+            continue
+        stripped = line.strip()
+        if stripped.startswith("URL:"):
+            current["url"] = stripped.split(":", 1)[1].strip()
+        elif stripped.startswith("Source quality:"):
+            current["quality"] = stripped.split(":", 1)[1].strip()
+        elif stripped:
+            body_lines.append(stripped)
+    if current:
+        current["body"] = " ".join(body_lines).strip()
+        entries.append(current)
+    return [entry for entry in entries if entry.get("title") and entry.get("url")]
+
+
+def _write_web_research_source(topic: str, query: str, research_result: str) -> Path:
+    out_dir = Path.home() / "Documents" / "MiMiNox" / "web_sources"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{_filename_slug(topic)}_web_research.md"
+    out.write_text(
+        "\n".join([
+            f"# {topic} Web Research",
+            "",
+            f"Query: {query}",
+            f"Created: {datetime.now().isoformat(timespec='seconds')}",
+            "",
+            "## Search Results",
+            research_result,
+        ]),
+        encoding="utf-8",
+    )
+    return out
 
 
 def _marker_path(result: str, marker: str) -> str:
