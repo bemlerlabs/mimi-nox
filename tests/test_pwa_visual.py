@@ -787,6 +787,7 @@ def test_given_first_run_when_language_is_needed_then_only_language_dialog_is_vi
 
             with _static_server() as url:
                 page.goto(f"{url}?qa=first-run-sequence", wait_until="domcontentloaded")
+                page.get_by_role("dialog", name="Select Language").wait_for(state="visible")
                 assert page.get_by_role("dialog", name="Select Language").count() == 1
                 assert page.locator("#onboarding-overlay:not(.hidden)").count() == 0
 
