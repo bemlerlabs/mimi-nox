@@ -161,9 +161,8 @@ def _cached_tool_schemas() -> list[dict]:
 
 
 def _stream_delay_seconds(word_count: int) -> float:
-    if word_count >= 80:
-        return 0.0
-    return float(os.environ.get("MIMI_NOX_STREAM_DELAY_SECONDS", "0.002"))
+    _ = word_count
+    return 0.0
 
 
 class ThinkingStreamParser:

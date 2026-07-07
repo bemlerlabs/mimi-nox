@@ -25,7 +25,7 @@ const PRECACHE_ASSETS = [
   '/lib/purify.min.js',
   '/icon-192.png',
   '/icon-512.png',
-  '/favicon.png',
+  '/favicon.ico',
 ];
 
 // Diese URL-Präfixe werden NIEMALS gecached (immer Live-Daten)

@@ -125,6 +125,12 @@ def get_mobile_qr(request: Request, mode: Literal["auto", "lan", "public"] = "au
     # Mobile users get the clean chat-only page
     mobile_url = f"{target_url}/mobile.html"
     
+    # Auth-Token in URL embedden (nur bei LAN Mode)
+    from server.middleware import LAN_AUTH_TOKEN
+    if LAN_AUTH_TOKEN:
+        separator = "&" if "?" in mobile_url else "?"
+        mobile_url = f"{mobile_url}{separator}token={LAN_AUTH_TOKEN}"
+    
     import qrcode
 
     qr = qrcode.QRCode(version=1, box_size=10, border=4)

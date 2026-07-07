@@ -31,6 +31,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.lan:
         args.host = "0.0.0.0"
+        os.environ["MIMI_NOX_LAN"] = "1"
     os.environ["MIMI_NOX_HOST"] = args.host
     os.environ["MIMI_NOX_PORT"] = str(args.port)
 

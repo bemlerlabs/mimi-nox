@@ -5,13 +5,16 @@ server/main.py
 Startet den API-Server für die Desktop App.
 Pfade für Memory/Profile/etc. werden über Env-Variablen konfiguriert
 damit Tests isolierte tmp-Verzeichnisse nutzen können.
+
+LAN Mode: Wenn --lan aktiv, wird ein Auth-Token generiert und alle
+API-Endpunkte müssen X-Auth-Token im Header mitsenden.
 """
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -83,11 +86,17 @@ async def lifespan(fastapi_app: FastAPI):
     except Exception:
         pass
 
-def create_app() -> FastAPI:
+def create_app(lan_mode: bool = False) -> FastAPI:
     """
     FastAPI App Factory.
     Genutzt in Tests (TestClient) und in run.py (uvicorn).
+
+    lan_mode: Wenn True, wird Auth-Token generiert + Security/Rate-Limit aktiviert.
     """
+    # ── Auth initialisieren (generiert Token bei LAN Mode) ──────────────
+    from server.middleware import init_auth, SecurityHeadersMiddleware, RateLimitMiddleware, AuthMiddleware
+    init_auth(lan_mode=lan_mode)
+
     app = FastAPI(
         title=f"{__edition__} MiMi Nox API",
         description=__tagline__,
@@ -96,6 +105,12 @@ def create_app() -> FastAPI:
         docs_url="/api/docs",
         redoc_url=None,
     )
+
+    # ── Security Middleware ─────────────────────────────────────────────────
+    app.add_middleware(SecurityHeadersMiddleware)
+    if lan_mode:
+        app.add_middleware(AuthMiddleware)
+        app.add_middleware(RateLimitMiddleware, max_requests=60, window=60)
 
     # ── CORS für lokale WebView/Dev-Origins ────────────────────────────────
     # LAN/mobile nutzt same-origin über die vom Server gelieferte PWA. Fremde
@@ -153,4 +168,10 @@ def create_app() -> FastAPI:
 
 
 # Standalone-Instanz (für uvicorn direkt)
-app = create_app()
+def get_app() -> FastAPI:
+    """Erzeugt App mit LAN-Mode aus Umgebungsvariable."""
+    lan = os.environ.get("MIMI_NOX_LAN", "0") == "1"
+    return create_app(lan_mode=lan)
+
+
+app = get_app()

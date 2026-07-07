@@ -1,6 +1,6 @@
 """◑ MiMi Nox – core package."""
 
-__version__  = "1.0.0"
+__version__  = "4.0.0"
 __edition__  = "◑ MiMi Nox"
 __product__  = "MiMi Nox"
 __author__   = "MiMi Tech AI UG – Bad Liebenzell"

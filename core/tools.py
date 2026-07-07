@@ -141,6 +141,40 @@ class ShellTimeoutError(TimeoutError):
 
 SHELL_TIMEOUT_SECONDS = 30
 
+# ── Shell-Sicherheit ────────────────────────────────────────────────────────
+# Whitelist: Nur diese Befehle sind erlaubt (auch nach User-Bestätigung)
+ALLOWED_COMMANDS: set[str] = {
+    "ls", "echo", "cat", "head", "tail", "wc", "pwd", "whoami", "uname",
+    "python", "python3", "node", "npm", "pip", "pip3",
+    "git", "docker", "docker-compose",
+    "mkdir", "cp", "mv", "touch", "chmod",
+    "curl", "wget",
+    "date", "cal", "df", "du", "find", "grep", "sort", "cut", "tr",
+    "ps", "top", "kill",
+    "make", "cmake",
+    "which", "type", "file", "stat",
+    "open", "code", "vim", "nano",
+}
+
+# Blacklist: Wenn diese in einem Befehl vorkommen → sofort ablehnen
+BLOCKED_PATTERNS: list[str] = [
+    "rm ", "rm -rf", "rmdir", "mkfs", "dd ", "format",
+    ":(){ :|:& };:",  # Fork bomb
+    "> /dev/", "> /", "| sh", "| bash", "| zsh",
+    "sudo ", "su ", "chown", "passwd",
+    "shutdown", "reboot", "halt", "poweroff",
+    ">|", ">>/", "2>/dev/",
+]
+
+# Erlaubte Working-Directories (nur für Befehle mit Datei-Pfaden)
+ALLOWED_ROOTS: list[Path] = [
+    Path.home() / "Documents",
+    Path.home() / "Desktop",
+    Path.home() / "Downloads",
+    Path.home() / ".mimi-nox",
+    Path.cwd(),
+]
+
 MAX_FILE_CHARS = 100_000
 MAX_WORKSPACE_CHARS = 200_000
 MAX_WORKSPACE_DEPTH = 3
@@ -593,6 +627,16 @@ async def execute_confirmed_shell(command: str, confirmed: bool) -> str:
     """
     if not confirmed:
         return "Abgebrochen."
+
+    # ── Sicherheits-Checks ──────────────────────────────────────────────
+    cmd_name = command.strip().split()[0] if command.strip() else ""
+    if cmd_name not in ALLOWED_COMMANDS:
+        return f"⚠️ Sicherheit: Befehl '{cmd_name}' ist nicht in der Whitelist ({len(ALLOWED_COMMANDS)} erlaubte Befehle)."
+
+    cmd_lower = command.lower()
+    for pattern in BLOCKED_PATTERNS:
+        if pattern in cmd_lower:
+            return f"⚠️ Sicherheit: Befehl enthält gesperrtes Muster '{pattern}'."
 
     try:
         result = await asyncio.to_thread(
