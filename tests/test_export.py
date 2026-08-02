@@ -93,7 +93,10 @@ class TestExportUiPerspective:
         THEN:  fetch('/api/export') und Blob-Erzeugung existieren
         """
         js = (Path(__file__).parent.parent / "app" / "src" / "main.js").read_text()
+        js_modules = js
+        for f in (Path(__file__).parent.parent / "app" / "src" / "modules").glob("*.js"):
+            js_modules += f.read_text()
         
-        assert 'exportChat' in js
-        assert 'Blob' in js
-        assert 'createObjectURL' in js
+        assert 'exportChat' in js_modules
+        assert 'Blob' in js_modules
+        assert 'createObjectURL' in js_modules

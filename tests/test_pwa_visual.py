@@ -688,11 +688,13 @@ def test_given_cached_pwa_when_release_assets_change_then_service_worker_fetches
     assert "fetch(event.request).then((response)" in source
     assert "self.clients.matchAll" in source
     assert "client.navigate(client.url)" in source
-    assert "getServiceWorker()" in main
-    assert ".addEventListener('controllerchange'" in main
-    assert 'main.js?v=' in index
-    assert 'style.css?v=' in index
-    assert './i18n.js?v=' in main
+    app_js = (APP_DIR / "modules" / "app.js").read_text(encoding="utf-8")
+    utils_js = (APP_DIR / "modules" / "utils.js").read_text(encoding="utf-8")
+    assert "getServiceWorker()" in main or "getServiceWorker()" in app_js or "getServiceWorker()" in utils_js
+    assert ".addEventListener('controllerchange'" in main or ".addEventListener('controllerchange'" in app_js
+    assert 'src="main.js"' in index
+    assert 'href="style.css"' in index
+    assert "from '../i18n.js'" in app_js or "from './i18n.js'" in main
 
 
 def test_given_index_opened_from_file_protocol_when_rendered_then_user_gets_start_instruction_without_module_errors():

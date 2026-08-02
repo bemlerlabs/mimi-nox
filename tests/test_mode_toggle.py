@@ -93,21 +93,23 @@ class TestModeToggleJSHandlerPerspective:
         THEN:  Handler-Logik für mode-toggle vorhanden (click oder change)
         """
         js = (Path(__file__).parent.parent / "app" / "src" / "main.js").read_text()
+        js_bindings = (Path(__file__).parent.parent / "app" / "src" / "modules" / "bindings.js").read_text()
+        js_combined = js + js_bindings
 
         # Perspektive 1: Handler für mode-toggle vorhanden
-        has_handler = "mode-toggle" in js or "modeToggle" in js or "mode_toggle" in js
+        has_handler = "mode-toggle" in js_combined or "modeToggle" in js_combined or "mode_toggle" in js_combined
         assert has_handler, "THEN: main.js muss einen Mode-Toggle-Handler haben"
 
         # Perspektive 2: Setzt response_style oder ähnliches
         has_style_setter = (
-            "response_style" in js
-            or "responseMode" in js
-            or "mode" in js.lower()
+            "response_style" in js_combined
+            or "responseMode" in js_combined
+            or "mode" in js_combined.lower()
         )
         assert has_style_setter, "THEN: Handler muss einen Response-Modus setzen"
 
         # Perspektive 3: Persistiert die Wahl (localStorage oder API-Call)
-        has_persistence = "localStorage" in js or "profile" in js.lower()
+        has_persistence = "localStorage" in js_combined or "profile" in js_combined.lower()
         assert has_persistence, (
             "THEN: Modus-Auswahl muss persistiert werden (localStorage oder API)"
         )

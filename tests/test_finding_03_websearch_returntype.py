@@ -24,7 +24,7 @@ async def test_given_results_when_search_then_returns_str():
         {"title": "Test", "href": "https://example.com", "body": "A test result"},
     ]
 
-    with patch("core.tools.DDGS") as MockDDGS:
+    with patch("core.tools.web_search.DDGS") as MockDDGS:
         mock_instance = MagicMock()
         mock_instance.__enter__ = MagicMock(return_value=mock_instance)
         mock_instance.__exit__ = MagicMock(return_value=False)
@@ -44,7 +44,7 @@ async def test_given_results_when_search_then_returns_str():
 @pytest.mark.asyncio
 async def test_given_no_results_when_search_then_returns_str():
     """GIVEN DuckDuckGo returns empty WHEN web_search() THEN returns str, not list."""
-    with patch("core.tools.DDGS") as MockDDGS:
+    with patch("core.tools.web_search.DDGS") as MockDDGS:
         mock_instance = MagicMock()
         mock_instance.__enter__ = MagicMock(return_value=mock_instance)
         mock_instance.__exit__ = MagicMock(return_value=False)

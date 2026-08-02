@@ -1,0 +1,277 @@
+{
+  "app": {
+    "name": "MiMi Nox",
+    "subtitle": "Your local AI assistant",
+    "tagline": "Private. Local. Yours.",
+    "description": "Offline-first. No cloud. No tracking.",
+    "version": "v2.0.0",
+    "title": "MiMi Nox — Local AI Assistant"
+  },
+  "nav": {
+    "appName": "MiMi Nox",
+    "newSession": "New Session",
+    "sessions": "Sessions",
+    "settings": "Settings",
+    "features": "Features",
+    "architecture": "Architecture",
+    "skills": "Skills",
+    "download": "Download",
+    "github": "GitHub",
+    "openWebApp": "Open Web App"
+  },
+  "hero": {
+    "title": "MiMi Nox",
+    "headline": "Your local AI assistant",
+    "subtitle": "Private. Local. Yours.",
+    "installCommand": "Install MiMi Nox",
+    "copy": "Copy",
+    "copySuccess": "Copied!",
+    "startNow": "Start now",
+    "tryWeb": "Try the web app",
+    "socialProof": "Users trust MiMi Nox",
+    "badge": "MiMi Nox v2.0 — Local AI Assistant",
+    "installSubtext": "One command. Done.",
+    "scrollHint": "Scroll",
+    "stats": {
+      "users": "Active Users",
+      "offline": "Offline",
+      "openSource": "Open Source"
+    }
+  },
+  "features": {
+    "sectionLabel": "Features",
+    "title": "All local. All private.",
+    "description": "MiMi Nox runs completely on your device. No cloud sync, no account, no tracking.",
+    "items": {
+      "offline": {
+        "title": "Offline-first",
+        "desc": "100% local via Ollama + gemma4:12b. No internet needed. Your data never leaves your device.",
+        "tag": "Privacy"
+      },
+      "multimodal": {
+        "title": "Multimodal",
+        "desc": "Images, PDFs, files, screenshots — MiMi Nox understands and analyzes everything you give it.",
+        "tag": "Vision"
+      },
+      "memory": {
+        "title": "Memory",
+        "desc": "Semantic vector storage with ChromaDB. MiMi Nox remembers context, preferences, and facts.",
+        "tag": "Knowledge"
+      },
+      "tools": {
+        "title": "Tools",
+        "desc": "Shell, Web Search, Browser, Filesystem — all approval-gated. You stay in control.",
+        "tag": "Power"
+      }
+    }
+  },
+  "architecture": {
+    "sectionLabel": "Architecture",
+    "title": "A root system.",
+    "description": "Like in the Black Forest, layers connect deep to the ground. No arrows — just organic connections holding everything together.",
+    "nodes": [
+      {
+        "label": "Browser PWA",
+        "desc": "Your interface on desktop or mobile"
+      },
+      {
+        "label": "FastAPI Server",
+        "desc": "Local Python server, orchestrates everything"
+      },
+      {
+        "label": "Ollama",
+        "desc": "Local LLM — gemma4:12b"
+      }
+    ],
+    "flow": "Browser PWA    →    FastAPI Server    →    Ollama (local)\n   :5173           :8765               :11434\n   React           Python              gemma4:12b\n   WebSocket       REST API            Local GPU/CPU"
+  },
+  "skills": {
+    "sectionLabel": "Skills",
+    "title": "Undergrowth. Many paths to the top.",
+    "description": "Like in the Black Forest, a whole ecosystem of capabilities grows — from deep tools to light commands. Just type <code>/</code>.",
+    "depths": {
+      "canopy": "Canopy",
+      "understory": "Understory",
+      "undergrowth": "Undergrowth"
+    },
+    "items": [
+      { "name": "/write", "desc": "Emails, notes, summaries" },
+      { "name": "/review", "desc": "Review code, plans, documents" },
+      { "name": "/files", "desc": "Read & analyze local files" },
+      { "name": "/pdf", "desc": "Read, create, analyze PDFs" },
+      { "name": "/scan", "desc": "Analyze screenshots & images" },
+      { "name": "/svg", "desc": "Design & create SVG assets" },
+      { "name": "/chart", "desc": "Generate charts & diagrams" },
+      { "name": "/shell", "desc": "Shell commands (approval-gated)" },
+      { "name": "/research", "desc": "Online research (opt-in)" }
+    ],
+    "moreSkills": "+ 12+ more skills available",
+    "expandAll": "expand all"
+  },
+  "cta": {
+    "sectionLabel": "Download",
+    "title": "Get started now.",
+    "subtitle": "No account. No cloud. No tracking. Just install and go.",
+    "detected": "{platform} detected — you can switch to another platform anytime.",
+    "platforms": {
+      "macos-arm": { "label": "macOS", "desc": "Apple Silicon (M1/M2/M3/M4) — native", "recommended": "Recommended" },
+      "macos-x86": { "label": "macOS", "desc": "Intel (x86_64) — universal binary" },
+      "windows": { "label": "Windows", "desc": "Windows 10/11 — 64-bit" },
+      "linux": { "label": "Linux", "desc": "AppImage · .deb · .rpm", "badge": "Multi-Format" },
+      "web": { "label": "Web / PWA", "desc": "In the browser — no install needed", "start": "Launch MiMi Nox" }
+    },
+    "altInstall": "Alternatively",
+    "npmCommand": "npm create miminox@latest",
+    "pipCommand": "pip install miminox",
+    "or": "or"
+  },
+  "footer": {
+    "brand": "MiMi Nox",
+    "tagline": "Private. Local. Yours.",
+    "github": "GitHub",
+    "docs": "Documentation",
+    "changelog": "Changelog",
+    "copyright": "MiMiTechAi",
+    "license": "Apache 2.0"
+  },
+  "chat": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "connecting": "Connecting...",
+    "newChat": "New Chat",
+    "settings": "Settings",
+    "placeholder": "Write a message...",
+    "tip": "Tip: Press Enter to send, Shift+Enter for new line",
+    "noMessages": "No messages yet",
+    "trySuggestion": "Try a suggestion or type your own message",
+    "thinking": "MiMi Nox is thinking...",
+    "copied": "Copied",
+    "copy": "Copy message",
+    "toolApproval": {
+      "title": "Tool Approval Required",
+      "description": "Tool",
+      "approve": "Approve",
+      "deny": "Deny",
+      "later": "Later"
+    },
+    "suggestions": [
+      { "title": "Explain my project", "desc": "Analyze your code" },
+      { "title": "Write an email", "desc": "Review my code" },
+      { "title": "Analyze this image", "desc": "Create a diagram" },
+      { "title": "Search online", "desc": "Research a topic" }
+    ],
+    "emptyStateTitle": "MiMi Nox",
+    "emptyStateDesc": "Your local AI assistant. Private. Local. Yours."
+  },
+  "sidebar": {
+    "newChat": "New Session",
+    "settings": "Settings",
+    "searchPlaceholder": "Search sessions...",
+    "emptyTitle": "No Sessions",
+    "emptyDesc": "Create a new one to get started",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "deleteConfirm": "Delete?",
+    "deleteYes": "Yes",
+    "deleteNo": "Cancel",
+    "messages": "messages"
+  },
+  "settings": {
+    "title": "Settings",
+    "model": "Model",
+    "api": "API",
+    "memory": "Memory",
+    "language": "Language",
+    "save": "Save",
+    "saved": "Saved",
+    "loadError": "Something went wrong loading the landing page.",
+    "reload": "Reload page",
+    "modelTitle": "Choose model",
+    "modelOptions": [
+      { "label": "gemma4:12b", "desc": "Default — fast & efficient" },
+      { "label": "LLaMA 3.1 8B", "desc": "Open source, powerful" },
+      { "label": "Mistral 7B", "desc": "Reliable, good for code" },
+      { "label": "Custom Ollama", "desc": "Custom model" }
+    ],
+    "apiTitle": "API Settings",
+    "endpointLabel": "Ollama Endpoint",
+    "apiKeyLabel": "API Key (optional)",
+    "healthCheck": "Health Check",
+    "securityTitle": "Security",
+    "memoryTitle": "Semantic Memory",
+    "memorySubtitle": "ChromaDB Vector Store",
+    "memoryStats": "Memory Statistics",
+    "memoryVectors": "Vectors",
+    "memoryStorage": "Storage",
+    "clearMemory": "Clear Memory",
+    "languageTitle": "Choose language",
+    "themeTitle": "Theme",
+    "darkTheme": "🌙 Dark",
+    "lightTheme": "☀️ Light",
+    "securityInfo": [
+      "Server binds to 127.0.0.1 only (localhost)",
+      "CORS restricted to local domains",
+      "Tool execution requires confirmation",
+      "No data sent to external servers"
+    ]
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. The application could not recover the state.",
+    "detailsLabel": "Show error details",
+    "retry": "Retry",
+    "fallback": "Something went wrong loading the landing page."
+  },
+  "commandPalette": {
+    "title": "Quick Search",
+    "placeholder": "Search pages, sessions, features…",
+    "noResults": "No results found",
+    "sections": {
+      "pages": "Pages",
+      "sessions": "Sessions",
+      "features": "Features",
+      "settings": "Settings"
+    },
+    "items": {
+      "landing": "Home",
+      "chat": "Chat",
+      "settings": "Settings",
+      "newSession": "New Session",
+      "features": "Features",
+      "architecture": "Architecture",
+      "skills": "Skills",
+      "download": "Download",
+      "github": "GitHub",
+      "docs": "Documentation"
+    }
+  },
+  "language": {
+    "name": "Language",
+    "german": "Deutsch",
+    "english": "English"
+  },
+  "a11y": {
+    "skipToContent": "Skip to content",
+    "mainContent": "Main content",
+    "navigation": "Navigation",
+    "sidebar": "Sidebar",
+    "chatArea": "Chat area",
+    "settings": "Settings",
+    "close": "Close",
+    "open": "Open",
+    "sendMessage": "Send message",
+    "copyMessage": "Copy message",
+    "addAttachment": "Add attachment",
+    "addImage": "Add image",
+    "voiceInput": "Voice input",
+    "fileAttach": "Attach file",
+    "commandPalette": "Open command palette",
+    "menuToggle": "Toggle menu",
+    "model": "Model",
+    "openSource": "Open Source",
+    "activeUsers": "Active Users",
+    "offline": "Offline"
+  }
+}

@@ -105,7 +105,7 @@ class TestAnalyzeImage:
         mock_response.message.content = "Ein rotes Pixel."
 
         try:
-            with patch("core.tools.ollama.AsyncClient") as MockClient:
+            with patch("core.tools.base.ollama.AsyncClient") as MockClient:
                 instance = AsyncMock()
                 instance.chat = AsyncMock(return_value=mock_response)
                 MockClient.return_value = instance

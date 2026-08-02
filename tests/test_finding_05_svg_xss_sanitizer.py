@@ -34,7 +34,7 @@ async def test_given_script_tag_when_create_svg_then_stripped(downloads_dir):
 
     malicious_svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/><script>alert("xss")</script></svg>'
 
-    with patch("core.tools.Path.home", return_value=downloads_dir.parent):
+    with patch("core.tools.system_tools.Path.home", return_value=downloads_dir.parent):
         result = await create_svg(malicious_svg, "test.svg")
 
     assert "SVG_FILE:" in result
@@ -55,7 +55,7 @@ async def test_given_onclick_when_create_svg_then_stripped(downloads_dir):
 
     svg_with_handler = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" onclick="alert(1)"/></svg>'
 
-    with patch("core.tools.Path.home", return_value=downloads_dir.parent):
+    with patch("core.tools.system_tools.Path.home", return_value=downloads_dir.parent):
         result = await create_svg(svg_with_handler, "test.svg")
 
     content = Path(result.split("SVG_FILE:")[1]).read_text()
@@ -72,7 +72,7 @@ async def test_given_javascript_url_when_create_svg_then_neutralized(downloads_d
 
     svg_with_js_url = '<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript:alert(1)"><text>Click</text></a></svg>'
 
-    with patch("core.tools.Path.home", return_value=downloads_dir.parent):
+    with patch("core.tools.system_tools.Path.home", return_value=downloads_dir.parent):
         result = await create_svg(svg_with_js_url, "test.svg")
 
     content = Path(result.split("SVG_FILE:")[1]).read_text()
@@ -89,7 +89,7 @@ async def test_given_foreign_object_when_create_svg_then_stripped(downloads_dir)
 
     svg_with_foreign = '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><body><script>alert(1)</script></body></foreignObject><circle r="5"/></svg>'
 
-    with patch("core.tools.Path.home", return_value=downloads_dir.parent):
+    with patch("core.tools.system_tools.Path.home", return_value=downloads_dir.parent):
         result = await create_svg(svg_with_foreign, "test.svg")
 
     content = Path(result.split("SVG_FILE:")[1]).read_text()
@@ -106,7 +106,7 @@ async def test_given_clean_svg_when_create_svg_then_preserved(downloads_dir):
 
     clean_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="#22c55e"/></svg>'
 
-    with patch("core.tools.Path.home", return_value=downloads_dir.parent):
+    with patch("core.tools.system_tools.Path.home", return_value=downloads_dir.parent):
         result = await create_svg(clean_svg, "test.svg")
 
     content = Path(result.split("SVG_FILE:")[1]).read_text()

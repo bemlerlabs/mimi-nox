@@ -61,7 +61,7 @@ async def test_given_macos_when_screenshot_then_uses_screencapture(image_dir, mo
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setenv("MIMI_NOX_IMAGE_DIR", str(image_dir))
 
-    with patch("core.tools.subprocess.run") as mock_run:
+    with patch("core.tools.system_tools.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
         result = await take_screenshot()
 
@@ -98,7 +98,7 @@ async def test_given_macos_screencapture_blocked_when_screenshot_then_actionable
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setenv("MIMI_NOX_IMAGE_DIR", str(image_dir))
 
-    with patch("core.tools.subprocess.run") as mock_run:
+    with patch("core.tools.system_tools.subprocess.run") as mock_run:
         mock_run.side_effect = subprocess.CalledProcessError(1, ["screencapture", "-x", "out.png"])
         result = await take_screenshot()
 

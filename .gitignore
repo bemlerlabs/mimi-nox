@@ -41,3 +41,17 @@ node_modules/
 .idea/
 .vscode/
 *.swp
+
+# Hygiene: backups, stale configs, build artifacts, generated docs
+app-backup-vanilla/
+*.bak
+*.tsbuildinfo
+miminox-data/
+training/
+docs/*.png
+docs/*.pdf
+docs/*.html
+STATUS_REPORT.md
+CORE_STATUS_REPORT.md
+STATUS_REPORT_NeMo_RL.md
+app/STATUS-REPORT.md

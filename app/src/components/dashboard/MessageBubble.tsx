@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { Copy, Check, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui'
 import { formatTime } from '@/lib/utils'
-import { ToolCall } from '@/lib/api'
+import type { ToolCall } from '@/store/chatStore'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 

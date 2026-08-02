@@ -1,0 +1,277 @@
+{
+  "app": {
+    "name": "MiMi Nox",
+    "subtitle": "Dein lokaler KI-Assistent",
+    "tagline": "Privat. Lokal. Dein.",
+    "description": "Offline-first. Keine Cloud. Kein Tracking.",
+    "version": "v2.0.0",
+    "title": "MiMi Nox — Local AI Assistant"
+  },
+  "nav": {
+    "appName": "MiMi Nox",
+    "newSession": "Neue Sitzung",
+    "sessions": "Sitzungen",
+    "settings": "Einstellungen",
+    "features": "Funktionen",
+    "architecture": "Architektur",
+    "skills": "Skills",
+    "download": "Download",
+    "github": "GitHub",
+    "openWebApp": "Web-App öffnen"
+  },
+  "hero": {
+    "title": "MiMi Nox",
+    "headline": "Dein lokaler KI-Assistent",
+    "subtitle": "Privat. Lokal. Dein.",
+    "installCommand": "MiMi Nox installieren",
+    "copy": "Kopieren",
+    "copySuccess": "Kopiert!",
+    "startNow": "Jetzt starten",
+    "tryWeb": "Web-App ausprobieren",
+    "socialProof": "Nutzer vertrauen MiMi Nox",
+    "badge": "MiMi Nox v2.0 — Local AI Assistant",
+    "installSubtext": "Ein Befehl. Fertig.",
+    "scrollHint": "Scroll",
+    "stats": {
+      "users": "Aktive Nutzer",
+      "offline": "Offline",
+      "openSource": "Open Source"
+    }
+  },
+  "features": {
+    "sectionLabel": "Features",
+    "title": "Alles lokal. Alles privat.",
+    "description": "MiMi Nox läuft komplett auf deinem Gerät. Kein Cloud-Sync, kein Account, kein Tracking.",
+    "items": {
+      "offline": {
+        "title": "Offline-first",
+        "desc": "Offline-first via Ollama + gemma4:12b. Kein Internet nötig. Deine Daten bleiben auf deinem Gerät.",
+        "tag": "Privacy"
+      },
+      "multimodal": {
+        "title": "Multimodal",
+        "desc": "Bilder, PDFs, Dateien, Screenshots — MiMi Nox versteht und analysiert alles was du ihm gibst.",
+        "tag": "Vision"
+      },
+      "memory": {
+        "title": "Memory",
+        "desc": "Semantischer Vektorspeicher mit ChromaDB. MiMi Nox erinnert sich an Kontext, Präferenzen und Fakten.",
+        "tag": "Knowledge"
+      },
+      "tools": {
+        "title": "Tools",
+        "desc": "Shell, Web Search, Browser, Dateisystem — alles approval-gated. Du behältst die Kontrolle.",
+        "tag": "Power"
+      }
+    }
+  },
+  "architecture": {
+    "sectionLabel": "Architektur",
+    "title": "Ein Wurzel-System.",
+    "description": "Wie im Schwarzwald verbinden sich Schichten tief mit dem Boden. Keine Pfeile — sondern organische Verbindungen, die alles zusammenhalten.",
+    "nodes": [
+      {
+        "label": "Browser PWA",
+        "desc": "Dein Interface auf Desktop oder Handy"
+      },
+      {
+        "label": "FastAPI Server",
+        "desc": "Lokaler Python-Server, orchestriert alles"
+      },
+      {
+        "label": "Ollama",
+        "desc": "Lokales LLM — gemma4:12b"
+      }
+    ],
+    "flow": "Browser PWA    →    FastAPI Server    →    Ollama (local)\n   :5173           :8765               :11434\n   React           Python              gemma4:12b\n   WebSocket       REST API            Local GPU/CPU"
+  },
+  "skills": {
+    "sectionLabel": "Skills",
+    "title": "Unterwuchs. Viele Wege nach oben.",
+    "description": "Wie im Schwarzwald wächst ein ganzer Ökosystem an Fähigkeiten — von tiefen Tools bis zu leichten Befehlen. Einfach <code>/</code> tippen.",
+    "depths": {
+      "canopy": "Kronenschicht",
+      "understory": "Unterstand",
+      "undergrowth": "Unterwuchs"
+    },
+    "items": [
+      { "name": "/write", "desc": "E-Mails, Notizen, Zusammenfassungen" },
+      { "name": "/review", "desc": "Code, Pläne, Dokumente reviewen" },
+      { "name": "/files", "desc": "Lokale Dateien lesen & analysieren" },
+      { "name": "/pdf", "desc": "PDFs lesen, erstellen, analysieren" },
+      { "name": "/scan", "desc": "Screenshots & Bilder analysieren" },
+      { "name": "/svg", "desc": "SVG-Assets entwerfen & erstellen" },
+      { "name": "/chart", "desc": "Charts & Diagramme generieren" },
+      { "name": "/shell", "desc": "Shell-Befehle (approval-gated)" },
+      { "name": "/research", "desc": "Online-Recherche (opt-in)" }
+    ],
+    "moreSkills": "+ 12+ weitere Skills verfügbar",
+    "expandAll": "alle erweitern"
+  },
+  "cta": {
+    "sectionLabel": "Download",
+    "title": "Starte jetzt.",
+    "subtitle": "Kein Account. Kein Cloud. Kein Tracking. Einfach installieren und loslegen.",
+    "detected": "{platform} erkannt — Du kannst jederzeit eine andere Plattform wählen.",
+    "platforms": {
+      "macos-arm": { "label": "macOS", "desc": "Apple Silicon (M1/M2/M3/M4) — native", "recommended": "Empfohlen" },
+      "macos-x86": { "label": "macOS", "desc": "Intel (x86_64) — universal binary" },
+      "windows": { "label": "Windows", "desc": "Windows 10/11 — 64-bit" },
+      "linux": { "label": "Linux", "desc": "AppImage · .deb · .rpm", "badge": "Multi-Format" },
+      "web": { "label": "Web / PWA", "desc": "Im Browser — kein Install nötig", "start": "MiMi Nox starten" }
+    },
+    "altInstall": "Alternativ",
+    "npmCommand": "npm create miminox@latest",
+    "pipCommand": "pip install miminox",
+    "or": "oder"
+  },
+  "footer": {
+    "brand": "MiMi Nox",
+    "tagline": "Privat. Lokal. Dein.",
+    "github": "GitHub",
+    "docs": "Dokumentation",
+    "changelog": "Changelog",
+    "copyright": "MiMiTechAi",
+    "license": "Apache 2.0"
+  },
+  "chat": {
+    "connected": "Verbunden",
+    "disconnected": "Getrennt",
+    "connecting": "Verbinde...",
+    "newChat": "Neuer Chat",
+    "settings": "Einstellungen",
+    "placeholder": "Schreibe eine Nachricht...",
+    "tip": "Tipp: Enter zum Senden, Shift+Enter für neue Zeile",
+    "noMessages": "Noch keine Nachrichten",
+    "trySuggestion": "Probiere einen Vorschlag oder schreibe selbst",
+    "thinking": "MiMi Nox denkt nach...",
+    "copied": "Kopiert",
+    "copy": "Inhalte kopieren",
+    "toolApproval": {
+      "title": "Tool-Bestätigung erforderlich",
+      "description": "Tool",
+      "approve": "Zulassen",
+      "deny": "Ablehnen",
+      "later": "Später"
+    },
+    "suggestions": [
+      { "title": "Erkläre mir mein Projekt", "desc": "Analysiere deinen Code" },
+      { "title": "Schreibe eine E-Mail", "desc": "Reviewe meinen Code" },
+      { "title": "Analysiere dieses Bild", "desc": "Erstelle ein Diagramm" },
+      { "title": "Suche Online", "desc": "Recherche zu einem Thema" }
+    ],
+    "emptyStateTitle": "MiMi Nox",
+    "emptyStateDesc": "Dein lokaler KI-Assistent. Privat. Lokal. Dein."
+  },
+  "sidebar": {
+    "newChat": "Neue Sitzung",
+    "settings": "Einstellungen",
+    "searchPlaceholder": "Sitzungen suchen...",
+    "emptyTitle": "Keine Sitzungen",
+    "emptyDesc": "Erstelle eine neue um zu beginnen",
+    "today": "Heute",
+    "yesterday": "Gestern",
+    "thisWeek": "Diese Woche",
+    "thisMonth": "Diesen Monat",
+    "deleteConfirm": "Löschen?",
+    "deleteYes": "Ja",
+    "deleteNo": "Abbrechen",
+    "messages": "Nachrichten"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "model": "Modell",
+    "api": "API",
+    "memory": "Memory",
+    "language": "Sprache",
+    "save": "Speichern",
+    "saved": "Gespeichert",
+    "loadError": "Etwas ist schiefgelaufen beim Laden der Landing Page.",
+    "reload": "Seite neu laden",
+    "modelTitle": "Modell wählen",
+    "modelOptions": [
+      { "label": "gemma4:12b", "desc": "Default — schnell & effizient" },
+      { "label": "LLaMA 3.1 8B", "desc": "Open Source, stark" },
+      { "label": "Mistral 7B", "desc": "Zuverlässig, gut für Code" },
+      { "label": "Custom Ollama", "desc": "Eigenes Modell" }
+    ],
+    "apiTitle": "API Einstellungen",
+    "endpointLabel": "Ollama Endpoint",
+    "apiKeyLabel": "API Key (optional)",
+    "healthCheck": "Health Check",
+    "securityTitle": "Sicherheit",
+    "memoryTitle": "Semantic Memory",
+    "memorySubtitle": "ChromaDB Vektorspeicher",
+    "memoryStats": "Memory-Statistik",
+    "memoryVectors": "Vektoren",
+    "memoryStorage": "Speicher",
+    "clearMemory": "Memory leeren",
+    "languageTitle": "Sprache wählen",
+    "themeTitle": "Theme",
+    "darkTheme": "🌙 Dunkel",
+    "lightTheme": "☀️ Hell",
+    "securityInfo": [
+      "Server bindet nur an 127.0.0.1 (localhost)",
+      "CORS auf lokale Domänen beschränkt",
+      "Tool-Ausführung erfordert Bestätigung",
+      "Keine Daten werden an externe Server gesendet"
+    ]
+  },
+  "error": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Ein unerwarteter Fehler ist aufgetreten. Die Anwendung konnte den Zustand nicht wiederherstellen.",
+    "detailsLabel": "Fehlerdetails anzeigen",
+    "retry": "Erneut versuchen",
+    "fallback": "Etwas ist schiefgelaufen beim Laden der Landing Page."
+  },
+  "commandPalette": {
+    "title": "Schnellsuche",
+    "placeholder": "Seite, Sitzung, Feature suchen…",
+    "noResults": "Keine Ergebnisse",
+    "sections": {
+      "pages": "Seiten",
+      "sessions": "Sitzungen",
+      "features": "Features",
+      "settings": "Einstellungen"
+    },
+    "items": {
+      "landing": "Startseite",
+      "chat": "Chat",
+      "settings": "Einstellungen",
+      "newSession": "Neue Sitzung",
+      "features": "Features",
+      "architecture": "Architektur",
+      "skills": "Skills",
+      "download": "Download",
+      "github": "GitHub",
+      "docs": "Dokumentation"
+    }
+  },
+  "language": {
+    "name": "Sprache",
+    "german": "Deutsch",
+    "english": "English"
+  },
+  "a11y": {
+    "skipToContent": "Zum Inhalt springen",
+    "mainContent": "Hauptinhalt",
+    "navigation": "Navigation",
+    "sidebar": "Sidebar",
+    "chatArea": "Chat-Bereich",
+    "settings": "Einstellungen",
+    "close": "Schließen",
+    "open": "Öffnen",
+    "sendMessage": "Nachricht senden",
+    "copyMessage": "Nachricht kopieren",
+    "addAttachment": "Anhang hinzufügen",
+    "addImage": "Bild hinzufügen",
+    "voiceInput": "Spracheingabe",
+    "fileAttach": "Datei anhängen",
+    "commandPalette": "Schnellsuche öffnen",
+    "menuToggle": "Menü umschalten",
+    "model": "Modell",
+    "openSource": "Open Source",
+    "activeUsers": "Aktive Nutzer",
+    "offline": "Offline"
+  }
+}

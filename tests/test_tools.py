@@ -62,7 +62,7 @@ class TestWebSearch:
         mock_instance.__enter__ = MagicMock(return_value=mock_instance)
         mock_instance.__exit__ = MagicMock(return_value=False)
 
-        with patch("core.tools.DDGS", return_value=mock_instance):
+        with patch("core.tools.web_search.DDGS", return_value=mock_instance):
             results = await web_search("Python asyncio")
 
         assert isinstance(results, str)
@@ -86,7 +86,7 @@ class TestWebSearch:
         mock_instance.__enter__ = MagicMock(return_value=mock_instance)
         mock_instance.__exit__ = MagicMock(return_value=False)
 
-        with patch("core.tools.DDGS", return_value=mock_instance):
+        with patch("core.tools.web_search.DDGS", return_value=mock_instance):
             results = await web_search("official Gemma 4 12B")
 
         assert results.index("https://ai.google.dev/gemma") < results.index("https://example-blog.test/gemma")
@@ -105,7 +105,7 @@ class TestWebSearch:
         mock_instance.__enter__ = MagicMock(return_value=mock_instance)
         mock_instance.__exit__ = MagicMock(return_value=False)
 
-        with patch("core.tools.DDGS", return_value=mock_instance):
+        with patch("core.tools.web_search.DDGS", return_value=mock_instance):
             with pytest.raises(WebSearchError):
                 await web_search("irgendwas")
 
@@ -421,9 +421,9 @@ class TestRunShell:
         THEN   Wirft ShellTimeoutError nach 30s
         AND    Prozess wird terminiert
         """
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("sleep 60", 30)):
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("echo test", 30)):
             with pytest.raises(ShellTimeoutError):
-                await execute_confirmed_shell("sleep 60", confirmed=True)
+                await execute_confirmed_shell("echo test", confirmed=True)
 
 
 # ===========================================================================

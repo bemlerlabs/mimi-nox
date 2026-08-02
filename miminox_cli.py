@@ -336,7 +336,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     checks: list[tuple[str, bool, str]] = []
     ollama = _ollama_binary()
     checks.append(("Python", sys.version_info >= (3, 10), sys.version.split()[0]))
-    checks.append(("Project files", (PROJECT_ROOT / "app" / "src" / "index.html").exists(), str(PROJECT_ROOT)))
+    checks.append(("Project files", (PROJECT_ROOT / "app" / "index.html").exists(), str(PROJECT_ROOT)))
     checks.append(("Ollama CLI", bool(ollama), ollama or "not in PATH"))
 
     ollama_running = False

@@ -1,0 +1,345 @@
+@import "tailwindcss";
+
+@theme {
+  /* ═══════════════════════════════════════════════ */
+  /*  BLACK FOREST COLOR SYSTEM (HSL — Tailwind v4) */
+  /* ═══════════════════════════════════════════════ */
+  
+  /* Backgrounds — no pure #000 (sterile), layered darkness */
+  --color-black-forest: 0 0% 2%;        /* Haupt-Hintergrund (nicht totes Schwarz) */
+  --color-black-midnight: 220 15% 5%;   /* Nacht-Himmel-Tönung */
+  
+  /* Moss Greens — 3-Tone System (Hue 142°) */
+  --color-moss-deep: 142 35% 12%;      /* Tiefes Moos (Section-Trennungen) */
+  --color-moss: 142 40% 22%;            /* Mittleres Moos (Karten-Hintergrund) */
+  --color-moss-light: 142 45% 35%;     /* Helles Moos (Borders, Hover) */
+  
+  /* Firefly Greens — Akzente */
+  --color-firefly: 142 65% 55%;         /* Leuchtend (aktive Elemente, CTA) */
+  --color-firefly-glow: 142 80% 65%;   /* Glow-Effect (Hover, Fokus) */
+  
+  /* Lichen — Akzent (neuer Punkt, Warning) */
+  --color-lichen: 85 30% 55%;
+  
+  /* Mist — Text-Helligkeit (secondary) */
+  --color-mist: 210 10% 70%;
+  
+  /* Stone — Primary-Text */
+  --color-stone: 0 0% 100%;
+  
+  /* Legacy — maintained for compatibility */
+  --color-background: 0 0% 2%;
+  --color-foreground: 0 0% 100%;
+  --color-card: 142 20% 6%;
+  --color-card-foreground: 0 0% 100%;
+  --color-popover: 142 20% 6%;
+  --color-popover-foreground: 0 0% 100%;
+  --color-primary: 142 65% 55%;
+  --color-primary-foreground: 0 0% 2%;
+  --color-secondary: 142 15% 10%;
+  --color-secondary-foreground: 0 0% 100%;
+  --color-muted: 142 10% 15%;
+  --color-muted-foreground: 142 10% 60%;
+  --color-accent: 142 60% 50%;
+  --color-accent-foreground: 0 0% 2%;
+  --color-destructive: 0 84% 60%;
+  --color-destructive-foreground: 0 0% 100%;
+  --color-border: 142 20% 15%;
+  --color-input: 142 10% 15%;
+  --color-ring: 142 65% 55%;
+  --color-forest-glow: 142 65% 55%;
+  --color-forest-dark: 142 40% 20%;
+  --color-forest-deep: 142 60% 10%;
+  
+  /* Spacing-System (Section-Padding, responsive) */
+  --space-section: clamp(4rem, 8vh, 8rem);
+  --space-section-inner: clamp(2rem, 4vw, 5rem);
+  --space-card: 2.5rem;
+  --space-grid-gap: 1.5rem;
+  --space-flow: 2.5rem;
+  
+  --radius: 0.75rem;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  BASE STYLES */
+/* ═══════════════════════════════════════════════ */
+
+html {
+  background-color: hsl(0 0% 2%); /* black-forest, NOT #000 */
+  color-scheme: dark;
+}
+
+body {
+  background-color: hsl(0 0% 2%);
+  color: hsl(0 0% 100%); /* stone */
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  SCROLLBAR — Moss Green */
+/* ═══════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsla(142 35% 12% / 0.3);
+}
+::-webkit-scrollbar-thumb {
+  background: hsla(142 40% 22% / 0.6);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsla(142 45% 35% / 0.8);
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  LIQUID GLASS — Forest Version (reduced usage) */
+/* ═══════════════════════════════════════════════ */
+
+.liquid-glass {
+  background: hsla(142 35% 12% / 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid hsla(142 45% 35% / 0.15);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 hsla(142 45% 35% / 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(
+    180deg,
+    hsla(142 45% 35% / 0.4) 0%,
+    hsla(142 40% 22% / 0.15) 20%,
+    hsla(142 35% 12% / 0) 40%,
+    hsla(142 35% 12% / 0) 60%,
+    hsla(142 40% 22% / 0.15) 80%,
+    hsla(142 45% 35% / 0.4) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.liquid-glass-strong {
+  background: hsla(142 20% 6% / 0.8);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid hsla(142 45% 35% / 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 hsla(142 45% 35% / 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-glass-strong::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(
+    180deg,
+    hsla(142 45% 35% / 0.5) 0%,
+    hsla(142 40% 22% / 0.2) 20%,
+    hsla(142 35% 12% / 0) 40%,
+    hsla(142 35% 12% / 0) 60%,
+    hsla(142 40% 22% / 0.2) 80%,
+    hsla(142 45% 35% / 0.5) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  TEXT GRADIENT — Firefly Green */
+/* ═══════════════════════════════════════════════ */
+
+.text-gradient {
+  background: linear-gradient(135deg, hsl(142 65% 55%) 0%, hsl(142 45% 35%) 50%, hsl(142 35% 12%) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  FOREST GLOW EFFECTS */
+/* ═══════════════════════════════════════════════ */
+
+.forest-glow {
+  box-shadow: 0 0 40px hsla(142 45% 35% / 0.2);
+}
+
+.forest-glow-subtle {
+  box-shadow: 0 0 20px hsla(142 40% 22% / 0.15);
+}
+
+.forest-glow-strong {
+  box-shadow: 0 0 60px hsla(142 45% 35% / 0.25);
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  GRADIENT BORDER */
+/* ═══════════════════════════════════════════════ */
+
+.gradient-border {
+  position: relative;
+  background: linear-gradient(135deg, hsla(142 40% 22% / 0.3) 0%, hsla(142 35% 12% / 0.15) 100%);
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    180deg,
+    hsla(142 45% 35% / 0.5) 0%,
+    hsla(142 40% 22% / 0.2) 20%,
+    hsla(142 35% 12% / 0) 40%,
+    hsla(142 35% 12% / 0) 60%,
+    hsla(142 40% 22% / 0.2) 80%,
+    hsla(142 45% 35% / 0.5) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  NOISE/GRAIN OVERLAY (organic texture) */
+/* ═══════════════════════════════════════════════ */
+
+@layer utilities {
+  .noise-overlay {
+    position: relative;
+  }
+  
+  .noise-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    background-size: 256px 256px;
+    background-repeat: repeat;
+  }
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  NIGHT GLOW ANIMATION (breathing forest) */
+/* ═══════════════════════════════════════════════ */
+
+@keyframes night-glow {
+  0%, 100% {
+    box-shadow: 0 0 30px hsla(142 40% 22% / 0.04);
+  }
+  50% {
+    box-shadow: 0 0 80px hsla(142 40% 22% / 0.1);
+  }
+}
+
+.animate-night-glow {
+  animation: night-glow 30s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  OBISIDIAN GLASS (premium card effect) */
+/* ═══════════════════════════════════════════════ */
+
+.obidian-glass {
+  background: linear-gradient(135deg, 
+    hsla(0 0% 2% / 0.9), 
+    hsla(142 20% 6% / 0.7)
+  );
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid hsla(142 45% 35% / 0.12);
+  border-radius: 1rem;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 1px 0 hsla(142 45% 35% / 0.06) inset,
+    0 -1px 1px hsla(0 0% 0% / 0.3) inset;
+  position: relative;
+  overflow: hidden;
+}
+
+.obidian-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    hsla(142 45% 35% / 0.08) 0%,
+    transparent 30%,
+    transparent 70%,
+    hsla(142 35% 12% / 0.04) 100%
+  );
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  TYPOGRAPHY — Instrument Serif (Brand) */
+/* ═══════════════════════════════════════════════ */
+
+.font-display {
+  font-family: "Instrument Serif", serif;
+}
+
+.font-mono-code {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  FOCUS STYLES (accessibility) */
+/* ═══════════════════════════════════════════════ */
+
+*:focus-visible {
+  outline: 2px solid hsl(142 65% 55%);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  REDUCED MOTION (accessibility) */
+/* ═══════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  SMOOTH SCROLL */
+/* ═══════════════════════════════════════════════ */
+
+html {
+  scroll-behavior: smooth;
+}

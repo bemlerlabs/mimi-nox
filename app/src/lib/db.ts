@@ -1,0 +1,127 @@
+/**
+ * MiMi Nox — IndexedDB session cache
+ *
+ * Replaces localStorage with IndexedDB for session persistence.
+ * Provides autoload on init and debounced save on message changes.
+ */
+
+const DB_NAME = 'mimi-nox'
+const DB_VERSION = 1
+const STORE_NAME = 'sessions'
+
+export interface DbSession {
+  id: string
+  title: string
+  messages: unknown[]
+  createdAt: number
+  updatedAt: number
+}
+
+// ── Open DB ────────────────────────────────────────────────────────────────
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
+        store.createIndex('updatedAt', 'updatedAt', { unique: false })
+      }
+    }
+
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+// ── CRUD ───────────────────────────────────────────────────────────────────
+
+export async function dbGetAllSessions(): Promise<DbSession[]> {
+  try {
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly')
+      const store = tx.objectStore(STORE_NAME)
+      const request = store.getAll()
+      request.onsuccess = () => resolve(request.result as DbSession[])
+      request.onerror = () => reject(request.error)
+    })
+  } catch {
+    return []
+  }
+}
+
+export async function dbGetSession(id: string): Promise<DbSession | null> {
+  try {
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly')
+      const request = tx.objectStore(STORE_NAME).get(id)
+      request.onsuccess = () => resolve(request.result ?? null)
+      request.onerror = () => reject(request.error)
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function dbSaveSession(session: DbSession): Promise<void> {
+  try {
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      tx.objectStore(STORE_NAME).put(session)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch (err: unknown) {
+    console.warn('[IndexedDB] Failed to save session:', session.id, err)
+  }
+}
+
+export async function dbDeleteSession(id: string): Promise<void> {
+  try {
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      tx.objectStore(STORE_NAME).delete(id)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch {
+    // ignore
+  }
+}
+
+export async function dbClearAll(): Promise<void> {
+  try {
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      tx.objectStore(STORE_NAME).clear()
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch {
+    // ignore
+  }
+}
+
+// ── Debounced save helper ──────────────────────────────────────────────────
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+export function debouncedSaveSession(
+  session: DbSession,
+  delayMs: number = 1500,
+): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+  }
+  saveTimer = setTimeout(() => {
+    dbSaveSession(session)
+    saveTimer = null
+  }, delayMs)
+}

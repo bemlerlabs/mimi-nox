@@ -72,12 +72,14 @@ class TestTasksJsPerspective:
         THEN:  Code für loadTasks und Checkbox-Binding existiert
         """
         js = (Path(__file__).parent.parent / "app" / "src" / "main.js").read_text()
+        js_tasks = (Path(__file__).parent.parent / "app" / "src" / "modules" / "tasks.js").read_text()
+        js_combined = js + js_tasks
         
         # Perspektive 1: API-Call
-        assert 'fetch(`${API}/tasks`)' in js or "fetch(API + '/tasks')" in js
+        assert 'fetch(`${API}/tasks`)' in js_combined or "fetch(API + '/tasks')" in js_combined
         
         # Perspektive 2: Render-Funktion
-        assert 'renderTasks' in js or 'loadTasks' in js
-        
+        assert 'renderTasks' in js_combined or 'loadTasks' in js_combined
+
         # Perspektive 3: Checkbox / Status toggle handler
-        assert 'toggleTask' in js or 'updateTask' in js or 'status=' in js
+        assert 'toggleTask' in js_combined or 'updateTask' in js_combined or 'status=' in js_combined

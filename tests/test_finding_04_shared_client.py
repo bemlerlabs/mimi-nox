@@ -13,57 +13,62 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-import core.tools as tools_module
+from core.tools.base import (
+    _get_shared_client,
+    _shared_client as _base_shared_client,
+)
+
+
+def _reset_state():
+    """Reset the shared client state in base module."""
+    import core.tools.base as tb
+    tb._shared_client = None
 
 
 # ── Test 1: GIVEN two calls WHEN getting client THEN same instance ────────────
 
 def test_given_two_calls_when_get_shared_client_then_same_instance():
     """GIVEN _get_shared_client() called twice WHEN comparing THEN same object returned."""
-    # Reset module state
-    tools_module._shared_client = None
+    _reset_state()
 
-    client1 = tools_module._get_shared_client()
-    client2 = tools_module._get_shared_client()
+    client1 = _get_shared_client()
+    client2 = _get_shared_client()
 
     assert client1 is client2, "Expected same client instance, got different objects"
 
-    # Cleanup
-    tools_module._shared_client = None
+    _reset_state()
 
 
 # ── Test 2: GIVEN client is None WHEN first call THEN creates new ─────────────
 
 def test_given_client_none_when_first_call_then_creates_new():
     """GIVEN _shared_client is None WHEN _get_shared_client() THEN creates AsyncClient."""
-    tools_module._shared_client = None
+    _reset_state()
 
-    client = tools_module._get_shared_client()
+    client = _get_shared_client()
 
     assert client is not None
-    assert tools_module._shared_client is client
 
-    # Cleanup
-    tools_module._shared_client = None
+    import core.tools.base as tb
+    assert tb._shared_client is client
+
+    _reset_state()
 
 
 # ── Test 3: GIVEN client exists WHEN second call THEN no new creation ─────────
 
 def test_given_client_exists_when_second_call_then_no_new_creation():
     """GIVEN _shared_client already set WHEN _get_shared_client() THEN AsyncClient() not called again."""
-    tools_module._shared_client = None
+    _reset_state()
 
-    with patch("core.tools.ollama.AsyncClient") as MockClient:
+    with patch("core.tools.base.ollama.AsyncClient") as MockClient:
         mock_instance = MagicMock()
         MockClient.return_value = mock_instance
 
-        # First call: should create
-        tools_module._get_shared_client()
+        _get_shared_client()
         assert MockClient.call_count == 1
 
-        # Second call: should NOT create new
-        tools_module._get_shared_client()
+        _get_shared_client()
         assert MockClient.call_count == 1, "AsyncClient() should not be called twice"
 
-    # Cleanup
-    tools_module._shared_client = None
+    _reset_state()

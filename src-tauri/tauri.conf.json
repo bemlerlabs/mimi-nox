@@ -4,14 +4,15 @@
   "version": "1.0.0",
   "identifier": "de.mimiai.mimi-nox",
   "build": {
-    "beforeDevCommand": "python run_server.py --reload",
-    "devUrl": "http://localhost:8765",
-    "beforeBuildCommand": "python run_server.py",
-    "frontendDist": "../app/src"
+    "frontendDist": "../app/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev --prefix ../app",
+    "beforeBuildCommand": "npm run build --prefix ../app"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "◑ MiMi Nox",
         "width": 1280,
         "height": 800,
@@ -19,22 +20,90 @@
         "minHeight": 600,
         "resizable": true,
         "center": true,
-        "decorations": true
+        "decorations": false,
+        "transparent": true,
+        "focus": true,
+        "url": [
+          {
+            "path": "/onboarding"
+          }
+        ]
+      },
+      {
+        "label": "onboarding",
+        "title": "MiMi Nox — Einrichtung",
+        "width": 680,
+        "height": 500,
+        "minWidth": 600,
+        "minHeight": 400,
+        "resizable": true,
+        "center": true,
+        "decorations": false,
+        "transparent": true,
+        "visible": false,
+        "url": [
+          {
+            "path": "/onboarding"
+          }
+        ]
       }
     ],
     "security": {
-      "csp": null
-    }
+      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' asset: https://asset.localhost data:; font-src 'self' https://fonts.gstatic.com data:; media-src 'self' https://videos.localhost",
+      "dangerousDisableAssetCspModification": false
+    },
+    "withGlobalTauri": true,
+    "macOSPrivateApi": false
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["dmg", "app", "nsis"],
     "icon": [
-      "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null,
+      "applicationCategory": "public.app-category.utilities",
+      "hardenedRuntime": true,
+      "entitlementsInherit": "entitlements.mac.plist",
+      "minimumSystemVersion": "12.0",
+      "dmg": {
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 620,
+          "y": 170
+        }
+      }
+    },
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "headerIcon": "icons/icon.ico",
+        "languages": ["De", "En"]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "endpoints": [
+        "https://github.com/MimiTechAi/mimi-nox/releases/download/update/{{target}}-{{arch}}/{{version}}-{{target}}-{{arch}}.dmg"
+      ],
+      "pubkey": "dFAo6We+YRR9eEnRFxKQCxOr625n4/UOMxDKDY8qgheDSFk3iIZuEDRzH9sJ8d1i27/0+KqATMDHfE+8mJG+2w=="
+    },
+    "shell": {
+      "open": true
+    }
   }
 }

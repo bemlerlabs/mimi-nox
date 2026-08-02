@@ -71,7 +71,7 @@ class TestChatWithTools:
             client.chat = AsyncMock(side_effect=[first_response, final_response])
             MockClient.return_value = client
 
-            with patch("core.tools.DDGS") as MockDDGS:
+            with patch("core.tools.web_search.DDGS") as MockDDGS:
                 mock_instance = MagicMock()
                 mock_instance.text = MagicMock(
                     return_value=[{"title": "T", "href": "U", "body": "Python ist toll"}]
