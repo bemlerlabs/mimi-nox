@@ -1,8 +1,9 @@
 use log::{error, info};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
-use tauri::tray::TrayIcon;
-use tauri::Emitter;
+use tauri::tray::TrayIconBuilder;
+use tauri::{Emitter, Manager};
+use tauri_plugin_updater::UpdaterExt;
 
 #[derive(Clone, Serialize)]
 pub struct OllamaStatus {
@@ -18,13 +19,6 @@ pub struct PullProgress {
     pub percentage: Option<u8>,
     pub total: Option<String>,
     pub completed: Option<String>,
-}
-
-#[derive(Clone, Serialize)]
-pub struct FileInfo {
-    pub path: String,
-    pub name: String,
-    pub size: i64,
 }
 
 #[derive(Clone, Serialize)]
@@ -207,39 +201,10 @@ fn pull_model(
     }
 }
 
-/// Open a system file picker dialog and return file info.
-#[tauri::command]
-fn open_file_picker(app_handle: tauri::AppHandle) -> Result<Option<FileInfo>, String> {
-    let file = tauri::dialog::FileDialog::new()
-        .add_filter("All files", &["*"])
-        .set_title("Select a file")
-        .pick_file(app_handle.window("main").ok());
-
-    match file {
-        Some(path) => {
-            let path_str = path.to_string_lossy().to_string();
-            let name = path
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            let size = std::fs::metadata(&path_str)
-                .map(|m| m.len() as i64)
-                .unwrap_or(-1);
-
-            Ok(Some(FileInfo {
-                path: path_str,
-                name,
-                size,
-            }))
-        }
-        None => Ok(None),
-    }
-}
-
 /// Minimize the main window.
 #[tauri::command]
 fn minimize_window(app_handle: tauri::AppHandle) -> Result<(), String> {
-    if let Some(window) = app_handle.window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         window.minimize().map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -248,7 +213,7 @@ fn minimize_window(app_handle: tauri::AppHandle) -> Result<(), String> {
 /// Maximize or un-maximize the main window.
 #[tauri::command]
 fn maximize_window(app_handle: tauri::AppHandle) -> Result<WindowState, String> {
-    if let Some(window) = app_handle.window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         let was_max = window.is_maximized().unwrap_or(false);
         if was_max {
             window.unmaximize().ok();
@@ -268,15 +233,21 @@ fn maximize_window(app_handle: tauri::AppHandle) -> Result<WindowState, String> 
 /// Close (hide) the main window — does NOT quit the app.
 #[tauri::command]
 fn close_window(app_handle: tauri::AppHandle) {
-    if let Some(window) = app_handle.window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         window.hide().ok();
     }
+}
+
+/// Quit the application entirely.
+#[tauri::command]
+fn quit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
 }
 
 /// Show the app window.
 #[tauri::command]
 fn show_window(app_handle: tauri::AppHandle) {
-    if let Some(window) = app_handle.window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         window.show().ok();
         window.set_focus().ok();
     }
@@ -285,7 +256,7 @@ fn show_window(app_handle: tauri::AppHandle) {
 /// Hide the app window.
 #[tauri::command]
 fn hide_window(app_handle: tauri::AppHandle) {
-    if let Some(window) = app_handle.window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         window.hide().ok();
     }
 }
@@ -293,7 +264,7 @@ fn hide_window(app_handle: tauri::AppHandle) {
 /// Get current window state.
 #[tauri::command]
 fn get_window_state(app_handle: tauri::AppHandle) -> Result<WindowState, String> {
-    if let Some(window) = app_handle.window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         Ok(WindowState {
             minimized: window.is_minimized().unwrap_or(false),
             maximized: window.is_maximized().unwrap_or(false),
@@ -307,24 +278,34 @@ fn get_window_state(app_handle: tauri::AppHandle) -> Result<WindowState, String>
 /// Navigate the frontend page.
 #[tauri::command]
 fn navigate(app_handle: tauri::AppHandle, path: String) -> Result<(), String> {
-    if let Some(window) = app_handle.window("main") {
-        let base = window.url();
-        let new_url = format!("{}/{}", base.trim_end_matches('/'), path.trim_start_matches('/'));
-        window.navigate(new_url).ok();
+    if let Some(window) = app_handle.get_webview_window("main") {
+        if let Ok(base) = window.url() {
+            let new_url = format!(
+                "{}/{}",
+                base.as_str().trim_end_matches('/'),
+                path.trim_start_matches('/')
+            );
+            let parsed = tauri::Url::parse(&new_url).map_err(|e| e.to_string())?;
+            window.navigate(parsed).ok();
+        }
     }
     Ok(())
 }
 
 /// Check for Tauri updates.
 #[tauri::command]
-fn check_updates(app_handle: tauri::AppHandle) -> Result<serde_json::Value, String> {
-    let update = app_handle.updater_builder().build().map_err(|e| e.to_string())?.check().map_err(|e| e.to_string())?;
+async fn check_updates(app_handle: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let updater = app_handle
+        .updater_builder()
+        .build()
+        .map_err(|e| e.to_string())?;
+    let update = updater.check().await.map_err(|e| e.to_string())?;
 
     if let Some(update) = update {
         Ok(serde_json::json!({
             "update_available": true,
             "version": update.version,
-            "date": update.date,
+            "date": update.date.map(|d| d.to_string()),
             "body": update.body,
             "signature": update.signature,
         }))
@@ -337,14 +318,20 @@ fn check_updates(app_handle: tauri::AppHandle) -> Result<serde_json::Value, Stri
 
 /// Install a downloaded update.
 #[tauri::command]
-fn install_update(app_handle: tauri::AppHandle) -> Result<(), String> {
-    app_handle
+async fn install_update(app_handle: tauri::AppHandle) -> Result<(), String> {
+    let updater = app_handle
         .updater_builder()
         .build()
-        .map_err(|e| e.to_string())?
-        .download_and_install("", "")
         .map_err(|e| e.to_string())?;
-    Ok(())
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "No update available".to_string())?;
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get list of running Ollama models.
@@ -409,12 +396,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             check_ollama,
             pull_model,
-            open_file_picker,
             minimize_window,
             maximize_window,
             close_window,
             show_window,
             hide_window,
+            quit_app,
             get_window_state,
             navigate,
             check_updates,
@@ -432,32 +419,47 @@ fn create_tray(app: &tauri::App) -> Result<(), String> {
     let hide_item = MenuItem::with_id(app, "hide", "Hide MiMi Nox", true, None::<&str>)
         .map_err(|e| format!("Failed to create hide menu item: {}", e))?;
 
+    let new_session_item = MenuItem::with_id(app, "new-session", "New Session", true, None::<&str>)
+        .map_err(|e| format!("Failed to create new session menu item: {}", e))?;
+
     let quit_item = MenuItem::with_id(app, "quit", "Quit MiMi Nox", true, None::<&str>)
         .map_err(|e| format!("Failed to create quit menu item: {}", e))?;
 
-    let menu = Menu::with_items(app, &[&show_item, &hide_item, &quit_item])
+    let menu = Menu::with_items(app, &[&show_item, &hide_item, &new_session_item, &quit_item])
         .map_err(|e| format!("Failed to create tray menu: {}", e))?;
 
-    let _tray = TrayIcon::builder(app)
+    let _tray = TrayIconBuilder::new()
         .menu(&menu)
         .show_menu_on_left_click(true)
         .tooltip("MiMi Nox — Local AI")
         .icon(app.default_window_icon().unwrap().clone())
-        .on_menu_item_handler("show", move |app| {
-            if let Some(window) = app.get_webview_window("main") {
-                window.show().ok();
-                window.set_focus().ok();
+        .on_menu_event(move |app, event| {
+            match event.id().as_ref() {
+                "show" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        window.show().ok();
+                        window.set_focus().ok();
+                    }
+                }
+                "hide" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        window.hide().ok();
+                    }
+                }
+                "quit" => {
+                    app.exit(0);
+                }
+                "new-session" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        window.show().ok();
+                        window.set_focus().ok();
+                        window.emit("create-session", ()).ok();
+                    }
+                }
+                _ => {}
             }
         })
-        .on_menu_item_handler("hide", move |app| {
-            if let Some(window) = app.get_webview_window("main") {
-                window.hide().ok();
-            }
-        })
-        .on_menu_item_handler("quit", move |app| {
-            app.exit(0);
-        })
-        .build()
+        .build(app)
         .map_err(|e| format!("Failed to create tray: {}", e))?;
 
     Ok(())

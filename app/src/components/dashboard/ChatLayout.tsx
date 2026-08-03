@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { motion } from 'framer-motion'
-import { Menu, Settings, Wifi, WifiOff, Sparkles, X, Check, AlertTriangle } from 'lucide-react'
+import { Menu, Settings, Wifi, WifiOff, Sparkles, X, Check, AlertTriangle, Minus, Square } from 'lucide-react'
 import { useChatStore } from '@/store/chatStore'
 import { WSClient } from '@/lib/websocket'
 import { sendMessage } from '@/lib/api'
@@ -11,6 +11,8 @@ import MessageBubble from './MessageBubble'
 import SettingsPanel from './SettingsPanel'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { useTranslation } from 'react-i18next'
+import { useTauriWindow } from '@/hooks/useTauriWindow'
+import { useTauriTray } from '@/hooks/useTauriTray'
 
 interface PendingToolCall {
   id: string
@@ -22,9 +24,19 @@ interface PendingToolCall {
 
 export default function ChatLayout() {
   const { t } = useTranslation()
+  const { isTauri, minimize, maximize, close } = useTauriWindow()
+  const { windowVisible } = useTauriTray()
   const { currentSession, isTyping, createSession, addMessage, setTyping, setPendingToolCall, pendingToolCall } = useChatStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // Window hidden (minimize-to-tray) → dismiss overlays
+  useEffect(() => {
+    if (!windowVisible) {
+      setSidebarOpen(false)
+      setSettingsOpen(false)
+    }
+  }, [windowVisible])
   const [wsConnected, setWsConnected] = useState(false)
   const [lastStatus, setLastStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected')
   const wsClientRef = useRef<WSClient | null>(null)
@@ -162,11 +174,11 @@ export default function ChatLayout() {
             >
               <Menu className="h-5 w-5 text-green-400/60" />
             </button>
-            <div className="flex items-center gap-2">
+            <div data-tauri-drag-region className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-md liquid-glass flex items-center justify-center">
                 <Sparkles className="h-3 w-3 text-green-400" />
               </div>
-              <h1 className="text-sm font-semibold text-white/90">
+              <h1 data-tauri-drag-region className="text-sm font-semibold text-white/90 select-none">
                 {currentSession?.title || t('nav.appName')}
               </h1>
             </div>
@@ -199,6 +211,32 @@ export default function ChatLayout() {
             >
               <Settings className="h-4 w-4" />
             </button>
+            {/* Custom Title Bar — Window Controls (Tauri only) */}
+            {isTauri && (
+              <div className="flex items-center gap-1 ml-1 pl-2 border-l border-white/10">
+                <button
+                  onClick={minimize}
+                  aria-label={t('nav.minimize')}
+                  className="p-1.5 rounded-md text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={maximize}
+                  aria-label={t('nav.maximize')}
+                  className="p-1.5 rounded-md text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors"
+                >
+                  <Square className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={close}
+                  aria-label={t('nav.close')}
+                  className="p-1.5 rounded-md text-white/30 hover:text-white hover:bg-red-500/20 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </header>
 

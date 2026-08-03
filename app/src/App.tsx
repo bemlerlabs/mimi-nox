@@ -78,7 +78,7 @@ function App() {
         grouped={grouped}
         t={t}
         onClose={() => setOpen(false)}
-        onSelect={() => {}}
+        onSelect={(cmd) => cmd.action()}
       />
     </ErrorBoundary>
   )

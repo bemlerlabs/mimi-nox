@@ -23,11 +23,7 @@
         "decorations": false,
         "transparent": true,
         "focus": true,
-        "url": [
-          {
-            "path": "/onboarding"
-          }
-        ]
+        "url": "/"
       },
       {
         "label": "onboarding",
@@ -41,11 +37,7 @@
         "decorations": false,
         "transparent": true,
         "visible": false,
-        "url": [
-          {
-            "path": "/onboarding"
-          }
-        ]
+        "url": "/"
       }
     ],
     "security": {
@@ -57,7 +49,11 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "app", "nsis"],
+    "targets": [
+      "dmg",
+      "app",
+      "nsis"
+    ],
     "icon": [
       "icons/128x128.png",
       "icons/128x128@2x.png",
@@ -70,9 +66,7 @@
       "frameworks": [],
       "providerShortName": null,
       "signingIdentity": null,
-      "applicationCategory": "public.app-category.utilities",
       "hardenedRuntime": true,
-      "entitlementsInherit": "entitlements.mac.plist",
       "minimumSystemVersion": "12.0",
       "dmg": {
         "appPosition": {
@@ -88,8 +82,11 @@
     "windows": {
       "nsis": {
         "installerIcon": "icons/icon.ico",
-        "headerIcon": "icons/icon.ico",
-        "languages": ["De", "En"]
+        "languages": [
+          "De",
+          "En"
+        ],
+        "headerImage": "icons/icon.ico"
       }
     }
   },

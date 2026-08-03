@@ -17,7 +17,10 @@
     "skills": "Skills",
     "download": "Download",
     "github": "GitHub",
-    "openWebApp": "Web-App öffnen"
+    "openWebApp": "Web-App öffnen",
+    "minimize": "Minimieren",
+    "maximize": "Maximieren",
+    "close": "Schließen"
   },
   "hero": {
     "title": "MiMi Nox",
