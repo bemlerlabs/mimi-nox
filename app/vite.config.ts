@@ -23,7 +23,9 @@ export default defineConfig({
         manualChunks(id: string) {
           // Route bundles are already split via React.lazy; split heavy vendors.
           if (id.includes('node_modules')) {
-            if (id.includes('react-markdown') || id.includes('remark-gfm') || id.includes('marked') || id.includes('dompurify')) {
+            // Markdown ecosystem: self-contained so the lazy markdown route
+            // doesn't pull unrelated vendor code into the initial load.
+            if (id.includes('react-markdown') || id.includes('remark-gfm') || id.includes('marked') || id.includes('dompurify') || id.includes('unified') || id.includes('micromark') || id.includes('remark') || id.includes('rehype') || id.includes('mdast') || id.includes('hast') || id.includes('vfile') || id.includes('decode-named') || id.includes('highlight') || id.includes('lowlight')) {
               return 'markdown'
             }
             if (id.includes('framer-motion')) {
@@ -32,13 +34,13 @@ export default defineConfig({
             if (id.includes('lucide-react') || id.includes('react-i18next') || id.includes('i18next')) {
               return 'ui-vendor'
             }
-            // React core is unavoidable on the initial load; split it from the rest
-            // so secondary libs (router, state, idb, clsx, cva) live in a separate chunk
-            // that can be fetched once and cached.
-            if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
-              return 'react-core'
+            // React 19 runtime (react/react-dom/scheduler) re-exports shared internals
+            // across packages — it MUST stay together in the main chunk. Splitting it
+            // into its own chunk creates a circular chunk (react-core <-> vendor).
+            // Split only the genuinely independent UI/state libs instead.
+            if (id.includes('react-router') || id.includes('@tanstack') || id.includes('zustand') || id.includes('idb-keyval') || id.includes('clsx') || id.includes('class-variance-authority')) {
+              return 'app-vendor'
             }
-            return 'vendor'
           }
         },
       },
