@@ -21,7 +21,7 @@
         "resizable": true,
         "center": true,
         "decorations": false,
-        "transparent": true,
+        "transparent": false,
         "focus": true,
         "url": "/"
       },
@@ -35,7 +35,7 @@
         "resizable": true,
         "center": true,
         "decorations": false,
-        "transparent": true,
+        "transparent": false,
         "visible": false,
         "url": "/"
       }

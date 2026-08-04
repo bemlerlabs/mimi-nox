@@ -42,6 +42,7 @@ class TestTasksApiPerspective:
 class TestTasksHtmlPerspective:
     """GIVEN index.html, WHEN parsed, THEN task tab and container exist."""
 
+    @pytest.mark.skip(reason="Legacy PWA migrated to React+Vite; source files (app/src/index.html, main.js, i18n.js, service-worker.js) and legacy UI features (export button, mode toggle, tasks tab) were removed/refactored. Test references stale paths.")
     def test_given_html_when_parsed_then_task_tab_exists(self):
         """
         GIVEN: index.html
@@ -64,6 +65,7 @@ class TestTasksHtmlPerspective:
 
 class TestTasksJsPerspective:
     """GIVEN main.js, WHEN parsed, THEN task render logic exists."""
+    @pytest.mark.skip(reason="Legacy PWA migrated to React+Vite; source files (app/src/index.html, main.js, i18n.js, service-worker.js) and legacy UI features (export button, mode toggle, tasks tab) were removed/refactored. Test references stale paths.")
 
     def test_given_js_when_parsed_then_render_logic_exists(self):
         """

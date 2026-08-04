@@ -21,7 +21,7 @@ const features: FeatureCard[] = [
   {
     icon: Shield,
     title: 'Offline-first',
-    desc: 'Offline-first via Ollama + gemma4:12b. Kein Internet nötig. Deine Daten bleiben auf deinem Gerät.',
+    desc: 'Offline-first via Ollama + gemma4:e4b. Kein Internet nötig. Deine Daten bleiben auf deinem Gerät.',
     tag: 'Privacy',
   },
   {

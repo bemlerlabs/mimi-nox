@@ -64,6 +64,51 @@ class ModelConfig:
 
 # ── Tier → Config Mapping (mit Env-Variable Override) ─────────────────────
 
+def _total_ram_gb() -> float | None:
+    """Total physical RAM in GB, cross-platform, with graceful fallback."""
+    try:
+        import psutil
+        return psutil.virtual_memory().total / (1024**3)
+    except Exception:
+        pass
+    try:
+        import os
+        if os.name != "posix":
+            return None
+        import sys
+        if sys.platform == "darwin":
+            out = os.popen("sysctl -n hw.memsize").read().strip()
+            if out.isdigit():
+                return int(out) / (1024**3)
+        if os.path.exists("/proc/meminfo"):
+            for line in open("/proc/meminfo"):
+                if line.startswith("MemTotal:"):
+                    return float(line.split()[1]) / 1024 / 1024
+    except Exception:
+        pass
+    return None
+
+
+def recommended_fast_model() -> str:
+    """
+    Hardware-adaptive Default-Wahl für das lokale Fast-Modell.
+
+    Die Wahl bleibt dem User überlassen (MIMI_NOX_MODEL / CLI --model / UI):
+    Diese Funktion liefert nur einen sinnvollen Default je nach RAM:
+      - >= 16 GB → gemma4:12b   (volle Qualität, FAST Tier)
+      - >= 8 GB  → gemma4:e4b   (kleiner, schneller, Mittel-RAM)
+      - < 8 GB   → gemma4:e2b   (OFFLINE Tier, sehr klein)
+    """
+    ram = _total_ram_gb()
+    if ram is None:
+        return "gemma4:e4b"  # unbekannt → konservatives kleines Modell
+    if ram >= 16:
+        return "gemma4:12b"
+    if ram >= 8:
+        return "gemma4:e4b"
+    return "gemma4:e2b"
+
+
 def _build_tier_map() -> dict[ModelTier, ModelConfig]:
     """
     Erstellt die TIER_MAP aus Env-Variablen oder sicheren Defaults.

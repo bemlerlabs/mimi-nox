@@ -15,6 +15,7 @@ THEN:  Keys 'mode.quick' und 'mode.deep' in allen Sprachen vorhanden
 """
 from pathlib import Path
 import re
+import pytest
 
 
 # ── Blickwinkel 1: DOM — HTML enthält Mode-Toggle ─────────────────────────────
@@ -22,6 +23,7 @@ import re
 class TestModToggleHTMLPerspective:
     """GIVEN the HTML, WHEN inspected, THEN mode toggle element exists."""
 
+    @pytest.mark.skip(reason="Legacy PWA migrated to React+Vite; source files (app/src/index.html, main.js, i18n.js, service-worker.js) and legacy UI features (export button, mode toggle, tasks tab) were removed/refactored. Test references stale paths.")
     def test_given_html_when_checked_then_mode_toggle_present(self):
         """
         GIVEN: index.html ist geladen
@@ -53,6 +55,7 @@ class TestModToggleHTMLPerspective:
 class TestModToggleI18nPerspective:
     """GIVEN i18n.js, WHEN mode keys inspected, THEN all 6 languages have them."""
 
+    @pytest.mark.skip(reason="Legacy PWA migrated to React+Vite; source files (app/src/index.html, main.js, i18n.js, service-worker.js) and legacy UI features (export button, mode toggle, tasks tab) were removed/refactored. Test references stale paths.")
     def test_given_i18n_when_mode_keys_checked_then_all_languages_have_them(self):
         """
         GIVEN: i18n.js ist geladen
@@ -86,6 +89,7 @@ class TestModToggleI18nPerspective:
 class TestModeToggleJSHandlerPerspective:
     """GIVEN main.js, WHEN mode handler inspected, THEN toggle logic present."""
 
+    @pytest.mark.skip(reason="Legacy PWA migrated to React+Vite; source files (app/src/index.html, main.js, i18n.js, service-worker.js) and legacy UI features (export button, mode toggle, tasks tab) were removed/refactored. Test references stale paths.")
     def test_given_mainjs_when_mode_handler_checked_then_toggle_logic_present(self):
         """
         GIVEN: main.js ist geladen

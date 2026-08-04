@@ -22,7 +22,7 @@ from core.model_provider import ProviderSetupError, build_provider_client, get_a
 
 router = APIRouter(tags=["Vision"])
 
-DEFAULT_MODEL = os.environ.get("MIMI_NOX_MODEL", "gemma4:12b")
+DEFAULT_MODEL = os.environ.get("MIMI_NOX_MODEL", "gemma4:e4b")
 
 # Erlaubte Bildformate
 ALLOWED_MIME = {
@@ -129,7 +129,7 @@ async def analyze_base64_image(req: VisionBase64Request):
     """
     Bild als Base64-String analysieren (für Frontend das kein FormData nutzen kann).
 
-    Body: { image_b64: "...", question: "...", model: "gemma4:12b" }
+    Body: { image_b64: "...", question: "...", model: "gemma4:e4b" }
     """
     if not req.image_b64:
         raise HTTPException(status_code=400, detail="image_b64 darf nicht leer sein.")

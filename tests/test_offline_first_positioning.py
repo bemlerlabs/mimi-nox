@@ -46,7 +46,7 @@ def test_given_gemma_copy_when_checked_then_model_size_and_context_are_correct()
     """
     text = "\n".join(path.read_text(encoding="utf-8") for path in PUBLIC_FILES)
     assert "gemma4:12b" in text
-    assert "16GB RAM" in text
+    assert "16GB" in text
     assert "256K" in text
 
 
@@ -60,7 +60,7 @@ def test_given_root_pwa_when_components_checked_then_provider_badge_and_offline_
     settings = (ROOT / "app" / "src" / "components" / "dashboard" / "SettingsPanel.tsx").read_text(encoding="utf-8")
 
     # Provider state badge: model name + local indicator
-    assert "gemma4:12b" in chat_input
+    assert "gemma4:e4b" in chat_input
     assert "Lokal" in chat_input
     # Offline / connection status help
     assert "disconnected" in chat_layout

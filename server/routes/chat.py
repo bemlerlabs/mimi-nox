@@ -28,7 +28,7 @@ from core.model_provider import (
 
 router = APIRouter(tags=["Chat"])
 
-DEFAULT_MODEL = os.environ.get("MIMI_NOX_MODEL", "gemma4:12b")
+DEFAULT_MODEL = os.environ.get("MIMI_NOX_MODEL", "gemma4:e4b")
 FILE_MARKER_MAP = {
     "PDF_FILE:": ("pdf", "📄 PDF"),
     "DECK_STUDIO_FILE:": ("deck_studio", "🎛 Slide Studio"),

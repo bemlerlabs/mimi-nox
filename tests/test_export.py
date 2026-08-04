@@ -75,6 +75,7 @@ class TestExportApiPerspective:
 class TestExportUiPerspective:
     """GIVEN index.html, WHEN parsed, THEN export button exists."""
 
+    @pytest.mark.skip(reason="Legacy PWA migrated to React+Vite; source files (app/src/index.html, main.js, i18n.js, service-worker.js) and legacy UI features (export button, mode toggle, tasks tab) were removed/refactored. Test references stale paths.")
     def test_given_html_when_parsed_then_export_button_exists(self):
         """
         GIVEN: index.html
@@ -85,6 +86,7 @@ class TestExportUiPerspective:
         
         # Perspektive: Button im Chat-Header
         assert 'id="btn-export-chat"' in html or 'Export' in html
+    @pytest.mark.skip(reason="Legacy PWA migrated to React+Vite; source files (app/src/index.html, main.js, i18n.js, service-worker.js) and legacy UI features (export button, mode toggle, tasks tab) were removed/refactored. Test references stale paths.")
 
     def test_given_js_when_parsed_then_export_logic_exists(self):
         """

@@ -19,7 +19,7 @@ interface NodeDef {
 const nodes: NodeDef[] = [
   { label: 'Browser PWA', desc: 'Dein Interface auf Desktop oder Handy', port: ':5173', color: 'green' },
   { label: 'FastAPI Server', desc: 'Lokaler Python-Server, orchestriert alles', port: ':8765', color: 'amber' },
-  { label: 'Ollama', desc: 'Lokales LLM — gemma4:12b', port: ':11434', color: 'green' },
+  { label: 'Ollama', desc: 'Lokales LLM — gemma4:e4b', port: ':11434', color: 'green' },
 ]
 
 export default function ArchitectureSection() {
@@ -131,7 +131,7 @@ export default function ArchitectureSection() {
                 <pre className="text-xs font-mono text-green-400/60 leading-relaxed">
 {`Browser PWA    →    FastAPI Server    →    Ollama (local)
    :5173           :8765               :11434
-   React           Python              gemma4:12b
+   React           Python              gemma4:e4b
    WebSocket       REST API            Local GPU/CPU`}
                 </pre>
               </div>

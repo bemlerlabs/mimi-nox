@@ -21,10 +21,11 @@ def test_given_install_script_when_checked_then_one_command_bootstrap_installs_m
     script = (ROOT / "install.sh").read_text(encoding="utf-8")
 
     assert "MIMI_NOX_INSTALL_DIR:-$HOME/Documents/MiMi-Nox" in script
-    assert "MIMI_NOX_MODEL:-gemma4:12b" in script
-    assert "git clone \"$REPO_URL\" \"$INSTALL_DIR\"" in script
+    assert "MIMI_NOX_MODEL:-$(recommended_ollama_model)" in script
+    assert "recommended_ollama_model()" in script
+    assert 'git clone "$REPO_URL" "$INSTALL_DIR"' in script
     assert 'pull_ollama_model "$MODEL"' in script
-    assert "16GB RAM" in script
+    assert "hardware-adaptiv gewählt" in script
     assert "miminox start" in script
     assert "brew install python" in script
     assert "astral.sh/uv/install.sh" in script

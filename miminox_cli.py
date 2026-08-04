@@ -14,7 +14,19 @@ import webbrowser
 from pathlib import Path
 
 
-DEFAULT_MODEL = "gemma4:12b"
+# Hardware-adaptive Default-Modellwahl (RAM-basiert).
+# Die Wahl bleibt dem User überlassen: MIMI_NOX_MODEL / CLI --model überschreibt.
+try:
+    from core.model_config import recommended_fast_model
+    DEFAULT_MODEL = recommended_fast_model()
+except Exception:
+    # Fallback für standalone-Aufruf ohne core/ Paket.
+    try:
+        import psutil
+        _ram = psutil.virtual_memory().total / (1024**3)
+        DEFAULT_MODEL = "gemma4:12b" if _ram >= 16 else ("gemma4:e4b" if _ram >= 8 else "gemma4:e2b")
+    except Exception:
+        DEFAULT_MODEL = "gemma4:e4b"  # unbekannte HW → konservatives kleines Modell
 DEFAULT_PORT = 8765
 LOCAL_OLLAMA_HOST = "127.0.0.1:11434"
 LOCAL_OLLAMA_BASE_URL = "http://127.0.0.1:11434"

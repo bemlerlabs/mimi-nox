@@ -69,7 +69,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         </div>
       </div>
       <div className="flex items-center justify-center gap-2 mt-2">
-        <Badge variant="outline">gemma4:12b</Badge>
+        <Badge variant="outline">gemma4:e4b</Badge>
         <Badge variant="success">Lokal</Badge>
       </div>
     </div>

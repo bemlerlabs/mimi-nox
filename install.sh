@@ -7,9 +7,26 @@ BOLD='\033[1m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Hardware-adaptive Default-Modellwahl (RAM-basiert).
+# Der User kann mit MIMI_NOX_MODEL oder --model überschreiben.
+recommended_ollama_model() {
+  local ram_gb=0
+  if command -v sysctl >/dev/null 2>&1; then
+    ram_gb=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1024 / 1024 / 1024 ))
+  fi
+  if (( ram_gb <= 0 )) && [[ -r /proc/meminfo ]]; then
+    local kb
+    kb=$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)
+    ram_gb=$(( kb / 1024 / 1024 ))
+  fi
+  if (( ram_gb >= 16 )); then echo "gemma4:12b";
+  elif (( ram_gb >= 8 )); then echo "gemma4:e4b";
+  else echo "gemma4:e2b"; fi
+}
+
 REPO_URL="${MIMI_NOX_REPO_URL:-https://github.com/MimiTechAi/mimi-nox.git}"
 INSTALL_DIR="${MIMI_NOX_INSTALL_DIR:-$HOME/Documents/MiMi-Nox}"
-MODEL="${MIMI_NOX_MODEL:-gemma4:12b}"
+MODEL="${MIMI_NOX_MODEL:-$(recommended_ollama_model)}"
 EMBED_MODEL="${MIMI_NOX_EMBED_MODEL:-nomic-embed-text}"
 PORT="${MIMI_NOX_PORT:-8765}"
 LOCAL_OLLAMA_HOST="${MIMI_NOX_OLLAMA_HOST:-127.0.0.1:11434}"
@@ -311,7 +328,7 @@ if [[ "$SKIP_MODEL" != "1" ]]; then
   if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" show "$MODEL" >/dev/null 2>&1; then
     ok "$MODEL bereits installiert"
   else
-    info "Gemma 4 12B: 16GB RAM/Unified Memory empfohlen, 256K Kontext. Abbruch ist sicher, erneuter Start setzt fort."
+    info "Modell ${MODEL}: hardware-adaptiv gewählt (RAM-basiert). MIMI_NOX_MODEL oder --model überschreibt."
     run pull_ollama_model "$MODEL"
     ok "$MODEL bereit"
   fi

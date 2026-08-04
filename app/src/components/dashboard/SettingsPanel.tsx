@@ -23,7 +23,7 @@ const tabs: { key: TabKey; label: string; icon: React.ComponentType<{ className?
 ]
 
 const modelOptions = [
-  { id: 'gemma4:12b', label: 'gemma4:12b', desc: 'Default — schnell & effizient' },
+  { id: 'gemma4:e4b', label: 'gemma4:e4b', desc: 'Default — schnell & effizient' },
   { id: 'llama3.1:8b', label: 'LLaMA 3.1 8B', desc: 'Open Source, stark' },
   { id: 'mistral:7b', label: 'Mistral 7B', desc: 'Zuverlässig, gut für Code' },
   { id: 'custom', label: 'Custom Ollama', desc: 'Eigenes Modell' },
@@ -64,7 +64,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     } catch {
       // Default settings
       setSettings({
-        provider: { type: 'local_ollama', model: 'gemma4:12b' },
+        provider: { type: 'local_ollama', model: 'gemma4:e4b' },
         memory_enabled: true,
         language: 'de',
         theme: 'dark',
@@ -78,7 +78,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     try {
       setSaving(true)
       const model = activeTab === 'model'
-        ? settings?.provider.model || 'gemma4:12b'
+        ? settings?.provider.model || 'gemma4:e4b'
         : undefined
       const endpoint = activeTab === 'api' ? customEndpoint : undefined
       const apiKey = activeTab === 'api' ? customApiKey : undefined

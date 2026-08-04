@@ -334,6 +334,24 @@ async fn install_update(app_handle: tauri::AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Parse the `models` array from an Ollama `/api/tags` response body into
+/// a list of model names. Pure function — unit-testable without a network call.
+fn parse_ollama_models(body: &str) -> Vec<String> {
+    let Ok(obj) = serde_json::from_str::<serde_json::Value>(body) else {
+        return Vec::new();
+    };
+    obj.get("models")
+        .and_then(|m| m.as_array())
+        .map(|models| {
+            models
+                .iter()
+                .filter_map(|m| m.get("name").and_then(|n| n.as_str()))
+                .map(|s| s.to_string())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// Get list of running Ollama models.
 #[tauri::command]
 fn get_ollama_models() -> Result<Vec<String>, String> {
@@ -343,16 +361,7 @@ fn get_ollama_models() -> Result<Vec<String>, String> {
         Ok(resp) => {
             if resp.status().is_success() {
                 if let Ok(body) = resp.text() {
-                    if let Ok(obj) = serde_json::from_str::<serde_json::Value>(&body) {
-                        if let Some(models) = obj.get("models").and_then(|m| m.as_array()) {
-                            let names: Vec<String> = models
-                                .iter()
-                                .filter_map(|m| m.get("name").and_then(|n| n.as_str()))
-                                .map(|s| s.to_string())
-                                .collect();
-                            return Ok(names);
-                        }
-                    }
+                    return Ok(parse_ollama_models(&body));
                 }
             }
             Ok(Vec::new())
@@ -463,4 +472,32 @@ fn create_tray(app: &tauri::App) -> Result<(), String> {
         .map_err(|e| format!("Failed to create tray: {}", e))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_ollama_models;
+
+    #[test]
+    fn parses_model_names_from_tags_response() {
+        let body = r#"{"models":[{"name":"gemma4:e4b"},{"name":"qwen3-vl:4b"},{"name":"nomic-embed-text"}]}"#;
+        let names = parse_ollama_models(body);
+        assert_eq!(names, vec!["gemma4:e4b", "qwen3-vl:4b", "nomic-embed-text"]);
+    }
+
+    #[test]
+    fn returns_empty_when_no_models_key() {
+        assert_eq!(parse_ollama_models(r#"{"foo":"bar"}"#), Vec::<String>::new());
+    }
+
+    #[test]
+    fn returns_empty_on_invalid_json() {
+        assert_eq!(parse_ollama_models("not json"), Vec::<String>::new());
+    }
+
+    #[test]
+    fn skips_models_without_name_field() {
+        let body = r#"{"models":[{"name":"a"},{"size":123},{"name":"b"}]}"#;
+        assert_eq!(parse_ollama_models(body), vec!["a", "b"]);
+    }
 }

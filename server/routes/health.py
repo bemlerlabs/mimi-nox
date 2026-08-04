@@ -75,7 +75,7 @@ async def health_check() -> HealthResponse:
 
     Neu in v4.1:
       - active_tier:  "offline" | "fast" | "power"
-      - active_model: z.B. "gemma4:12b"
+      - active_model: z.B. "gemma4:e4b"
       - dgx_online:   True wenn DGX Remote-Server erreichbar
 
     Optimierung: Eine geteilte ConnectivityProbe-Instanz für Router + DGX-Check

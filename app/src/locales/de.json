@@ -48,7 +48,7 @@
     "items": {
       "offline": {
         "title": "Offline-first",
-        "desc": "Offline-first via Ollama + gemma4:12b. Kein Internet nötig. Deine Daten bleiben auf deinem Gerät.",
+        "desc": "Offline-first via Ollama + gemma4:e4b. Kein Internet nötig. Deine Daten bleiben auf deinem Gerät.",
         "tag": "Privacy"
       },
       "multimodal": {
@@ -83,10 +83,10 @@
       },
       {
         "label": "Ollama",
-        "desc": "Lokales LLM — gemma4:12b"
+        "desc": "Lokales LLM — gemma4:e4b"
       }
     ],
-    "flow": "Browser PWA    →    FastAPI Server    →    Ollama (local)\n   :5173           :8765               :11434\n   React           Python              gemma4:12b\n   WebSocket       REST API            Local GPU/CPU"
+    "flow": "Browser PWA    →    FastAPI Server    →    Ollama (local)\n   :5173           :8765               :11434\n   React           Python              gemma4:e4b\n   WebSocket       REST API            Local GPU/CPU"
   },
   "skills": {
     "sectionLabel": "Skills",
@@ -193,7 +193,7 @@
     "reload": "Seite neu laden",
     "modelTitle": "Modell wählen",
     "modelOptions": [
-      { "label": "gemma4:12b", "desc": "Default — schnell & effizient" },
+      { "label": "gemma4:e4b", "desc": "Default — schnell & effizient" },
       { "label": "LLaMA 3.1 8B", "desc": "Open Source, stark" },
       { "label": "Mistral 7B", "desc": "Zuverlässig, gut für Code" },
       { "label": "Custom Ollama", "desc": "Eigenes Modell" }
