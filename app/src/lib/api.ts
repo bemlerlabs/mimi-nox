@@ -5,48 +5,25 @@
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8765'
 
-export interface Session {
-  id: string
-  title: string
-  created_at: string
-  updated_at: string
-  message_count: number
-}
+// Types aus kanonischer Quelle (types/index.ts) re-exportieren — einzige Wahrheit.
+import type {
+  ApiChatMessage as ChatMessage,
+  ApiMessage as Message,
+  ApiSession as Session,
+  AppSettings,
+  PendingToolCall,
+  ProviderSettings,
+  ProviderType,
+} from '@/types'
 
-export interface Message {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  tool_calls?: unknown[]
-}
-
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system'
-  content: string
-}
-
-export interface PendingToolCall {
-  id: string
-  tool_name: string
-  tool_args: Record<string, unknown>
-  description: string
-  session_id: string
-}
-
-export type ProviderType = 'local_ollama' | 'custom_ollama' | 'openai_compatible'
-
-export interface ProviderSettings {
-  type: ProviderType
-  endpoint?: string
-  api_key?: string
-  model: string
-}
-
-export interface AppSettings {
-  provider: ProviderSettings
-  memory_enabled: boolean
-  language: string
-  theme: string
+export type {
+  AppSettings,
+  ProviderSettings,
+  ProviderType,
+  PendingToolCall,
+  Session,
+  Message,
+  ChatMessage,
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

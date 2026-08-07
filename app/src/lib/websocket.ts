@@ -5,21 +5,9 @@
  * Handles reconnection, message streaming, and tool approval.
  */
 
-export interface WSMessage {
-  type: 'chat' | 'tool_call' | 'tool_result' | 'error' | 'status'
-  content?: string
-  tool_name?: string
-  tool_args?: Record<string, unknown>
-  session_id?: string
-  timestamp?: number
-}
+import type { ToolApprovalRequest, WSMessage } from '@/types'
 
-export interface ToolApprovalRequest {
-  tool_name: string
-  tool_args: Record<string, unknown>
-  description: string
-  session_id: string
-}
+export type { ToolApprovalRequest, WSMessage }
 
 type WSEventCallback = (data: WSMessage) => void
 type ToolApprovalCallback = (request: ToolApprovalRequest) => void

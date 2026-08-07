@@ -5,17 +5,13 @@
  * Provides autoload on init and debounced save on message changes.
  */
 
+import type { DbSession } from '@/types'
+
 const DB_NAME = 'mimi-nox'
 const DB_VERSION = 1
 const STORE_NAME = 'sessions'
 
-export interface DbSession {
-  id: string
-  title: string
-  messages: unknown[]
-  createdAt: number
-  updatedAt: number
-}
+export type { DbSession }
 
 // ── Open DB ────────────────────────────────────────────────────────────────
 

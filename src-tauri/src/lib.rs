@@ -373,11 +373,26 @@ fn get_ollama_models() -> Result<Vec<String>, String> {
     }
 }
 
+/// Open native file picker; returns the chosen path (or None if cancelled).
+#[tauri::command]
+fn open_file_picker(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let picked = app
+        .dialog()
+        .file()
+        .set_title("Datei auswählen")
+        .blocking_pick_file();
+
+    Ok(picked.map(|fp| fp.to_string()))
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().level(log::LevelFilter::Info).build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::default().build())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // macOS: Enable custom (overlay) title bar
             #[cfg(target_os = "macos")]
@@ -416,6 +431,7 @@ pub fn run() {
             check_updates,
             install_update,
             get_ollama_models,
+            open_file_picker,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

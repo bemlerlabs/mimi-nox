@@ -1,37 +1,14 @@
 import { create } from 'zustand'
-import { dbGetAllSessions, dbDeleteSession, debouncedSaveSession, DbSession } from '@/lib/db'
+import { dbGetAllSessions, dbDeleteSession, debouncedSaveSession } from '@/lib/db'
+import type {
+  ChatMessage,
+  DbSession,
+  PendingToolCall,
+  Session,
+  ToolCall,
+} from '@/types'
 
-interface Message {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  timestamp: number
-  tool_calls?: ToolCall[]
-}
-
-export interface ToolCall {
-  id: string
-  name: string
-  args: Record<string, unknown>
-  result?: string
-  status: 'pending' | 'approved' | 'denied' | 'completed' | 'waiting'
-  description?: string
-}
-
-export interface PendingToolCall {
-  id: string
-  tool_name: string
-  tool_args: Record<string, unknown>
-  description: string
-  session_id: string
-}
-
-interface Session {
-  id: string
-  title: string
-  messages: Message[]
-  createdAt: number
-}
+export type { ToolCall, PendingToolCall, ChatMessage, Session }
 
 function toDbSession(s: Session): DbSession {
   return {
@@ -47,7 +24,7 @@ function fromDbSession(d: DbSession): Session {
   return {
     id: d.id,
     title: d.title,
-    messages: d.messages as Message[],
+    messages: d.messages as ChatMessage[],
     createdAt: d.createdAt,
   }
 }
@@ -130,7 +107,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   addMessage: (role, content, toolCalls) => {
     set((state) => {
       if (!state.activeSessionId) return state
-      const message: Message = {
+      const message: ChatMessage = {
         id: crypto.randomUUID(),
         role,
         content,

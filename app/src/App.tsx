@@ -4,8 +4,9 @@ import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { useCommandPalette } from '@/hooks/useCommandPalette'
 import CommandPalette from '@/components/ui/CommandPalette'
 
-// Route-level code-splitting: landing and chat are independent bundles
+// Route-level code-splitting: landing, onboarding and chat are independent bundles
 const LandingPage = lazy(() => import('./pages/LandingPage'))
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
 const ChatPage = lazy(() => import('./pages/ChatPage'))
 
 function RouteFallback() {
@@ -50,6 +51,14 @@ function AppInner() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <LandingPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/onboarding"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <OnboardingPage />
             </Suspense>
           }
         />

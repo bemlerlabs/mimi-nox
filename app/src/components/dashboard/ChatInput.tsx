@@ -1,21 +1,57 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Send, Paperclip, Image, Mic, FileText, Command } from 'lucide-react'
 import { Badge } from '@/components/ui'
+import { getSettings } from '@/lib/api'
+import AttachmentPreview, { type Attachment } from './AttachmentPreview'
+
+export type { Attachment }
 
 interface ChatInputProps {
-  onSend: (message: string) => void
+  onSend: (message: string, attachments?: Attachment[]) => void
   disabled?: boolean
+}
+
+// Tauri 2.x IPC — graceful fallback im Browser/Dev-Modus
+function invoke(cmd: string): Promise<unknown> {
+  if (window.__TAURI__?.core?.invoke) {
+    return window.__TAURI__.core.invoke(cmd)
+  }
+  console.log(`[Tauri IPC] ${cmd}`)
+  return Promise.resolve(null)
 }
 
 export default function ChatInput({ onSend, disabled = false }: ChatInputProps) {
   const [message, setMessage] = useState('')
   const [isFocused, setIsFocused] = useState(false)
+  const [model, setModel] = useState('gemma4:e4b')
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Aktives Modell aus Settings laden (statt hartkodiert)
+  useEffect(() => {
+    let cancelled = false
+    getSettings()
+      .then((s) => {
+        if (!cancelled && s.provider?.model) setModel(s.provider.model)
+      })
+      .catch(() => {}) // Backend offline → Default-Badge behalten
+    return () => { cancelled = true }
+  }, [])
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
-      onSend(message.trim())
+      onSend(message.trim(), attachments.length > 0 ? attachments : undefined)
       setMessage('')
+      setAttachments([])
+    }
+  }
+
+  // Native Datei-Auswahl (Tauri) oder Browser-Input
+  const handleAttach = async () => {
+    const result = await invoke('open_file_picker')
+    if (result && typeof result === 'string') {
+      const name = result.split(/[\\/]/).pop() || result
+      setAttachments((prev) => [...prev, { path: result, name }])
     }
   }
 
@@ -43,7 +79,10 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         />
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-1">
-            <button className="p-2 rounded-lg hover:bg-green-500/5 text-white/40 hover:text-green-400 transition-colors">
+            <button
+              onClick={handleAttach}
+              className="p-2 rounded-lg hover:bg-green-500/5 text-white/40 hover:text-green-400 transition-colors"
+            >
               <Paperclip className="h-4 w-4" />
             </button>
             <button className="p-2 rounded-lg hover:bg-green-500/5 text-white/40 hover:text-green-400 transition-colors">
@@ -68,8 +107,12 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
           </button>
         </div>
       </div>
+      <AttachmentPreview
+        attachments={attachments}
+        onRemove={(i) => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+      />
       <div className="flex items-center justify-center gap-2 mt-2">
-        <Badge variant="outline">gemma4:e4b</Badge>
+        <Badge variant="outline">{model}</Badge>
         <Badge variant="success">Lokal</Badge>
       </div>
     </div>

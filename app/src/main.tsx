@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import './i18n'
 import App from './App'
 import './styles/globals.css'
+import './styles/highlight.css'
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {

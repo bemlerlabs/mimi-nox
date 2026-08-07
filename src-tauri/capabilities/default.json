@@ -31,6 +31,7 @@
     "core:tray:allow-set-tooltip",
     "core:tray:allow-set-menu",
     "shell:allow-open",
+    "dialog:default",
     "log:default",
     "updater:default",
     "updater:allow-check",
