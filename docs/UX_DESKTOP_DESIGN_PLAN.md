@@ -1,4 +1,6 @@
-# MiMi Nox Desktop App — UX/Design Plan
+> **⚠️ VERALTET (2026-08-07)** — ersetzt durch `docs/UX_DESKTOP_REDESIGN_PLAN.md` (einzige Wahrheit). Dieser Doc ist von 2025-07-25 und deckt die heute gebauten Native-Features (Tray/Window/Updater/Command-Palette) nicht ab. Nicht mehr als Basis für Implementierung verwenden.
+
+# MiMi Nox Desktop — UX Design Plan
 ## Hermes Agent Style Chat UI
 
 > **Status:** Plan-Phase | **Erstellt:** 2025-07-25
