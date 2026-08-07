@@ -128,8 +128,10 @@ Docker is available for development and advanced users. The primary first-run pa
 | Feature | Status | Notes |
 |---|---|---|
 | Desktop PWA chat | Active | Root PWA is the main product |
+| Tauri desktop shell | Active | Tray, Window-Controls, Updater, Command-Palette (Cmd+K) |
 | Mobile PWA via QR | Active | LAN by default; public mode requires explicit opt-in |
 | Provider settings | Active | `local_ollama`, `custom_ollama`, `openai_compatible` |
+| Hardware-adaptive model | Active | RAM-based `gemma4:12b` / `e4b` / `e2b`; override via `MIMI_NOX_MODEL`, `--model`, or UI |
 | Missing model recovery | Active | UI and CLI show `miminox doctor` / `miminox start` guidance |
 | Vision upload | Active | Sends images to the configured Ollama-compatible vision path |
 | File/PDF workflows | Active | Local file access is restricted by tool policy |
@@ -206,12 +208,19 @@ python scripts/create_demo_media.py
 
 The project uses pytest plus Playwright-based visual checks for the PWA. Avoid hard-coding test counts in docs because the suite changes frequently.
 
+Run tests via the canonical wrapper (leert `PYTHONPATH` und nutzt das lokale `.venv`, um venv-Kontamination zu vermeiden):
+
+```bash
+./scripts/run-tests.sh                          # komplette Suite
+./scripts/run-tests.sh tests/test_installer_cli.py -q   # fokussiert
+```
+
 Recommended release checks:
 
 ```bash
-pytest tests/test_installer_cli.py tests/test_offline_first_positioning.py tests/test_repo_hygiene.py -q
-pytest tests/test_model_provider.py tests/test_security_offline_defaults.py tests/test_offline_qr.py -q
-pytest tests/test_pwa_visual.py -q
+./scripts/run-tests.sh tests/test_installer_cli.py tests/test_offline_first_positioning.py tests/test_repo_hygiene.py -q
+./scripts/run-tests.sh tests/test_model_provider.py tests/test_security_offline_defaults.py tests/test_offline_qr.py -q
+./scripts/run-tests.sh tests/test_pwa_visual.py -q
 bash -n install.sh
 ```
 

@@ -35,8 +35,11 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Run pytest
+        # python -m pytest statt pytest: nutzt das CI-venv explizit;
+        # unset PYTHONPATH verhindert jede venv-Kontamination (pydantic_core-Mismatch)
         run: >-
-          pytest tests/ -v --tb=short --no-header -q
+          unset PYTHONPATH
+          python -m pytest tests/ -v --tb=short --no-header -q
           --ignore=tests/test_vision_learning.py
           --ignore=tests/test_gui_automation.py
           --ignore=tests/test_vision.py
@@ -45,3 +48,6 @@ jobs:
           MIMI_NOX_MODEL: mock
           MIMI_NOX_OFFLINE: "1"
           MIMI_NOX_MEMORY_DIR: /tmp/mimi-nox-ci-memory
+
+      - name: Installer-Syntax-Check (Release-Bar)
+        run: bash -n install.sh && echo "install.sh OK"

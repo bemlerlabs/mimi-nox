@@ -32,16 +32,22 @@ playwright install chromium   # for headless browser tests
 
 ## 🧪 Running Tests
 
+Nutze den kanonischen Test-Wrapper (härtet die Umgebung gegen venv-Kontamination):
+
 ```bash
-# All tests
-pytest tests/ -v
+# Komplette Suite
+./scripts/run-tests.sh
 
-# Single module
-pytest tests/test_artifact_detector.py -v
-
-# Without integration tests (no Ollama needed)
-pytest tests/ -v -m "not integration"
+# Fokussiert (Release-Bar)
+./scripts/run-tests.sh tests/test_installer_cli.py -q
+./scripts/run-tests.sh tests/test_offline_first_positioning.py tests/test_repo_hygiene.py -q
+./scripts/run-tests.sh tests/test_model_provider.py tests/test_security_offline_defaults.py tests/test_offline_qr.py -q
+./scripts/run-tests.sh tests/test_pwa_visual.py -q
 ```
+
+> **Warum der Wrapper?** Die lokale Umgebung kann einen gesetzten `PYTHONPATH` auf einen
+> fremden venv (z.B. Hermes/System, python3.11) zeigen → `pydantic_core`-Mismatch.
+> `scripts/run-tests.sh` leert `PYTHONPATH` und nutzt explizit `.venv/bin/python -m pytest`.
 
 > **Rule:** New features **must** include tests. No tests → no merge.
 
