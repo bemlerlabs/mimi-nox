@@ -136,6 +136,19 @@ from core.tools.registry import (
     execute_tool,
     get_tool_schemas,
     get_filtered_tool_schemas,
+    invalidate_tool_schema_cache,
+)
+from core.tools.mcp_client import (
+    MCPClient,
+    MCPServerSpec,
+    parse_server_spec,
+    set_mcp_servers,
+    sync_mcp_tools,
+    register_mcp_tool,
+    unregister_mcp_tools,
+    get_mcp_tools,
+    call_registered_mcp_tool,
+    mcp_tool_names,
 )
 
 __all__ = [
@@ -150,7 +163,10 @@ __all__ = [
     "create_pitch_deck", "create_pptx_deck",
     "inspect_pptx_template", "edit_pptx_template", "qa_pptx_deck",
     "manage_tasks",
-    "TOOL_MAP", "execute_tool", "get_tool_schemas", "get_filtered_tool_schemas",
+    "TOOL_MAP", "execute_tool", "get_tool_schemas", "get_filtered_tool_schemas", "invalidate_tool_schema_cache",
+    "MCPClient", "MCPServerSpec", "parse_server_spec", "set_mcp_servers",
+    "sync_mcp_tools", "register_mcp_tool", "unregister_mcp_tools",
+    "get_mcp_tools", "call_registered_mcp_tool", "mcp_tool_names",
     "WebSearchError", "FileNotAllowedError", "DirectoryNotFoundError",
     "ShellConfirmationRequired", "SandboxConfirmationRequired", "ShellTimeoutError",
     "ALLOWED_COMMANDS", "BLOCKED_PATTERNS", "ALLOWED_ROOTS",

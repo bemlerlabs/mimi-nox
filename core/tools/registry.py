@@ -45,6 +45,7 @@ from core.tools.deck_tools import (
     qa_pptx_deck,
 )
 from core.tools.shell_tools import run_shell
+from core.tools.mcp_client import get_mcp_tools, call_registered_mcp_tool
 
 
 TOOL_MAP: dict[str, object] = {
@@ -82,6 +83,16 @@ TOOL_MAP: dict[str, object] = {
 
 
 async def execute_tool(name: str, arguments: dict) -> str:
+    # MCP-Remote-Tools (Namespace 'mcp_') werden separat dispatched.
+    mcp_tools = get_mcp_tools()
+    if name in mcp_tools:
+        try:
+            text, is_error = await call_registered_mcp_tool(name, arguments)
+            prefix = "[MCP-Tool-Fehler] " if is_error else ""
+            return f"{prefix}{text}"
+        except Exception as exc:
+            return f"[MCP-Tool-Fehler '{name}': {exc}]"
+
     func = TOOL_MAP.get(name)
     if func is None:
         return f"[Tool '{name}' nicht gefunden]"
@@ -97,6 +108,12 @@ async def execute_tool(name: str, arguments: dict) -> str:
         if exc.__class__.__name__ == "SandboxConfirmationRequired":
             raise
         return f"[Tool-Fehler '{name}': {exc}]"
+
+
+def invalidate_tool_schema_cache() -> None:
+    """Löscht den get_tool_schemas-Cache (z.B. wenn MCP-Tools registriert werden)."""
+    global _TOOL_SCHEMA_CACHE
+    _TOOL_SCHEMA_CACHE = None
 
 
 def get_tool_schemas() -> list[dict]:
@@ -806,6 +823,13 @@ def get_tool_schemas() -> list[dict]:
             }
         },
     ]
+    # MCP-Remote-Tools dynamisch anhängen (Namespace 'mcp_')
+    for mcp_name, mcp_entry in get_mcp_tools().items():
+        schemas.append({
+            "type": "function",
+            "function": mcp_entry.get("schema", {"name": mcp_name, "description": "", "inputSchema": {"type": "object"}}),
+        })
+
     _TOOL_SCHEMA_CACHE = (now, schemas)
     return schemas
 
