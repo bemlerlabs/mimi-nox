@@ -80,7 +80,7 @@ class MiMiNoxPDF(FPDF):
         self.ln(20)
         self.cell(0, 8, 'MiMi Tech AI UG (haftungsbeschränkt)', 0, 1, 'C')
         self.cell(0, 8, 'Bad Liebenzell, Schwarzwald, Deutschland', 0, 1, 'C')
-        self.cell(0, 8, 'github.com/MimiTechAi/mimi-nox', 0, 1, 'C')
+        self.cell(0, 8, 'github.com/bemlerlabs/mimi-nox', 0, 1, 'C')
         
         # Bottom accent
         self.set_fill_color(*ACCENT_GREEN)

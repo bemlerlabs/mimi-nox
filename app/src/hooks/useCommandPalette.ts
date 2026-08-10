@@ -98,7 +98,7 @@ export function useCommandPalette() {
       id: 'github',
       label: t('commandPalette.items.github'),
       section: t('commandPalette.sections.pages'),
-      action: () => { window.open('https://github.com/MimiTechAi/mimi-nox', '_blank'); setOpen(false) },
+      action: () => { window.open('https://github.com/bemlerlabs/mimi-nox', '_blank'); setOpen(false) },
     },
     {
       id: 'docs',

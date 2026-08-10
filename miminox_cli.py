@@ -451,17 +451,19 @@ def cmd_update(args: argparse.Namespace) -> int:
 
 
 def cmd_tui(args: argparse.Namespace) -> int:
-    import clawdash
+    import miminox
 
     forwarded = ["mimi-nox"]
     if args.model:
         forwarded.extend(["--model", args.model])
+    if args.api_url:
+        forwarded.extend(["--api-url", args.api_url])
     if args.reset:
         forwarded.append("--reset")
     old_argv = sys.argv
     try:
         sys.argv = forwarded
-        clawdash.main()
+        miminox.main()
     finally:
         sys.argv = old_argv
     return 0
@@ -494,6 +496,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     tui = sub.add_parser("tui", help="Start the terminal UI")
     tui.add_argument("--model", default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL))
+    tui.add_argument(
+        "--api-url",
+        default=os.environ.get("MIMINOX_API_URL"),
+        help="OpenAI-compatible engine base URL (e.g. DGX-Spark ds4 "
+             "http://spark-...:8000/v1). Default: local Ollama.",
+    )
     tui.add_argument("--reset", action="store_true")
     tui.set_defaults(func=cmd_tui)
 

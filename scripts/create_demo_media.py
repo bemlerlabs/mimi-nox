@@ -225,7 +225,7 @@ def make_end_card(text: str, width: int = DESKTOP_W, height: int = DESKTOP_H) ->
     draw = ImageDraw.Draw(bg)
     y_center = height // 2
     draw.text((width // 2, y_center - 30), text, fill=WHITE, anchor="mm", font=_font(40, bold=True))
-    draw.text((width // 2, y_center + 40), "github.com/MimiTechAi/mimi-nox", fill=GREEN_LIGHT, anchor="mm", font=_font(24))
+    draw.text((width // 2, y_center + 40), "github.com/bemlerlabs/mimi-nox", fill=GREEN_LIGHT, anchor="mm", font=_font(24))
     path = TEMP_DIR / "end_card.png"
     bg.save(path)
     return path
@@ -594,7 +594,7 @@ def main() -> None:
         # ── Compose Desktop Video ─────────────────────────────────────
         print("\n[3/4] Composing desktop video with title/end cards...")
         title_card = make_title_card("MiMi Nox", "Offline-first local AI assistant")
-        end_card = make_end_card("MimiTechAi/mimi-nox")
+        end_card = make_end_card("bemlerlabs/mimi-nox")
         desktop_video = OUT_DIR / "mimi-nox-demo.mp4"
 
         compose_video_mp4(
@@ -611,7 +611,7 @@ def main() -> None:
         # ── Compose Mobile Video ──────────────────────────────────────
         print("  Composing mobile video with QR intro + end card...")
         mobile_intro = make_mobile_qr_intro()
-        mobile_end = make_end_card("MimiTechAi/mimi-nox",
+        mobile_end = make_end_card("bemlerlabs/mimi-nox",
                                    width=MOBILE_V_W, height=MOBILE_V_H)
         mobile_video = OUT_DIR / "mimi-nox-mobile-qr-demo.mp4"
 

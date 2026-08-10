@@ -9,7 +9,7 @@
 **Autor:** MiMi Tech AI UG (haftungsbeschränkt)  
 **Standort:** Bad Liebenzell, Schwarzwald, Deutschland  
 **Lizenz:** Apache 2.0 (Code) · Dieses Whitepaper urheberrechtlich geschützt © 2026 MiMi Tech AI UG  
-**Repository:** https://github.com/MimiTechAi/mimi-nox
+**Repository:** https://github.com/bemlerlabs/mimi-nox
 
 ---
 
@@ -486,6 +486,6 @@ Dieses Whitepaper dient Informationszwecken. Die MiMi Tech AI UG übernimmt kein
 **MiMi Tech AI UG (haftungsbeschränkt)**  
 Bad Liebenzell, Schwarzwald, Deutschland  
 hello@mimiai.de  
-https://github.com/MimiTechAi/mimi-nox
+https://github.com/bemlerlabs/mimi-nox
 
 *No cloud. No tracking. Straight from the Black Forest. ◑*

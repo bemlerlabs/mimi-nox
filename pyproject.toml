@@ -62,19 +62,19 @@ tui = [
 ]
 
 [project.scripts]
-mimi-nox = "clawdash:main"
+mimi-nox = "miminox:main"
 miminox = "miminox_cli:main"
 # keep clawdash alias for backwards compatibility / open-source users
-clawdash  = "clawdash:main"
+clawdash  = "miminox:main"
 
 [project.urls]
-Homepage   = "https://github.com/MimiTechAi/mimi-nox"
-Repository = "https://github.com/MimiTechAi/mimi-nox"
-Issues     = "https://github.com/MimiTechAi/mimi-nox/issues"
+Homepage   = "https://github.com/bemlerlabs/mimi-nox"
+Repository = "https://github.com/bemlerlabs/mimi-nox"
+Issues     = "https://github.com/bemlerlabs/mimi-nox/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["core", "ui", "server"]
-include = ["clawdash.py", "miminox_cli.py", "app/src/**"]
+include = ["miminox.py", "miminox_cli.py", "app/src/**"]
 
 [tool.hatch.build.targets.wheel.shared-data]
 "skills" = "share/mimi-nox/skills"

@@ -168,7 +168,7 @@ export default function HeroSection() {
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
           <a
-            href="https://github.com/MimiTechAi/mimi-nox"
+            href="https://github.com/bemlerlabs/mimi-nox"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center rounded-xl font-medium h-12 px-6 text-base gap-2.5 liquid-glass hover:bg-green-500/10 text-white/80 hover:text-white transition-all duration-300"

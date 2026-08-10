@@ -44,7 +44,7 @@ from core.skills import SkillLoader
 from ui.widgets import ChatView, HistoryInput, StatusBar
 
 
-class ClawDashApp(App):
+class MiMiNoxApp(App):
     """
     ◑ MiMi Nox – Main Application
 

@@ -18,7 +18,7 @@ export default function Footer() {
           {/* Links */}
           <div className="flex items-center gap-6">
             <a
-              href="https://github.com/MimiTechAi/mimi-nox"
+              href="https://github.com/bemlerlabs/mimi-nox"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-white/25 hover:text-green-400 transition-colors duration-200 text-xs"

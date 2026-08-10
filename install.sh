@@ -24,7 +24,7 @@ recommended_ollama_model() {
   else echo "gemma4:e2b"; fi
 }
 
-REPO_URL="${MIMI_NOX_REPO_URL:-https://github.com/MimiTechAi/mimi-nox.git}"
+REPO_URL="${MIMI_NOX_REPO_URL:-https://github.com/bemlerlabs/mimi-nox.git}"
 INSTALL_DIR="${MIMI_NOX_INSTALL_DIR:-$HOME/Documents/MiMi-Nox}"
 MODEL="${MIMI_NOX_MODEL:-$(recommended_ollama_model)}"
 EMBED_MODEL="${MIMI_NOX_EMBED_MODEL:-nomic-embed-text}"
@@ -121,7 +121,7 @@ OS_NAME="$(uname -s)"
 step "System prüfen"
 case "$OS_NAME" in
   Darwin|Linux) ok "$OS_NAME unterstützt" ;;
-  *) fail "Automatischer Installer unterstützt macOS und Linux. Für Windows: curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\\install.ps1" ;;
+  *) fail "Automatischer Installer unterstützt macOS und Linux. Für Windows: curl -fsSL https://raw.githubusercontent.com/bemlerlabs/mimi-nox/main/install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\\install.ps1" ;;
 esac
 command -v curl >/dev/null 2>&1 || fail "curl fehlt. Installiere curl und starte den Installer erneut."
 

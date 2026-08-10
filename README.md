@@ -12,15 +12,15 @@ MiMi Nox starts with local Ollama and a hardware-adaptive default model (RAM-bas
 [![Ollama](https://img.shields.io/badge/Default-Ollama-111827?style=for-the-badge)](https://ollama.com)
 [![Model](https://img.shields.io/badge/Model-gemma4%20(adaptive)-22c55e?style=for-the-badge)](https://ollama.com/library/gemma4)
 [![License](https://img.shields.io/badge/License-Apache%202.0-22c55e?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
-[![Tests](https://github.com/MimiTechAi/mimi-nox/actions/workflows/tests.yml/badge.svg)](https://github.com/MimiTechAi/mimi-nox/actions/workflows/tests.yml)
-[![Frontend Build](https://github.com/MimiTechAi/mimi-nox/actions/workflows/frontend-build.yml/badge.svg)](https://github.com/MimiTechAi/mimi-nox/actions/workflows/frontend-build.yml)
+[![Tests](https://github.com/bemlerlabs/mimi-nox/actions/workflows/tests.yml/badge.svg)](https://github.com/bemlerlabs/mimi-nox/actions/workflows/tests.yml)
+[![Frontend Build](https://github.com/bemlerlabs/mimi-nox/actions/workflows/frontend-build.yml/badge.svg)](https://github.com/bemlerlabs/mimi-nox/actions/workflows/frontend-build.yml)
 
 </div>
 
 ## ⚡ Quick Start
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/bemlerlabs/mimi-nox/main/install.sh | bash
 ```
 
 <details>
@@ -94,7 +94,7 @@ Offline-first means the core product works locally after Ollama and the model ar
 ### Windows PowerShell (One-Liner)
 
 ```powershell
-curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1
+curl -fsSL https://raw.githubusercontent.com/bemlerlabs/mimi-nox/main/install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 Oder direkt aus der lokalen Datei:

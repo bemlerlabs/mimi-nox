@@ -9,7 +9,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $RepoUrl = $env:MIMI_NOX_REPO_URL
-if (-not $RepoUrl) { $RepoUrl = "https://github.com/MimiTechAi/mimi-nox.git" }
+if (-not $RepoUrl) { $RepoUrl = "https://github.com/bemlerlabs/mimi-nox.git" }
 
 function Step($Text) { Write-Host "`n> $Text" -ForegroundColor Green }
 function Ok($Text) { Write-Host "  OK $Text" -ForegroundColor Green }

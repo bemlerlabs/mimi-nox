@@ -16,7 +16,7 @@ COPY utils/ utils/
 COPY skills/ skills/
 COPY app/ app/
 COPY knowledge/ knowledge/
-COPY run_server.py clawdash.py ./
+COPY run_server.py miminox.py ./
 
 RUN pip install --no-cache-dir .
 

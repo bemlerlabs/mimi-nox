@@ -2,13 +2,13 @@
 
 > **Ziel:** Launch diese Woche / nächste Tage als öffentliches Open-Source-Startup (50M+ Vision).
 > **Methode:** Evidenzbasiert — jeder Befund aus Repo/GitHub/Training verifiziert, jede Empfehlung mit Begründung + Quelle.
-> **Stand:** 2026-08-02 · Git `main` (ahead 2) · GitHub-Repo `MimiTechAi/mimi-nox` (public).
+> **Stand:** 2026-08-02 · Git `main` (ahead 2) · GitHub-Repo `bemlerlabs/mimi-nox` (public).
 
 ---
 
 ## 0. Executive Summary
 
-MiMi Nox ist **funktionsfähig und public**, aber unsichtbar: GitHub-Repo hat **1 Star, 0 Forks, 2 Watchers, keine Description, letzter Push 2026-06-05** (2 Monate). Es wurde **keine Werbung gemacht**. Das Kern-Asset — das **tool-optimierte Gemma-Modell `MimiTechAi/miminox-stage4-e4b`** — ist auf HF hochgeladen, aber das Training (`stage4 GRPO v22`) ist bei Step **742/2000 BLOCKED** (NaN-Instabilität, fehlendes Remote-Dataset + Checkpoint, CUDA-Mismatch).
+MiMi Nox ist **funktionsfähig und public**, aber unsichtbar: GitHub-Repo hat **1 Star, 0 Forks, 2 Watchers, keine Description, letzter Push 2026-06-05** (2 Monate). Es wurde **keine Werbung gemacht**. Das Kern-Asset — das **tool-optimierte Gemma-Modell `bemlerlabs/miminox-stage4-e4b`** — ist auf HF hochgeladen, aber das Training (`stage4 GRPO v22`) ist bei Step **742/2000 BLOCKED** (NaN-Instabilität, fehlendes Remote-Dataset + Checkpoint, CUDA-Mismatch).
 
 **Die Launch-These:** Der Markt (OpenClaw: 150k Stars in 10 Wochen) zeigt — ein **lokal laufender, offline-first, tool-fähiger AI-Assistant mit eigenem fein-tunablem Modell** ist genau das, was 2026 skaliert. MiMi Nox hat die Bausteine. Der Weg: **P0-Blocker räumen → Repo launch-ready machen → gezielter Go-to-Market (Show HN + Product Hunt + X) → Modell-Training finalisieren als Feature-Hook.**
 

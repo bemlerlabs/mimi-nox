@@ -424,7 +424,7 @@ Verbleibend für Inference nach Training: **~$5.814**
 | Aspekt | Wert |
 |--------|------|
 | **Lambda Credits** | ~$5.900 remaining. Training ~$86 (26h). Rest ~$5.814 für Inference |
-| **GitHub** | `MimiTechAi/mimi-nox` — 1 Star, 59 Commits, main Branch, Apache 2.0, UG-owned |
+| **GitHub** | `bemlerlabs/mimi-nox` — 1 Star, 59 Commits, main Branch, Apache 2.0, UG-owned |
 | **shell=True Risk Mitigation** | Gated by (1) User Confirmation, (2) ALLOWED_COMMANDS Whitelist, (3) BLOCKED_PATTERNS Blacklist |
 | **Test Suite** | 676 passing, 43 skipped (Backend) + 22 Playwright (Frontend) |
 | **Frontend Lines** | 3.362 Zeilen (Module 3.322 + Entry 40) vs. original 3.469 im Monolith |

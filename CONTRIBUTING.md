@@ -9,7 +9,7 @@ Thank you for your interest in contributing! MiMi Nox is built by [MiMi Tech AI 
 ## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/MimiTechAi/mimi-nox.git
+git clone https://github.com/bemlerlabs/mimi-nox.git
 cd mimi-nox
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,voice]"

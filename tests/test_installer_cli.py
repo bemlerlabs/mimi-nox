@@ -116,7 +116,7 @@ def test_given_pyproject_when_loaded_then_miminox_cli_commands_are_exposed():
     scripts = pyproject["project"]["scripts"]
 
     assert scripts["miminox"] == "miminox_cli:main"
-    assert scripts["mimi-nox"] == "clawdash:main"
+    assert scripts["mimi-nox"] == "miminox:main"
     assert "miminox_cli.py" in pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]["include"]
 
 
@@ -438,7 +438,7 @@ def test_given_readme_quickstart_when_checked_then_first_path_is_one_command():
 
     assert bash_blocks
     first_command = bash_blocks[0].strip()
-    assert first_command == "curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.sh | bash"
+    assert first_command == "curl -fsSL https://raw.githubusercontent.com/bemlerlabs/mimi-nox/main/install.sh | bash"
     assert "\n" not in first_command
     assert "docker compose" not in quickstart.lower()
 
@@ -453,7 +453,7 @@ def test_given_readme_hero_when_checked_then_first_terminal_command_is_installer
     bash_blocks = re.findall(r"```bash\n(.*?)\n```", readme, flags=re.DOTALL)
 
     assert bash_blocks
-    assert bash_blocks[0].strip() == "curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.sh | bash"
+    assert bash_blocks[0].strip() == "curl -fsSL https://raw.githubusercontent.com/bemlerlabs/mimi-nox/main/install.sh | bash"
     assert "local AI assistant" in readme[:1500]
     assert "Optional online/API features are always opt-in" in readme[:1500]
 
@@ -531,7 +531,7 @@ def test_given_readme_when_checked_then_windows_one_liner_and_cli_flags_are_docu
     """
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert "curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.ps1" in readme
+    assert "curl -fsSL https://raw.githubusercontent.com/bemlerlabs/mimi-nox/main/install.ps1" in readme
     assert "powershell -ExecutionPolicy Bypass -File .\\install.ps1" in readme
     assert "miminox tui" in readme
     assert "--cli" in readme
