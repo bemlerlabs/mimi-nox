@@ -13,6 +13,7 @@ MiMi Nox starts with local Ollama and a hardware-adaptive default model (RAM-bas
 [![Model](https://img.shields.io/badge/Model-gemma4%20(adaptive)-22c55e?style=for-the-badge)](https://ollama.com/library/gemma4)
 [![License](https://img.shields.io/badge/License-Apache%202.0-22c55e?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
 [![Tests](https://github.com/MimiTechAi/mimi-nox/actions/workflows/tests.yml/badge.svg)](https://github.com/MimiTechAi/mimi-nox/actions/workflows/tests.yml)
+[![Frontend Build](https://github.com/MimiTechAi/mimi-nox/actions/workflows/frontend-build.yml/badge.svg)](https://github.com/MimiTechAi/mimi-nox/actions/workflows/frontend-build.yml)
 
 </div>
 
@@ -207,10 +208,41 @@ Run the app locally:
 python run_server.py
 ```
 
-Generate demo videos:
+### Frontend (PWA, `app/`)
+
+The root PWA is the main product. React 19 + Vite 6 + TypeScript + Tailwind:
+
+```bash
+cd app
+npm ci          # or: npm install
+npm run dev     # Vite dev server
+npm run build   # tsc -b && vite build (type-check + production build)
+npm run preview # Vite preview
+```
+
+Frontend unit tests use Vitest (`npm test`) and Playwright specs live in `app/tests/playwright/`.
+
+### Demo videos
 
 ```bash
 python scripts/create_demo_media.py
+```
+
+## Project Structure
+
+```text
+app/                React + Vite + TS PWA (main product), Tauri shell in app/src-tauri/
+core/               Python core: chat, tools, vision, memory, skills, scheduler, profile
+server/             FastAPI server + routes (chat, memory, mobile, tasks, vision, ...)
+ui/                 Textual TUI / text UI
+tests/              pytest suite (CI runs a subset on Python 3.11/3.12)
+docs/               design docs, mockups, screenshots, demo media
+scripts/            dev/demo/eval helpers (run-tests.sh, create_demo_media.py)
+skills/             built-in skill markdown (prompts, rubrics, examples)
+knowledge/          offline knowledge base (German survival/medical/engineering)
+.github/workflows/  CI: tests.yml + frontend-build.yml
+install.sh          one-command installer (macOS/Linux)
+install.ps1         one-command installer (Windows PowerShell)
 ```
 
 ## Testing

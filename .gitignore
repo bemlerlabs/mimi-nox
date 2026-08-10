@@ -19,6 +19,15 @@ build/
 # Pytest
 .pytest_cache/
 .coverage
+.coverage*
+
+# Other Python tool caches
+.mypy_cache/
+.ruff_cache/
+.pyre_cache/
+.hypothesis/
+.pip_cache/
+.cache/
 
 # Generated README media work files
 docs/media/frames/
@@ -34,13 +43,29 @@ node_modules/
 *.db-shm
 
 # Session data (user-specific)
-~/.clawdash/
+.clawdash/
 
 # Editor
 .DS_Store
 .idea/
 .vscode/
 *.swp
+*.swo
+
+# Environment & secrets — NEVER commit real values
+# (.env.example / .env.example.* are intentionally tracked via negation)
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+!.env.example.*
+*.key
+*.pem
+*.p12
+*.pfx
+*_rsa
+*_rsa.pub
 
 # Hygiene: backups, stale configs, build artifacts, generated docs
 app-backup-vanilla/
@@ -55,3 +80,10 @@ STATUS_REPORT.md
 CORE_STATUS_REPORT.md
 STATUS_REPORT_NeMo_RL.md
 app/STATUS-REPORT.md
+
+# Local runtime data (root-level, mirrors app/.gitignore)
+.mimi-nox/
+
+# Logs (root-level)
+*.log
+logs/

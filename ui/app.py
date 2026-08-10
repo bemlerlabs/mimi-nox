@@ -15,7 +15,7 @@ from pathlib import Path
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Header
+from textual.widgets import Header, Footer
 
 from core import __edition__, __tagline__, __version__
 from core.chat import (
@@ -85,6 +85,7 @@ class ClawDashApp(App):
         yield ChatView(id="chat-view")
         yield HistoryInput(id="input-area")
         yield StatusBar(id="status-bar")
+        yield Footer()
 
     # ── Startup ──────────────────────────────────────────────────────────────
 
