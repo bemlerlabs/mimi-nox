@@ -1,9 +1,10 @@
 param(
   [string]$InstallDir = "$HOME\Documents\MiMi-Nox",
-  [string]$Model = "gemma4:12b",
+  [string]$Model = "",
   [int]$Port = 8765,
   [switch]$NoStart,
-  [switch]$SkipModel
+  [switch]$SkipModel,
+  [switch]$Cli
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,9 +15,23 @@ function Step($Text) { Write-Host "`n> $Text" -ForegroundColor Green }
 function Ok($Text) { Write-Host "  OK $Text" -ForegroundColor Green }
 function Fail($Text) { Write-Error $Text; exit 1 }
 
+# RAM-adaptive Modellwahl (konsistent zu install.sh): >=16GB -> 12b, 8-16GB -> e4b, sonst e2b
+function Get-TotalRamGB {
+  $cs = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
+  if ($cs) { return [math]::Round($cs.TotalPhysicalMemory / 1GB) }
+  return 0
+}
+function Get-RamAdaptiveModel {
+  $ram = Get-TotalRamGB
+  if ($ram -ge 16) { return "gemma4:12b" }
+  elseif ($ram -ge 8) { return "gemma4:e4b" }
+  return "gemma4:e2b"
+}
+if (-not $Model) { $Model = Get-RamAdaptiveModel }
+
 Write-Host ""
 Write-Host "MiMi Nox offline-first installer" -ForegroundColor Green
-Write-Host "Local Ollama + $Model by default. Online/API is optional." -ForegroundColor DarkGray
+Write-Host "Local Ollama + $Model by default (RAM-adaptive). Online/API is optional." -ForegroundColor DarkGray
 
 if (-not (Test-Path "pyproject.toml") -or -not (Test-Path "app\src\index.html")) {
   Step "Prepare install folder"
@@ -35,7 +50,7 @@ if (-not (Test-Path "pyproject.toml") -or -not (Test-Path "app\src\index.html"))
     git clone $RepoUrl $InstallDir
     Set-Location $InstallDir
   }
-  & powershell -ExecutionPolicy Bypass -File ".\install.ps1" -InstallDir $InstallDir -Model $Model -Port $Port -NoStart:$NoStart -SkipModel:$SkipModel
+  & powershell -ExecutionPolicy Bypass -File ".\install.ps1" -InstallDir $InstallDir -Model $Model -Port $Port -NoStart:$NoStart -SkipModel:$SkipModel -Cli:$Cli
   exit $LASTEXITCODE
 }
 
@@ -108,7 +123,12 @@ if (-not (Test-Path ".venv")) {
   & $Python.Source -m venv .venv
 }
 & ".\.venv\Scripts\python.exe" -m pip install --upgrade pip
-& ".\.venv\Scripts\pip.exe" install -e ".[gui,voice]"
+if ($Cli) {
+  Write-Host "  CLI mode: installing minimal dependencies (tui)"
+  & ".\.venv\Scripts\pip.exe" install -e ".[tui]"
+} else {
+  & ".\.venv\Scripts\pip.exe" install -e ".[gui,voice]"
+}
 Ok "Dependencies installed"
 
 Step "Create local data folders"
@@ -117,10 +137,18 @@ Ok "$HOME\.mimi-nox ready"
 
 Write-Host ""
 Write-Host "Setup complete." -ForegroundColor Green
-Write-Host "Start: .\.venv\Scripts\miminox.exe start --open"
 Write-Host "Check: .\.venv\Scripts\miminox.exe doctor"
-Write-Host "URL:   http://127.0.0.1:$Port"
+if ($Cli) {
+  Write-Host "Start: .\.venv\Scripts\miminox.exe tui --model $Model"
+} else {
+  Write-Host "Start: .\.venv\Scripts\miminox.exe start --open"
+  Write-Host "URL:   http://127.0.0.1:$Port"
+}
 
 if (-not $NoStart) {
-  & ".\.venv\Scripts\miminox.exe" start --port $Port --model $Model --open
+  if ($Cli) {
+    & ".\.venv\Scripts\miminox.exe" tui --model $Model
+  } else {
+    & ".\.venv\Scripts\miminox.exe" start --port $Port --model $Model --open
+  }
 }

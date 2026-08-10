@@ -43,14 +43,39 @@ for arg in "$@"; do
     --no-start) NO_START=1 ;;
     --skip-model) SKIP_MODEL=1 ;;
     --dry-run) DRY_RUN=1 ;;
+    --cli|--headless|--tui) INSTALL_MODE="cli" ;;
+    --desktop|--gui|--web|--pwa) INSTALL_MODE="desktop" ;;
     --help|-h)
-      echo "Usage: ./install.sh [--no-start] [--skip-model] [--dry-run]"
+      echo "Usage: ./install.sh [--no-start] [--skip-model] [--dry-run] [--cli|--desktop]"
       echo "Env: MIMI_NOX_INSTALL_DIR, MIMI_NOX_MODEL, MIMI_NOX_PORT"
+      echo ""
+      echo "Modes:"
+      echo "  --cli      Minimal-CLI-Pfad: installiert nur das TUI (textual), startet 'miminox tui'"
+      echo "  --desktop  (Default) Desktop/PWA: installiert gui+voice, startet 'miminox start --open'"
+      echo ""
+      echo "Ohne Flag fragt der Installer interaktiv, wenn ein Terminal verfügbar ist."
       exit 0
       ;;
     *) echo "Unknown argument: $arg" >&2; exit 2 ;;
   esac
 done
+
+# Mode-Auswahl: Flag > Env > interaktiv > Default(desktop)
+if [[ -z "${INSTALL_MODE:-}" ]]; then
+  if [[ -n "${MIMI_NOX_MODE:-}" ]]; then
+    INSTALL_MODE="$MIMI_NOX_MODE"
+  elif [[ -t 0 && -z "${NO_START:-}" && -z "${DRY_RUN:-}" ]]; then
+    read -r -p "Wie willst du MiMi Nox nutzen? [D]esktop/PWA, [C]li (TUI), oder [S]kip-Start: " choice
+    choice="${choice:-D}"
+    case "$choice" in
+      [Cc]) INSTALL_MODE="cli" ;;
+      [Ss]) NO_START=1 ;;
+      *) INSTALL_MODE="desktop" ;;
+    esac
+  else
+    INSTALL_MODE="desktop"
+  fi
+fi
 
 step() { echo -e "${GREEN}▶${NC} ${BOLD}$1${NC}"; }
 info() { echo -e "  ${DIM}$1${NC}"; }
@@ -96,7 +121,7 @@ OS_NAME="$(uname -s)"
 step "System prüfen"
 case "$OS_NAME" in
   Darwin|Linux) ok "$OS_NAME unterstützt" ;;
-  *) fail "Automatischer Installer unterstützt macOS und Linux. Für Windows nutze install.ps1." ;;
+  *) fail "Automatischer Installer unterstützt macOS und Linux. Für Windows: curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\\install.ps1" ;;
 esac
 command -v curl >/dev/null 2>&1 || fail "curl fehlt. Installiere curl und starte den Installer erneut."
 
@@ -347,7 +372,12 @@ if [[ ! -d ".venv" ]]; then
   run "$PYTHON" -m venv .venv
 fi
 run .venv/bin/python -m pip install --upgrade pip
-run .venv/bin/pip install -e ".[gui,voice]"
+if [[ "$INSTALL_MODE" == "cli" ]]; then
+  info "CLI-Modus: nur Minimal-Dependencies (tui) installieren"
+  run .venv/bin/pip install -e ".[tui]"
+else
+  run .venv/bin/pip install -e ".[gui,voice]"
+fi
 ok "Dependencies installiert"
 
 step "Lokale Datenordner anlegen"
@@ -357,9 +387,13 @@ ok "$HOME/.mimi-nox bereit"
 echo ""
 echo -e "${GREEN}${BOLD}Setup fertig.${NC}"
 echo "Projekt: $PROJECT_DIR"
-echo "Start:   .venv/bin/miminox start --open"
 echo "Check:   .venv/bin/miminox doctor"
-echo "URL:     http://127.0.0.1:${PORT}"
+if [[ "$INSTALL_MODE" == "cli" ]]; then
+  echo "Start:   .venv/bin/miminox tui --model $MODEL"
+else
+  echo "Start:   .venv/bin/miminox start --open"
+  echo "URL:     http://127.0.0.1:${PORT}"
+fi
 echo ""
 
 if [[ "$NO_START" != "1" && "$DRY_RUN" != "1" ]]; then
@@ -368,5 +402,9 @@ if [[ "$NO_START" != "1" && "$DRY_RUN" != "1" ]]; then
     reply="${reply:-J}"
     [[ "$reply" =~ ^[JjYy]$ ]] || exit 0
   fi
-  exec .venv/bin/miminox start --port "$PORT" --model "$MODEL" --open
+  if [[ "$INSTALL_MODE" == "cli" ]]; then
+    exec .venv/bin/miminox tui --model "$MODEL"
+  else
+    exec .venv/bin/miminox start --port "$PORT" --model "$MODEL" --open
+  fi
 fi

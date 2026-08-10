@@ -90,7 +90,13 @@ Offline-first means the core product works locally after Ollama and the model ar
 ./install.sh
 ```
 
-### Windows PowerShell
+### Windows PowerShell (One-Liner)
+
+```powershell
+curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+Oder direkt aus der lokalen Datei:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -103,7 +109,10 @@ miminox start --open
 miminox start --lan
 miminox doctor
 miminox update
+miminox tui
 ```
+
+Installations-Modus wählbar: `--cli` (nur TUI/Textual, minimale Dependencies) oder `--desktop`/`--gui` (Standard, PWA + gui/voice). Ohne Flag fragt der Installer interaktiv.
 
 ### Docker
 

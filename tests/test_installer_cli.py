@@ -470,3 +470,69 @@ def test_given_agent_instructions_when_checked_then_future_workflow_is_available
     assert "WGT/TDD" in content
     assert "Root-PWA changes need desktop/mobile visual checks" in content
     assert "Git must not track" in content
+
+
+def test_given_install_sh_when_cli_mode_then_minimal_tui_path_is_offered():
+    """
+    GIVEN a user wants only the terminal UI
+    WHEN install.sh runs in CLI mode
+    THEN it installs only the minimal tui extra and starts `miminox tui` instead of the browser.
+    """
+    script = (ROOT / "install.sh").read_text(encoding="utf-8")
+
+    assert "--cli|--headless|--tui) INSTALL_MODE=\"cli\"" in script
+    assert "--desktop|--gui|--web|--pwa) INSTALL_MODE=\"desktop\"" in script
+    assert 'INSTALL_MODE="$MIMI_NOX_MODE"' in script
+    assert 'pip install -e ".[tui]"' in script
+    assert 'pip install -e ".[gui,voice]"' in script
+    assert 'exec .venv/bin/miminox tui --model "$MODEL"' in script
+    assert 'exec .venv/bin/miminox start --port "$PORT" --model "$MODEL" --open' in script
+
+
+def test_given_install_sh_when_no_flag_then_interactive_mode_prompt_is_available():
+    """
+    GIVEN install.sh runs without a mode flag on a TTY
+    WHEN the interactive prompt is reached
+    THEN it offers Desktop/PWA, CLI and Skip-start choices with desktop as default.
+    """
+    script = (ROOT / "install.sh").read_text(encoding="utf-8")
+
+    assert 'Wie willst du MiMi Nox nutzen? [D]esktop/PWA, [C]li (TUI), oder [S]kip-Start' in script
+    assert 'INSTALL_MODE="cli"' in script
+    assert 'NO_START=1' in script
+
+
+def test_given_install_ps1_when_checked_then_windows_has_ram_detection_and_cli_mode():
+    """
+    GIVEN a Windows user runs install.ps1
+    WHEN the script is inspected
+    THEN it detects RAM to pick a fitting model (not hardcoded 12b) and supports a minimal CLI path.
+    """
+    script = (ROOT / "install.ps1").read_text(encoding="utf-8")
+
+    assert '[string]$Model = ""' in script
+    assert "[switch]$Cli" in script
+    assert "Get-CimInstance Win32_ComputerSystem" in script
+    assert 'TotalPhysicalMemory / 1GB' in script
+    assert 'return "gemma4:12b"' in script
+    assert 'return "gemma4:e4b"' in script
+    assert 'return "gemma4:e2b"' in script
+    assert 'install -e ".[tui]"' in script
+    assert 'install -e ".[gui,voice]"' in script
+    assert 'miminox.exe" tui --model $Model' in script
+    assert 'miminox.exe" start --port $Port --model $Model --open' in script
+
+
+def test_given_readme_when_checked_then_windows_one_liner_and_cli_flags_are_documented():
+    """
+    GIVEN a Windows or CLI-first user reads the README
+    WHEN the install docs are checked
+    THEN the PowerShell one-liner and the --cli/--desktop mode flags are documented.
+    """
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "curl -fsSL https://raw.githubusercontent.com/MimiTechAi/mimi-nox/main/install.ps1" in readme
+    assert "powershell -ExecutionPolicy Bypass -File .\\install.ps1" in readme
+    assert "miminox tui" in readme
+    assert "--cli" in readme
+    assert "--desktop" in readme
