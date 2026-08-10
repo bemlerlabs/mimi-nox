@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
-    "frontendDist": "../app/dist",
-    "devUrl": "http://localhost:8765",
-    "beforeDevCommand": "python run_server.py --reload",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "python ../run_server.py --reload",
     "beforeBuildCommand": "python run_server.py"
   },
   "app": {
@@ -16,7 +16,8 @@
         "width": 800,
         "height": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "url": "/#/chat"
       }
     ],
     "security": {
