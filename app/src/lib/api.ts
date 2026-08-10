@@ -76,3 +76,42 @@ export function updateSettings(settings: Partial<AppSettings>): Promise<AppSetti
 export async function healthCheck(): Promise<{ status: string; model: string }> {
   return request<{ status: string; model: string }>('/api/health')
 }
+
+// ── Scheduler (P2-8) ───────────────────────────────────────────────────────
+
+export interface ScheduleJob {
+  id: string
+  task: string
+  cron: string
+  next_run?: string
+  enabled?: boolean
+}
+
+export interface ScheduleResult {
+  id: string
+  job_id: string
+  status: string
+  output?: string
+  ran_at?: string
+}
+
+export function listSchedules(): Promise<{ jobs: ScheduleJob[] }> {
+  return request<{ jobs: ScheduleJob[] }>('/api/schedule')
+}
+
+export function getScheduleResults(limit = 20): Promise<{ results: ScheduleResult[] }> {
+  return request<{ results: ScheduleResult[] }>(`/api/schedule/results?limit=${limit}`)
+}
+
+export async function createSchedule(task: string, cron: string): Promise<{ job_id: string; message: string }> {
+  return request<{ job_id: string; message: string }>('/api/schedule', {
+    method: 'POST',
+    body: JSON.stringify({ task, cron }),
+  })
+}
+
+export function deleteSchedule(jobId: string): Promise<{ status: string; job_id: string }> {
+  return request<{ status: string; job_id: string }>(`/api/schedule/${jobId}`, {
+    method: 'DELETE',
+  })
+}

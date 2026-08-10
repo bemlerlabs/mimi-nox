@@ -6,10 +6,16 @@ import WelcomeEmptyState from './WelcomeEmptyState'
 import { useChatStore } from '@/store/chatStore'
 import { WSClient } from '@/lib/websocket'
 import { sendMessage } from '@/lib/api'
+import { listSchedules, createSchedule, deleteSchedule, type ScheduleJob } from '@/lib/api'
 import Sidebar from './Sidebar'
+import { WorkspaceLayout } from './WorkspaceLayout'
 import ChatInput, { type Attachment } from './ChatInput'
 import MessageBubble from './MessageBubble'
 import SettingsPanel from './SettingsPanel'
+import StatusBar from './StatusBar'
+import TimelineRail from './TimelineRail'
+import CheckpointControls from './CheckpointControls'
+import SchedulerPanel from './SchedulerPanel'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { useTranslation } from 'react-i18next'
 import { useTauriWindow } from '@/hooks/useTauriWindow'
@@ -27,9 +33,40 @@ export default function ChatLayout() {
   const { t } = useTranslation()
   const { isTauri, minimize, maximize, close } = useTauriWindow()
   const { windowVisible } = useTauriTray()
-  const { currentSession, isTyping, createSession, addMessage, setTyping, setPendingToolCall, pendingToolCall } = useChatStore()
+  const { currentSession, isTyping, createSession, addMessage, setTyping, setPendingToolCall, pendingToolCall, checkpoints, createCheckpoint, rollbackToCheckpoint, deleteCheckpoint } = useChatStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // ── Scheduler (P2-8) ──────────────────────────────────────────────────────
+  const [scheduleJobs, setScheduleJobs] = useState<ScheduleJob[]>([])
+  const loadJobs = useCallback(async () => {
+    try {
+      const res = await listSchedules()
+      setScheduleJobs(res.jobs ?? [])
+    } catch {
+      // Backend offline → Scheduler-UI bleibt leer
+      setScheduleJobs([])
+    }
+  }, [])
+  useEffect(() => {
+    loadJobs()
+  }, [loadJobs])
+  const handleScheduleCreate = useCallback(async (task: string, cron: string) => {
+    try {
+      await createSchedule(task, cron)
+      await loadJobs()
+    } catch {
+      // ignore — Formular bleibt für Retry
+    }
+  }, [loadJobs])
+  const handleScheduleDelete = useCallback(async (id: string) => {
+    try {
+      await deleteSchedule(id)
+      await loadJobs()
+    } catch {
+      // ignore
+    }
+  }, [loadJobs])
 
   // Window hidden (minimize-to-tray) → dismiss overlays
   useEffect(() => {
@@ -40,6 +77,8 @@ export default function ChatLayout() {
   }, [windowVisible])
   const [wsConnected, setWsConnected] = useState(false)
   const [lastStatus, setLastStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected')
+  const [yolo, setYolo] = useState(false)
+  const [railActive, setRailActive] = useState<number>(-1)
   const wsClientRef = useRef<WSClient | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pendingToolRef = useRef<PendingToolCall | null>(null)
@@ -52,6 +91,17 @@ export default function ChatLayout() {
     estimateSize: () => 120,
     overscan: 5,
   })
+
+  // Timeline-Rail: Marker-Klick scrollt zum Message; Scroll aktualisiert activeIndex
+  const handleRailSelect = useCallback((index: number) => {
+    setRailActive(index)
+    rowVirtualizer.scrollToIndex(index, { align: 'start' })
+  }, [rowVirtualizer])
+
+  const handleScroll = useCallback(() => {
+    const first = rowVirtualizer.getVirtualItems()[0]
+    if (first) setRailActive(first.index)
+  }, [rowVirtualizer])
 
   // Auto-scroll on new messages (last item)
   useEffect(() => {
@@ -170,8 +220,9 @@ export default function ChatLayout() {
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative">
+      {/* Main Chat Area — wrapped in Pane-Layout */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <WorkspaceLayout preset="dev" chatContent={<div className="flex h-full flex-col relative">
         {/* Header */}
         <header className="border-b border-white/5 px-4 h-14 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -247,12 +298,46 @@ export default function ChatLayout() {
           </div>
         </header>
 
+        {/* Status Bar + Context Meter — Live %-full, Token-Breakdown, YOLO */}
+        <StatusBar
+          messages={currentSession?.messages ?? []}
+          yolo={yolo}
+          onYoloChange={setYolo}
+        />
+
+        {/* Checkpoints & Rollback (P2-7) */}
+        {currentSession && (
+          <div className="px-4 pt-1 flex items-center justify-end">
+            <CheckpointControls
+              checkpoints={checkpoints[currentSession.id] ?? []}
+              onCreate={() => createCheckpoint('Punkt ' + ((checkpoints[currentSession.id]?.length ?? 0) + 1))}
+              onRollback={(id: string) => rollbackToCheckpoint(id)}
+              onDelete={(id: string) => deleteCheckpoint(id)}
+            />
+          </div>
+        )}
+
+        {/* Scheduler (P2-8) */}
+        <div className="px-4 pt-1">
+          <SchedulerPanel
+            jobs={scheduleJobs}
+            onCreate={(task: string, cron: string) => handleScheduleCreate(task, cron)}
+            onDelete={(id: string) => handleScheduleDelete(id)}
+          />
+        </div>
+
         {/* Messages — virtualized (only render visible items) */}
         {!currentSession || currentSession.messages.length === 0 ? (
           <WelcomeEmptyState onSuggestion={(text) => handleSend(text)} />
         ) : (
           <>
-            <div ref={parentRef} className="flex-1 overflow-y-auto">
+            <div className="flex flex-1 min-h-0">
+              <TimelineRail
+                messages={currentSession?.messages ?? []}
+                activeIndex={railActive}
+                onSelect={handleRailSelect}
+              />
+              <div ref={parentRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
               <div className="max-w-3xl mx-auto px-4 py-6 relative" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
                 {rowVirtualizer.getVirtualItems().map((virtualItem) => {
                   const msg = currentSession?.messages[virtualItem.index]
@@ -334,6 +419,7 @@ export default function ChatLayout() {
                 })}
               </div>
             </div>
+            </div>
             <div ref={messagesEndRef} />
           </>
         )}
@@ -343,6 +429,8 @@ export default function ChatLayout() {
           onSend={handleSend}
           disabled={isTyping}
         />
+        </div>}>
+        </WorkspaceLayout>
       </div>
       {/* Settings Panel */}
       <SettingsPanel

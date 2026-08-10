@@ -6,10 +6,12 @@
  */
 
 import type { DbSession } from '@/types'
+import type { ChatCheckpoint } from '@/lib/checkpoints'
 
 const DB_NAME = 'mimi-nox'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_NAME = 'sessions'
+const CHECKPOINT_STORE = 'checkpoints'
 
 export type { DbSession }
 
@@ -24,6 +26,9 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
         store.createIndex('updatedAt', 'updatedAt', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(CHECKPOINT_STORE)) {
+        db.createObjectStore(CHECKPOINT_STORE, { keyPath: 'sessionId' })
       }
     }
 
@@ -120,4 +125,51 @@ export function debouncedSaveSession(
     dbSaveSession(session)
     saveTimer = null
   }, delayMs)
+}
+
+// ── Checkpoints (P2-7) ─────────────────────────────────────────────────────
+
+export async function dbGetCheckpoints(sessionId: string): Promise<ChatCheckpoint[]> {
+  try {
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CHECKPOINT_STORE, 'readonly')
+      const request = tx.objectStore(CHECKPOINT_STORE).get(sessionId)
+      request.onsuccess = () => resolve((request.result as { items?: ChatCheckpoint[] })?.items ?? [])
+      request.onerror = () => reject(request.error)
+    })
+  } catch {
+    return []
+  }
+}
+
+export async function dbSaveCheckpoints(
+  sessionId: string,
+  checkpoints: ChatCheckpoint[],
+): Promise<void> {
+  try {
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CHECKPOINT_STORE, 'readwrite')
+      tx.objectStore(CHECKPOINT_STORE).put({ sessionId, items: checkpoints })
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch (err: unknown) {
+    console.warn('[IndexedDB] Failed to save checkpoints:', sessionId, err)
+  }
+}
+
+export async function dbDeleteCheckpoints(sessionId: string): Promise<void> {
+  try {
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CHECKPOINT_STORE, 'readwrite')
+      tx.objectStore(CHECKPOINT_STORE).delete(sessionId)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch {
+    // ignore
+  }
 }

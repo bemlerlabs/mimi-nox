@@ -69,6 +69,8 @@ export interface Session {
   title: string
   messages: ChatMessage[]
   createdAt: number
+  /** Angepinnte Session — wird oben fixiert (MiMi-Nox-Feature) */
+  pinned?: boolean
 }
 
 // ── Provider / Settings ────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { dbGetAllSessions, dbDeleteSession, debouncedSaveSession } from '@/lib/db'
+import { dbGetAllSessions, dbDeleteSession, debouncedSaveSession, dbGetCheckpoints, dbSaveCheckpoints } from '@/lib/db'
+import { createCheckpoint, rollbackToCheckpoint, deleteCheckpoint, type ChatCheckpoint } from '@/lib/checkpoints'
 import type {
   ChatMessage,
   DbSession,
@@ -35,6 +36,7 @@ interface ChatStore {
   isTyping: boolean
   pendingToolCall: PendingToolCall | null
   currentSession: Session | null
+  checkpoints: Record<string, ChatCheckpoint[]>
   setSessions: (sessions: Session[]) => void
   setActiveSession: (id: string) => void
   createSession: (title?: string) => void
@@ -42,6 +44,10 @@ interface ChatStore {
   addMessage: (role: 'user' | 'assistant' | 'system', content: string, toolCalls?: ToolCall[]) => void
   setTyping: (typing: boolean) => void
   setPendingToolCall: (tool: PendingToolCall | null) => void
+  // Checkpoints & Rollback (P2-7)
+  createCheckpoint: (label?: string) => void
+  rollbackToCheckpoint: (id: string) => void
+  deleteCheckpoint: (id: string) => void
   // IndexedDB helpers
   initFromDb: () => Promise<void>
 }
@@ -52,6 +58,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   isTyping: false,
   pendingToolCall: null,
   currentSession: null,
+  checkpoints: {},
 
   // Load persisted sessions from IndexedDB on first mount
   initFromDb: async () => {
@@ -59,7 +66,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const dbSessions = await dbGetAllSessions()
       if (dbSessions.length > 0) {
         const sessions = dbSessions.map(fromDbSession)
-        set({ sessions, activeSessionId: sessions[0]?.id ?? null, currentSession: sessions[0] ?? null })
+        const first = sessions[0]!
+        set({ sessions, activeSessionId: first.id, currentSession: first })
+        // Lade Checkpoints der aktiven Session
+        const cps = await dbGetCheckpoints(first.id)
+        if (cps.length > 0) {
+          set((state) => ({ checkpoints: { ...state.checkpoints, [first.id]: cps } }))
+        }
       }
     } catch (err) {
       console.warn('[ChatStore] Failed to load sessions from IndexedDB:', err)
@@ -133,4 +146,41 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
   setTyping: (typing) => set({ isTyping: typing }),
   setPendingToolCall: (tool) => set({ pendingToolCall: tool }),
+
+  // ── Checkpoints & Rollback (P2-7) ────────────────────────────────────────
+  createCheckpoint: (label) => {
+    const state = get()
+    const sid = state.activeSessionId
+    const session = state.currentSession
+    if (!sid || !session) return
+    const cp = createCheckpoint(session.messages, label)
+    const updated = [...(state.checkpoints[sid] ?? []), cp]
+    set((s) => ({ checkpoints: { ...s.checkpoints, [sid]: updated } }))
+    dbSaveCheckpoints(sid, updated)
+  },
+  rollbackToCheckpoint: (id) => {
+    const state = get()
+    const sid = state.activeSessionId
+    if (!sid) return
+    const cps = state.checkpoints[sid] ?? []
+    const rolled = rollbackToCheckpoint(id, cps)
+    if (!rolled) return
+    set((s) => {
+      const sessions = s.sessions.map((sess) =>
+        sess.id === sid ? { ...sess, messages: rolled } : sess,
+      )
+      const currentSession = sessions.find((sess) => sess.id === sid)
+      return { sessions, currentSession }
+    })
+    const updated = state.sessions.find((s) => s.id === sid)
+    if (updated) debouncedSaveSession(toDbSession(updated))
+  },
+  deleteCheckpoint: (id) => {
+    const state = get()
+    const sid = state.activeSessionId
+    if (!sid) return
+    const updated = deleteCheckpoint(state.checkpoints[sid] ?? [], id)
+    set((s) => ({ checkpoints: { ...s.checkpoints, [sid]: updated } }))
+    dbSaveCheckpoints(sid, updated)
+  },
 }))
