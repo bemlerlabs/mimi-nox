@@ -26,8 +26,10 @@ from collections.abc import Callable
 import ollama
 
 from core.model_provider import (
+    DEFAULT_OLLAMA_BASE_URL,
     ModelProviderConfig,
     ProviderSetupError,
+    build_engine_provider,
     build_provider_client,
     get_active_provider,
 )
@@ -44,6 +46,25 @@ from core.memory import Memory
 from core.corrections import CorrectionJournal
 from core.feedback import FeedbackStore
 from core.conversation_compactor import compact_history
+
+
+def _resolve_provider(
+    model: str,
+    provider_config: ModelProviderConfig | None,
+    api_url: str | None,
+) -> ModelProviderConfig:
+    """Resolve the provider to use.
+
+    - ``provider_config`` wins when given.
+    - ``api_url`` selects an OpenAI-compatible engine (e.g. DGX-Spark ds4),
+      unless it equals the local Ollama base URL.
+    - Otherwise fall back to the active provider (Ollama).
+    """
+    if provider_config is not None:
+        return provider_config
+    if api_url and api_url.strip() and api_url.rstrip("/") != DEFAULT_OLLAMA_BASE_URL:
+        return build_engine_provider(api_url, model)
+    return get_active_provider()
 
 # How long to wait for the FIRST token before showing a "still loading" hint
 FIRST_CHUNK_TIMEOUT: float = 15.0
@@ -295,6 +316,7 @@ async def stream_response(
     on_thinking: Callable[[str], None] | None = None,
     on_loading_hint: Callable[[], None] | None = None,
     provider_config: ModelProviderConfig | None = None,
+    api_url: str | None = None,
 ) -> str:
     """
     Stream a response from Ollama token by token.
@@ -309,7 +331,7 @@ async def stream_response(
         OllamaModelNotFoundError: if the model is not pulled.
         asyncio.CancelledError: propagates cleanly for Textual worker shutdown.
     """
-    provider = provider_config or get_active_provider()
+    provider = _resolve_provider(model, provider_config, api_url)
     client = build_provider_client(provider)
     full_response = ""
     hint_sent = False
@@ -359,6 +381,7 @@ async def send_message_safe(
     on_fallback: Callable[[], None] | None = None,
     on_loading_hint: Callable[[], None] | None = None,
     provider_config: ModelProviderConfig | None = None,
+    api_url: str | None = None,
 ) -> str:
     """
     Safe wrapper: tries streaming first, falls back to non-streaming on failure.
@@ -385,7 +408,7 @@ async def send_message_safe(
         if on_fallback is not None:
             on_fallback()
 
-        provider = provider_config or get_active_provider()
+        provider = _resolve_provider(model, provider_config, api_url)
         client = build_provider_client(provider)
         try:
             response = await client.chat(
@@ -521,6 +544,30 @@ async def check_ollama_connection(model: str) -> tuple[bool, str, list[str]]:
         return False, "offline", []
 
 
+async def check_engine_connection(api_url: str, model: str) -> tuple[bool, str, list[str]]:
+    """
+    Quick connectivity check for an OpenAI-compatible engine (e.g. DGX-Spark ds4).
+    Returns (is_connected, status_message, available_models).
+    Remote engines cannot pull models locally, so available_models is always empty.
+    """
+    try:
+        provider = build_engine_provider(api_url, model)
+        client = build_provider_client(provider)
+        await asyncio.wait_for(
+            client.chat(
+                model=model,
+                messages=[{"role": "user", "content": "ping"}],
+                stream=False,
+            ),
+            timeout=3.0,
+        )
+        return True, f"connected · {model}", []
+    except asyncio.TimeoutError:
+        return False, "timeout", []
+    except Exception:
+        return False, "offline", []
+
+
 async def chat_with_tools(
     *,
     model: str,
@@ -532,6 +579,7 @@ async def chat_with_tools(
     on_phase: Callable[[str], None] | None = None,
     on_loading_hint: Callable[[], None] | None = None,
     provider_config: ModelProviderConfig | None = None,
+    api_url: str | None = None,
     allowed_tool_names: list[str] | None = None,
     extra_system_prompt: str | None = None,
     on_shell_confirm: Callable[[str], object] | None = None,
@@ -560,7 +608,7 @@ async def chat_with_tools(
         OllamaModelNotFoundError:   Modell nicht lokal vorhanden
         ShellConfirmationRequired:  Shell-Tool braucht User-Bestätigung
     """
-    provider = provider_config or get_active_provider()
+    provider = _resolve_provider(model, provider_config, api_url)
     client = build_provider_client(provider)
     messages: list = compact_history(list(history))
     tools = _tools_for_messages(messages, allowed_tool_names=allowed_tool_names)

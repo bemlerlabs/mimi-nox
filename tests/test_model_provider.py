@@ -341,3 +341,101 @@ async def test_given_ollama_list_contains_embeddings_when_local_options_loaded_t
 
     assert [item["name"] for item in options] == ["gemma3:12b"]
     assert options[0]["label"].startswith("gemma3:12b · 12.0B")
+
+
+# ── Engine-Abstraktion (DGX-Spark ds4 / OpenAI-kompatibel) ──────────────────
+
+def test_given_engine_url_when_provider_built_then_openai_compatible_config_returns(monkeypatch):
+    """
+    GIVEN a remote OpenAI-compatible engine URL (e.g. DGX-Spark ds4)
+    WHEN build_engine_provider is called
+    THEN an openai_compatible config with that base_url and advanced opt-in is returned.
+    """
+    import core.model_provider as provider
+
+    cfg = provider.build_engine_provider(
+        "http://spark-ds4.example.test:8000/v1", "deepseek-v4-flash"
+    )
+
+    assert cfg.provider == "openai_compatible"
+    assert cfg.model == "deepseek-v4-flash"
+    assert cfg.base_url == "http://spark-ds4.example.test:8000/v1"
+    assert cfg.offline_capable is False
+    assert cfg.advanced_opt_in is True
+
+
+async def test_given_reachable_engine_when_connection_checked_then_connected_without_models(monkeypatch):
+    """
+    GIVEN a reachable OpenAI-compatible engine
+    WHEN check_engine_connection is called
+    THEN it reports connected and an empty model list (remote engines cannot list models).
+    """
+    import core.chat as chat
+    import core.model_provider as provider
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"content": "pong"}}]}
+
+    class FakeHttpClient:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, url, *, headers, json):
+            return FakeResponse()
+
+    monkeypatch.setattr(provider.httpx, "AsyncClient", FakeHttpClient)
+
+    connected, status_text, available = await chat.check_engine_connection(
+        "http://spark-ds4.example.test:8000/v1", "deepseek-v4-flash"
+    )
+
+    assert connected is True
+    assert "connected" in status_text
+    assert available == []
+
+
+async def test_given_unreachable_engine_when_connection_checked_then_reports_offline(monkeypatch):
+    """
+    GIVEN an unreachable OpenAI-compatible engine
+    WHEN check_engine_connection is called
+    THEN it reports offline and empty model list.
+    """
+    import core.chat as chat
+    import core.model_provider as provider
+
+    class FakeResponse:
+        def raise_for_status(self):
+            raise RuntimeError("engine down")
+
+    class FakeHttpClient:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, url, *, headers, json):
+            return FakeResponse()
+
+    monkeypatch.setattr(provider.httpx, "AsyncClient", FakeHttpClient)
+
+    connected, status_text, available = await chat.check_engine_connection(
+        "http://spark-ds4.example.test:8000/v1", "deepseek-v4-flash"
+    )
+
+    assert connected is False
+    assert status_text == "offline"
+    assert available == []

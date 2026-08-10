@@ -21,6 +21,7 @@ from core import __edition__, __tagline__, __version__
 from core.chat import (
     OllamaModelNotFoundError,
     OllamaNotReachableError,
+    check_engine_connection,
     check_ollama_connection,
     chat_with_tools,
 )
@@ -64,9 +65,12 @@ class ClawDashApp(App):
 
     # ── Init ─────────────────────────────────────────────────────────────────
 
-    def __init__(self, model: str = "gemma4:12b", reset: bool = False) -> None:
+    def __init__(
+        self, model: str = "gemma4:12b", reset: bool = False, api_url: str | None = None
+    ) -> None:
         super().__init__()
         self.model = model
+        self.api_url = api_url
         self._reset_on_start = reset
         self._session: list[Message] = []
         # Phase 2: Memory + Skills + Profile (lazy init)
@@ -145,7 +149,12 @@ class ClawDashApp(App):
 
     async def _async_check_connection(self) -> None:
         """Ping Ollama on startup, show model list if model not found."""
-        connected, status_text, available = await check_ollama_connection(self.model)
+        if self.api_url:
+            connected, status_text, available = await check_engine_connection(
+                self.api_url, self.model
+            )
+        else:
+            connected, status_text, available = await check_ollama_connection(self.model)
 
         self.query_one(StatusBar).post_message(
             StatusBar.SetStatus(connected=connected, model=self.model)
@@ -359,6 +368,7 @@ class ClawDashApp(App):
                 full_response = await react_loop(
                     question=question,
                     model=self.model,
+                    api_url=self.api_url,
                     context=context,
                     on_chunk=on_chunk,
                     on_tool_start=on_tool_start,

@@ -27,6 +27,7 @@ from typing import Callable
 
 from core.chat import (
     _native_thinking_kwargs,
+    _resolve_provider,
     chat_with_tools,
     OllamaNotReachableError,
     OllamaModelNotFoundError,
@@ -85,6 +86,7 @@ async def reflect(
     question: str,
     model: str,
     provider_config: ModelProviderConfig | None = None,
+    api_url: str | None = None,
 ) -> ReflexionResult:
     """
     Bewertet eine Antwort via separatem LLM-Aufruf.
@@ -100,7 +102,7 @@ async def reflect(
     Returns:
         ReflexionResult(needs_revision=bool, reason=str)
     """
-    provider = provider_config or get_active_provider()
+    provider = _resolve_provider(model, provider_config, api_url)
     try:
         client = build_provider_client(provider)
     except Exception:
@@ -161,6 +163,7 @@ async def react_loop(
     on_tool_start: Callable[[str, dict], None] | None = None,
     on_tool_done: Callable[[str, str], None] | None = None,
     provider_config: ModelProviderConfig | None = None,
+    api_url: str | None = None,
 ) -> str:
     """
     ReAct-Loop mit Reflexions-basierter Selbstkorrektur.
@@ -225,6 +228,7 @@ async def react_loop(
             on_chunk=chunk_cb,
             on_tool_start=on_tool_start,
             on_tool_done=on_tool_done,
+            api_url=api_url,
             provider_config=provider_config,
         )
 
@@ -247,6 +251,7 @@ async def react_loop(
             response=last_answer,
             question=question,
             model=model,
+            api_url=api_url,
             provider_config=provider_config,
         )
 

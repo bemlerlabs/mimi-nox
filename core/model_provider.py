@@ -35,6 +35,7 @@ class ModelProviderConfig:
     requires_internet: bool
     advanced_opt_in: bool = False
     api_key_configured: bool = False
+    requires_api_key: bool = True
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -74,7 +75,7 @@ class ProviderChatResponse:
 class OpenAICompatibleAsyncClient:
     """Small adapter exposing the subset of Ollama's AsyncClient used here."""
 
-    def __init__(self, *, base_url: str, api_key: str) -> None:
+    def __init__(self, *, base_url: str, api_key: str = "") -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
 
@@ -84,10 +85,10 @@ class OpenAICompatibleAsyncClient:
         return f"{self.base_url}/chat/completions"
 
     def _headers(self) -> dict[str, str]:
-        return {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
     def _convert_messages(self, messages: list[dict]) -> list[dict]:
         converted: list[dict] = []
@@ -302,7 +303,11 @@ def list_provider_options() -> list[dict]:
 
 def ensure_provider_ready(config: ModelProviderConfig | None = None) -> None:
     active = config or get_active_provider()
-    if active.provider == "openai_compatible" and not active.api_key_configured:
+    if (
+        active.provider == "openai_compatible"
+        and active.requires_api_key
+        and not active.api_key_configured
+    ):
         raise ProviderSetupError(
             "OpenAI-compatible API provider selected, but no API key is configured. "
             "Set MIMI_OPENAI_COMPAT_API_KEY or switch back to Local Ollama."
@@ -320,6 +325,25 @@ def build_provider_client(config: ModelProviderConfig | None = None) -> Any:
     if active.provider == "openai_compatible":
         return OpenAICompatibleAsyncClient(
             base_url=active.base_url,
-            api_key=os.environ["MIMI_OPENAI_COMPAT_API_KEY"],
+            api_key=os.environ.get("MIMI_OPENAI_COMPAT_API_KEY", ""),
         )
     return ollama.AsyncClient(host=active.base_url)
+
+
+def build_engine_provider(api_url: str, model: str) -> ModelProviderConfig:
+    """Build an OpenAI-compatible provider config for a remote engine (e.g. DGX-Spark ds4).
+
+    api_url is the full base URL (e.g. ``http://spark-...:8000/v1``).
+    The API key is optional — a local engine (DGX-Spark ds4) needs none.
+    """
+    return ModelProviderConfig(
+        provider="openai_compatible",
+        model=model,
+        base_url=api_url.rstrip("/"),
+        label="OpenAI-compatible Engine",
+        offline_capable=False,
+        requires_internet=False,
+        advanced_opt_in=True,
+        api_key_configured=bool(os.environ.get("MIMI_OPENAI_COMPAT_API_KEY")),
+        requires_api_key=False,
+    )
