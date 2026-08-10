@@ -267,7 +267,9 @@ class ChatView(Widget):
         self._accumulated_chunks = ""
 
     def compose(self) -> ComposeResult:
-        log = RichLog(id="chat-log", wrap=True, markup=True, highlight=False)
+        # max_lines: cap the chat log for long sessions — old lines are evicted
+        # beyond the cap instead of growing unbounded (memory/scroll perf).
+        log = RichLog(id="chat-log", wrap=True, markup=True, highlight=False, max_lines=2000)
         log.can_focus = False
         yield log
         yield Static("", id="streaming-area", markup=True)
