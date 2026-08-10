@@ -7,6 +7,8 @@
 # Die TUI läuft nur im TTY. asciinema zeichnet die Session auf, agg macht daraus ein GIF.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# venv-Binaries (asciinema, miminox) in den PATH holen — Skript läuft ohne aktiviertes venv
+export PATH="$(pwd)/.venv/bin:$PATH"
 
 MODEL="${1:-gemma4:e4b}"
 OUT_DIR="docs/media"
@@ -18,7 +20,7 @@ command -v tmux    >/dev/null || { echo "tmux fehlt"; exit 1; }
 
 echo "Starte Aufzeichnung von 'miminox tui --model $MODEL' …"
 # asciinema: 2s idle-timeout, max 120s
-asciinema rec "${OUT_DIR}/_rec.cast" --overwrite --idle-timeout 2 --append-command=false -c '
+asciinema rec "${OUT_DIR}/_rec.cast" --overwrite -i 2 -q -c '
   tmux new-session -d -s miminox "exec .venv/bin/miminox tui --model '"${MODEL}"'"
   tmux send-keys -t miminox "/post Zeig mir die 5 wichtigsten Best Practices für lokale LLMs" Enter
   sleep 8
