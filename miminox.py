@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+from core._version import __version__
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -56,7 +58,7 @@ def main() -> None:
     parser.add_argument(
         "--version",
         action="version",
-        version="◑ MiMi Nox v1.0.0 – by MiMi Tech AI UG",
+        version=f"◑ MiMi Nox v{__version__} – by MiMi Tech AI UG",
     )
 
     args = parser.parse_args()

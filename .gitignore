@@ -18,8 +18,11 @@ build/
 
 # Pytest
 .pytest_cache/
+.benchmarks/
 .coverage
 .coverage*
+coverage.xml
+htmlcov/
 
 # Other Python tool caches
 .mypy_cache/

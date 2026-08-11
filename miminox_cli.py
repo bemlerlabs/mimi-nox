@@ -13,6 +13,11 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 
+try:
+    from core._version import __version__ as MIMI_NOX_VERSION
+except Exception:  # standalone source-tree run without the core/ package
+    MIMI_NOX_VERSION = "4.0.0"
+
 
 # Hardware-adaptive Default-Modellwahl (RAM-basiert).
 # Die Wahl bleibt dem User überlassen: MIMI_NOX_MODEL / CLI --model überschreibt.
@@ -392,6 +397,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             _print_check(ok, name, detail)
         if local_models:
             print("Models  " + ", ".join(local_models))
+        total = len(checks) + len(repairs)
+        passed = sum(1 for _, ok, _ in checks if ok) + sum(1 for _, ok, _ in repairs if ok)
+        print(f"Summary: {passed}/{total} checks OK")
     return 0 if payload["ok"] else 1
 
 
@@ -470,7 +478,28 @@ def cmd_tui(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="miminox", description="MiMi Nox local assistant CLI")
+    parser = argparse.ArgumentParser(
+        prog="miminox",
+        description="MiMi Nox local assistant CLI",
+        epilog=(
+            "Examples:\n"
+            "  miminox start                     Start the local web app (default port 8765)\n"
+            "  miminox start --lan --open        Expose on LAN for QR mobile pairing, open browser\n"
+            "  miminox doctor --fix              Check setup and repair safe local drift\n"
+            "  miminox update                    Pull latest, reinstall deps, update model\n"
+            "  miminox tui --model gemma4:12b    Start the terminal UI\n\n"
+            "Exit codes:\n"
+            "  0  success\n"
+            "  1  runtime/repair failure\n"
+            "  2  usage error (unknown flag or subcommand)"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"mimi-nox {MIMI_NOX_VERSION}",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     start = sub.add_parser("start", help="Start the local web app")

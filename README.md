@@ -105,13 +105,22 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 ### CLI
 
+Drei Entry-Points, eine Codebasis:
+
 ```bash
-miminox start --open
-miminox start --lan
-miminox doctor
-miminox update
-miminox tui
+miminox --version                 # mimi-nox 4.0.0
+miminox --help                    # alle Subcommands, Beispiele, Exit-Codes
+miminox start --open              # lokale Web-App starten + Browser öffnen (Port 8765)
+miminox start --lan               # LAN-Binding für QR-Mobile-Pairing
+miminox start --model gemma4:12b  # Modell explizit wählen
+miminox doctor                    # Setup-Check (Ollama, Modell, Server)
+miminox doctor --fix              # sichere lokale Reparaturen (Repo, Deps, Ollama, Modell)
+miminox doctor --json             # maschinenlesbarer Health-Bericht
+miminox update                    # Repo pull + Dependencies + Modell
+miminox tui --model gemma4:12b    # Terminal-UI (Textual)
 ```
+
+Exit-Codes: `0` Erfolg · `1` Laufzeit/Reparatur-Fehler · `2` Usage-Fehler (unbekanntes Flag/Subcommand).
 
 Installations-Modus wählbar: `--cli` (nur TUI/Textual, minimale Dependencies) oder `--desktop`/`--gui` (Standard, PWA + gui/voice). Ohne Flag fragt der Installer interaktiv.
 

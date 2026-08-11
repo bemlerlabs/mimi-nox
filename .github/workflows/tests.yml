@@ -57,4 +57,17 @@ jobs:
           MIMI_NOX_MEMORY_DIR: /tmp/mimi-nox-ci-memory
 
       - name: Installer-Syntax-Check (Release-Bar)
-        run: bash -n install.sh && echo "install.sh OK"
+        run: |
+          bash -n install.sh && echo "install.sh OK"
+          pwsh -NoProfile -Command "$ErrorActionPreference='Stop'; $t=0;$e=0; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'install.ps1'),[ref]$t,[ref]$e) | Out-Null; if ($e.Count) { $e | ForEach-Object { Write-Error $_.ToString() }; exit 1 }; Write-Host 'install.ps1 OK'"
+
+  docker-build:
+    name: Docker image build (release-bar)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t miminox:ci .
+      - name: Verify installed package
+        run: docker run --rm --entrypoint python miminox:ci -c "import miminox; import miminox_cli; print('miminox import OK')"
