@@ -195,7 +195,7 @@ class TestReactLoop:
 
         revision_count = [0]
 
-        async def mock_reflect(response, question, model, provider_config=None):
+        async def mock_reflect(response, question, model, provider_config=None, api_url=None):
             revision_count[0] += 1
             if revision_count[0] == 1:
                 return ReflexionResult(needs_revision=True, reason="Unvollständig")
