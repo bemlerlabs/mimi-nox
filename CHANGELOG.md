@@ -9,6 +9,10 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+- Engine-Start/Onboarding für `miminox tui`: lokale Ollama wird automatisch erkannt (offline-first), sonst fragt die CLI nach Engine-URL und Modell (eigene Ollama/vLLM, DGX-Spark ds4, OpenAI-kompatibel); Auswahl wird nach `~/.mimi-nox/engine.json` persistiert, `--configure` erzwingt die Auswahl, explizite Flags gewinnen immer
+- `core/engine_config.py`: `EngineChoice` + atomare `load/save/clear_engine_config`; API-Keys werden nie persistiert (nur Session-Env)
+
 ### Planned
 - Multi-Session-Verwaltung (parallele Chats)
 - Plugin-API für externe Skill-Pakete

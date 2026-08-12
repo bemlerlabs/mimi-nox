@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import builtins
 import json
 import os
 import shutil
@@ -12,6 +13,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 from pathlib import Path
+from typing import Any
 
 try:
     from core._version import __version__ as MIMI_NOX_VERSION
@@ -32,6 +34,40 @@ except Exception:
         DEFAULT_MODEL = "gemma4:12b" if _ram >= 16 else ("gemma4:e4b" if _ram >= 8 else "gemma4:e2b")
     except Exception:
         DEFAULT_MODEL = "gemma4:e4b"  # unbekannte HW → konservatives kleines Modell
+
+# Engine-Auswahl-Persistenz (core/engine_config.py): `miminox tui` startbar
+# ohne Modell-Flag — der User wählt einmal seine Engine, die Konfig wird
+# nach ~/.mimi-nox/engine.json hinterlegt und bei jedem Start wiederverwendet.
+try:
+    from core.engine_config import (
+        EngineChoice,
+        OPENAI_COMPAT,
+        load_engine_config,
+        save_engine_config,
+    )
+except Exception:  # standalone source-tree run ohne core/ Paket
+    class EngineChoice:  # type: ignore
+        """Defensiver Shim – funktional identisch zum realen Modul."""
+
+        def __init__(self, provider: str, model: str, api_url: str | None = None) -> None:
+            self.provider = provider
+            self.model = model
+            self.api_url = api_url
+
+        def to_flags(self) -> list[str]:
+            flags = ["--model", self.model]
+            if self.api_url:
+                flags += ["--api-url", self.api_url]
+            return flags
+
+        def apply_env(self) -> None:
+            os.environ["MIMI_NOX_MODEL"] = self.model
+            if self.api_url:
+                os.environ["MIMI_OPENAI_COMPAT_BASE_URL"] = self.api_url
+
+    OPENAI_COMPAT = "openai_compatible"
+    load_engine_config = lambda *a, **k: None  # type: ignore
+    save_engine_config = lambda *a, **k: False  # type: ignore
 DEFAULT_PORT = 8765
 LOCAL_OLLAMA_HOST = "127.0.0.1:11434"
 LOCAL_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
@@ -80,6 +116,11 @@ def _ollama_env() -> dict[str, str]:
     env = os.environ.copy()
     env["OLLAMA_HOST"] = LOCAL_OLLAMA_HOST
     return env
+
+
+def _local_ollama_detected() -> bool:
+    """Fail-safe Check: läuft eine lokale Ollama-Engine? (offline-first Erkennung)."""
+    return _json_get(f"{LOCAL_OLLAMA_BASE_URL}/api/tags", timeout=1.0) is not None
 
 
 def _json_get(url: str, timeout: float = 3.0) -> dict | None:
@@ -458,16 +499,133 @@ def cmd_update(args: argparse.Namespace) -> int:
     return _run(["bash", str(installer), "--no-start"], env=env).returncode
 
 
-def cmd_tui(args: argparse.Namespace) -> int:
+def _run_engine_onboarding(
+    input_fn=builtins.input, config_path=None
+) -> Any:
+    """Interaktive Engine-Auswahl (Onboarding) für `miminox tui`.
+
+    Der User wählt einmal seine Engine (lokale Ollama / eigene Ollama- oder
+    vLLM-Engine / DGX-Spark ds4 / OpenAI-kompatible API). Die Wahl wird nach
+    ~/.mimi-nox/engine.json hinterlegt und bei jedem Start wiederverwendet.
+    API-Keys werden NIEMALS persistiert, sondern nur als Session-Env gesetzt.
+    """
+    print("◑ MiMi Nox – Engine-Auswahl (einmalig, wird gespeichert)")
+    print("  Jeder User wählt seine eigene Engine:")
+    print("  [1] Lokale Ollama            (Default, offline-first) → gemma4:12b")
+    print("  [2] Eigene Ollama / vLLM     (Remote-URL, OpenAI-kompatibel)")
+    print("  [3] DGX-Spark ds4            (OpenAI-kompatibel, vLLM)")
+    print("  [4] OpenAI-kompatible API    (z.B. Mistral / OpenAI)")
+
+    if _local_ollama_detected():
+        print("  ✓ Lokale Ollama-Engine erkannt – offline-first")
+    else:
+        print("  ⚠ Keine lokale Engine erkannt – bitte Engine und ggf. URL wählen")
+
+    while True:
+        try:
+            raw = (input_fn("Engine [1/2/3/4, Default 1]: ") or "1").strip()
+            if raw in ("1", "local"):
+                provider = "local_ollama"
+                default_model = DEFAULT_MODEL
+                api_url = None
+            elif raw in ("2", "custom"):
+                provider = "custom_ollama"
+                default_model = DEFAULT_MODEL
+                api_url = _ask_url(
+                    input_fn,
+                    "Engine-Basis-URL (z.B. http://10.0.0.50:11434/v1): ",
+                    required=True,
+                )
+            elif raw in ("3", "dgx", "spark"):
+                provider = OPENAI_COMPAT
+                default_model = "deepseek-v4-flash"
+                api_url = _ask_url(
+                    input_fn,
+                    "DGX-Spark ds4 URL (z.B. http://spark-...:8000/v1): ",
+                    required=True,
+                )
+            elif raw in ("4", "api"):
+                provider = OPENAI_COMPAT
+                default_model = "custom-model"
+                api_url = _ask_url(
+                    input_fn,
+                    "OpenAI-kompatible Basis-URL (z.B. https://api.mistral.ai/v1): ",
+                    required=True,
+                )
+                key = (input_fn("API-Key (optional, wird NICHT gespeichert): ") or "").strip()
+                if key:
+                    os.environ["MIMI_OPENAI_COMPAT_API_KEY"] = key
+            else:
+                print(f"  Unbekannte Wahl: {raw!r} – bitte 1/2/3/4.")
+                continue
+            break
+        except (EOFError, KeyboardInterrupt):
+            print("\n  Abbruch – Engine-Auswahl übersprungen, lokale Ollama wird genutzt.")
+            provider = "local_ollama"
+            default_model = DEFAULT_MODEL
+            api_url = None
+            break
+
+    try:
+        model = (input_fn(f"Modell [Default {default_model}]: ") or default_model).strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\n  Abbruch – Default-Modell wird genutzt.")
+        model = default_model
+    if not model:
+        model = default_model
+
+    choice = EngineChoice(provider=provider, model=model, api_url=api_url)
+    saved = save_engine_config(choice, config_path)
+    print(f"  → Engine gespeichert: {provider} / {model}"
+          + (f" @ {api_url}" if api_url else ""))
+    if not saved:
+        print("  ⚠  Konfig konnte nicht geschrieben werden – Auswahl gilt nur für diesen Start.")
+    return choice
+
+
+def _ask_url(input_fn, prompt: str, required: bool = False) -> str | None:
+    """Liest eine Engine-Basis-URL; None bei Abbruch/leer und nicht required."""
+    while True:
+        try:
+            url = input_fn(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            return None if not required else _abort_url()
+        if url:
+            return url
+        if required:
+            print("  ⚠ URL ist für diese Engine erforderlich – bitte erneut eingeben.")
+            continue
+        return None
+
+
+def _abort_url() -> str:
+    raise SystemExit("Abbruch: Engine-Basis-URL erforderlich für diese Auswahl.")
+
+
+def cmd_tui(args: argparse.Namespace, config_path=None) -> int:
     import miminox
 
-    forwarded = ["mimi-nox"]
-    if args.model:
-        forwarded.extend(["--model", args.model])
-    if args.api_url:
-        forwarded.extend(["--api-url", args.api_url])
-    if args.reset:
-        forwarded.append("--reset")
+    # Explizite Flags gewinnen immer → kein Onboarding nötig.
+    if args.model or args.api_url:
+        forwarded = ["mimi-nox"]
+        if args.model:
+            forwarded.extend(["--model", args.model])
+        if args.api_url:
+            forwarded.extend(["--api-url", args.api_url])
+        if args.reset:
+            forwarded.append("--reset")
+    else:
+        # Ohne Modell-Flag: persistierte Engine-Auswahl nutzen oder Onboarding.
+        choice: Any = None
+        if not args.configure:
+            choice = load_engine_config(config_path)
+        if choice is None:
+            choice = _run_engine_onboarding(config_path=config_path)
+        choice.apply_env()
+        forwarded = ["mimi-nox"] + choice.to_flags()
+        if args.reset:
+            forwarded.append("--reset")
+
     old_argv = sys.argv
     try:
         sys.argv = forwarded
@@ -529,7 +687,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--api-url",
         default=os.environ.get("MIMINOX_API_URL"),
         help="OpenAI-compatible engine base URL (e.g. DGX-Spark ds4 "
-             "http://spark-...:8000/v1). Default: local Ollama.",
+        "http://spark-...:8000/v1). Default: local Ollama.",
+    )
+    tui.add_argument(
+        "--configure",
+        action="store_true",
+        help="Force engine selection even if a config already exists",
     )
     tui.add_argument("--reset", action="store_true")
     tui.set_defaults(func=cmd_tui)

@@ -120,6 +120,8 @@ miminox update                    # Repo pull + Dependencies + Modell
 miminox tui --model gemma4:12b    # Terminal-UI (Textual)
 ```
 
+`miminox tui` startet ohne Modell-Flag direkt in eine Engine-Auswahl (Onboarding): die lokale Ollama-Engine wird automatisch erkannt (offline-first), sonst fragt die CLI nach Engine-URL und Modell (eigene Ollama/vLLM, DGX-Spark ds4, OpenAI-kompatible API). Die Wahl wird unter `~/.mimi-nox/engine.json` gespeichert und bei jedem Start wiederverwendet; `--configure` erzwingt die Auswahl, explizite `--model`/`--api-url`-Flags gewinnen immer. API-Keys werden nie gespeichert.
+
 Exit-Codes: `0` Erfolg · `1` Laufzeit/Reparatur-Fehler · `2` Usage-Fehler (unbekanntes Flag/Subcommand).
 
 Installations-Modus wählbar: `--cli` (nur TUI/Textual, minimale Dependencies) oder `--desktop`/`--gui` (Standard, PWA + gui/voice). Ohne Flag fragt der Installer interaktiv.
