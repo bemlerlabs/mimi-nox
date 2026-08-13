@@ -13,7 +13,7 @@ Läuft offline: build_provider_client wird mit einem Fake-AsyncClient gemockt
 """
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -37,7 +37,8 @@ class FakeClient:
 
 @pytest.fixture
 def fake_provider(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("server.openai.build_provider_client", lambda: FakeClient())
+    # build_provider_client wird nun mit einem Config-Argument aufgerufen → *a/**k
+    monkeypatch.setattr("server.openai.build_provider_client", lambda *a, **k: FakeClient())
 
 
 # ---------------------------------------------------------------------------
@@ -158,3 +159,85 @@ def test_chat_rejects_message_without_content(fake_provider):
             json={"messages": [{"role": "user"}]},
         )
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 Item 12 — Modell-Router in der Engine (Hardware-Adaptivität)
+# ---------------------------------------------------------------------------
+
+def _fake_router(monkeypatch, cfg):
+    """Ersetzt get_router() durch einen Fake, dessen resolve() cfg liefert."""
+    from core.model_router import ModelRouter  # nur Typ-Referenz
+
+    router = Mock(spec=ModelRouter)
+    router.resolve = AsyncMock(return_value=cfg)
+    monkeypatch.setattr("server.openai.get_router", lambda: router)
+    return router
+
+
+def test_chat_resolves_router_when_no_model_given(fake_provider, monkeypatch):
+    """WHEN der Request kein model hat → Router löst adaptiv auf (FAST) + Header."""
+    from core.model_config import ModelConfig, ModelTier
+
+    cfg = ModelConfig(name="gemma4:12b", tier=ModelTier.FAST)
+    router = _fake_router(monkeypatch, cfg)
+
+    with TestClient(create_openai_app()) as client:
+        resp = client.post(
+            "/v1/chat/completions",
+            json={"messages": [{"role": "user", "content": "hi"}]},
+        )
+
+    assert resp.status_code == 200
+    # Transparenz pro Request
+    assert resp.headers["x-model-tier"] == "fast"
+    assert resp.headers["x-model-name"] == "gemma4:12b"
+    assert resp.headers["x-model-provider"] == "mimi-nox"
+    router.resolve.assert_awaited_once()
+
+
+def test_chat_explicit_model_skips_router(fake_provider, monkeypatch):
+    """GIVEN ein explizites model im Request → Router wird NICHT befragt."""
+    router = _fake_router(monkeypatch, None)
+
+    with TestClient(create_openai_app()) as client:
+        resp = client.post(
+            "/v1/chat/completions",
+            json={"model": "gemma4:12b", "messages": [{"role": "user", "content": "hi"}]},
+        )
+
+    assert resp.status_code == 200
+    assert resp.headers["x-model-tier"] == "explicit"
+    assert resp.headers["x-model-name"] == "gemma4:12b"
+    router.resolve.assert_not_awaited()
+
+
+def test_chat_resolves_power_tier_for_remote(fake_provider, monkeypatch):
+    """GIVEN Router liefert POWER (DGX/ds4) → Header meldet tier=power."""
+    from core.model_config import ModelConfig, ModelTier
+
+    cfg = ModelConfig(name="gemma4:26b", tier=ModelTier.POWER, host="dgx.local:11434")
+    _fake_router(monkeypatch, cfg)
+
+    with TestClient(create_openai_app()) as client:
+        resp = client.post(
+            "/v1/chat/completions",
+            json={"messages": [{"role": "user", "content": "hi"}]},
+        )
+
+    assert resp.status_code == 200
+    assert resp.headers["x-model-tier"] == "power"
+    assert resp.headers["x-model-name"] == "gemma4:26b"
+
+
+def test_models_lists_all_tiers_transparent(fake_provider):
+    """GIVEN /v1/models → listet alle Hardware-Tiers (offline/fast/power)."""
+    with TestClient(create_openai_app()) as client:
+        resp = client.get("/v1/models")
+
+    assert resp.status_code == 200
+    ids = {m["id"] for m in resp.json()["data"]}
+    assert "gemma4:e2b" in ids   # OFFLINE (kein Netz nötig)
+    assert "gemma4:12b" in ids   # FAST (lokal, Consumer HW)
+    assert "gemma4:26b" in ids   # POWER (DGX Backend)
+    assert resp.headers["x-model-provider"] == "mimi-nox"

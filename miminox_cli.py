@@ -827,7 +827,11 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, default=8766, help="Port (default: 8766)")
     serve.add_argument("--lan", action="store_true", help="Expose on LAN with a generated auth token")
     serve.add_argument("--token", default=os.environ.get("MIMI_NOX_SERVE_TOKEN", ""), help="Require this X-Auth-Token for every request")
-    serve.add_argument("--model", default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL), help="Model id exposed via /v1/models")
+    serve.add_argument(
+        "--model",
+        default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL),
+        help="Model id hint; if unset, the Model Router picks the best tier automatically",
+    )
     serve.set_defaults(func=cmd_serve)
 
     return parser

@@ -28,10 +28,29 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from core.model_provider import build_provider_client, get_active_provider
+from core.model_provider import (
+    ModelProviderConfig,
+    build_provider_client,
+    get_active_provider,
+)
+from core.model_config import ModelConfig, ModelTier, TIER_MAP
+from core.model_router import get_router
 
 DEFAULT_MODEL = "gemma4:12b"
 STREAM_MARKER = "[DONE]"
+OWNED_BY = "mimi-nox"
+
+
+def _provider_config_for(cfg: ModelConfig) -> ModelProviderConfig:
+    """Konvertiert eine Router-ModelConfig in eine Provider-Config (offline-first)."""
+    return ModelProviderConfig(
+        provider="local_ollama",
+        model=cfg.name,
+        base_url=cfg.base_url,  # http://<host> — lokal oder DGX/ds4
+        label=cfg.tier.value,
+        offline_capable=True,
+        requires_internet=False,
+    )
 
 
 def _request_id() -> str:
@@ -116,13 +135,19 @@ def create_openai_app(api_token: str | None = None) -> FastAPI:
     async def list_models(request: Request):
         await _require_token(request)
         active = get_active_provider()
+        seen: set[str] = set()
+        data = []
+        # Alle Hardware-Tiers transparent auflisten (offline/fast/power)
+        for cfg in TIER_MAP.values():
+            if cfg.name not in seen:
+                seen.add(cfg.name)
+                data.append({"id": cfg.name, "object": "model", "created": 0, "owned_by": OWNED_BY})
+        # Aktives Modell sicherstellen (z.B. custom provider)
+        if active.model not in seen:
+            data.append({"id": active.model, "object": "model", "created": 0, "owned_by": OWNED_BY})
         return JSONResponse(
-            {
-                "object": "list",
-                "data": [
-                    {"id": active.model, "object": "model", "created": 0, "owned_by": "mimi-nox"}
-                ],
-            }
+            {"object": "list", "data": data},
+            headers={"X-Model-Provider": OWNED_BY, "X-Model-Tier": active.provider},
         )
 
     @app.post("/v1/chat/completions")
@@ -138,17 +163,34 @@ def create_openai_app(api_token: str | None = None) -> FastAPI:
             if not isinstance(msg, dict) or "role" not in msg or "content" not in msg:
                 raise HTTPException(status_code=400, detail="Each message needs role and content")
 
-        model = body.get("model") or DEFAULT_MODEL
+        model_param = body.get("model")
         stream = bool(body.get("stream", False))
 
-        client = build_provider_client()
+        # Modell-Auflösung: explizites model im Request gewinnt; sonst Router
+        # (Hardware-Adaptivität gemma4:12b ↔ ds4, single source of truth).
+        if model_param:
+            cfg = ModelConfig(name=model_param, tier=ModelTier.FAST)
+            tier = "explicit"
+        else:
+            cfg = await get_router().resolve()
+            tier = cfg.tier.value
+        model = cfg.name
+        client = build_provider_client(_provider_config_for(cfg))
         rid = _request_id()
+
+        resp_headers = {
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "X-Model-Tier": tier,
+            "X-Model-Name": model,
+            "X-Model-Provider": OWNED_BY,
+        }
 
         if stream:
             return StreamingResponse(
                 _sse_stream(client, model, messages, rid),
                 media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+                headers=resp_headers,
             )
 
         # Non-stream: alle Chunks sammeln → ein Completion
@@ -174,7 +216,12 @@ def create_openai_app(api_token: str | None = None) -> FastAPI:
                     "completion_tokens": 0,
                     "total_tokens": 0,
                 },
-            }
+            },
+            headers={
+                "X-Model-Tier": tier,
+                "X-Model-Name": model,
+                "X-Model-Provider": OWNED_BY,
+            },
         )
 
     return app

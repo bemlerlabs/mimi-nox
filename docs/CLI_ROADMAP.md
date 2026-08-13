@@ -76,12 +76,12 @@ Subcommands: `start` | `doctor` | `update` | `tui`. Nur `doctor` hat `--json`. K
 
 ### Phase 3 — Engine-Interop (Backend + AppSec)
 11. **`miminox serve`**: OpenAI-kompatible Engine (`/v1/chat/completions`, `/v1/models`, `stream=true`) mit OpenAPI-Contract + Auth-Token + localhost-Bind.
-12. **Modell-Router** (`core/model_router.py`): Hardware-Adaptivität gemma4:12b ↔ ds4, transparent pro Request.
+12. ✅ **Modell-Router** (`core/model_router.py`): Hardware-Adaptivität gemma4:12b ↔ ds4, transparent pro Request — Engine löst Modell über den Router auf (fehlendes model → Router.resolve(), explizites model gewinnt), Header `X-Model-Tier`/`X-Model-Name`/`X-Model-Provider`, `/v1/models` listet alle Tiers.
 13. **Contract-Tests** am OpenAPI-Schema; Idempotency/Retry für remote.
 14. **JCode/Codex/OpenCode e2e validieren** als Consumer der Engine.
 
 **DoD:** serve läuft OpenAI-konform · Auth-Token + localhost-Bind · Contract-Tests green · JCode als erster Consumer e2e green.
-**Fortschritt 2026-08-13:** Item 11 + 13 umgesetzt — `server/openai.py` (`create_openai_app`: `/v1/models`, `/v1/chat/completions` mit SSE-Stream + `[DONE]`, Auth-Token, localhost-Bind default) + `cmd_serve` (`--host/--port/--lan/--token/--model`, `--lan` generiert Token, `0.0.0.0`); tests/test_serve_openai.py mit **9 Contract-Tests green** (Models, non-stream, stream, Auth 401/200, Validierung 400). Offen: Modell-Router (12), JCode-Consumer e2e (14).
+**Fortschritt 2026-08-13:** Item 11 + 12 + 13 umgesetzt — `server/openai.py` (`create_openai_app`: `/v1/models`, `/v1/chat/completions` mit SSE-Stream + `[DONE]`, Auth-Token, localhost-Bind default) + `cmd_serve` (`--host/--port/--lan/--token/--model`, `--lan` generiert Token, `0.0.0.0`); tests/test_serve_openai.py mit **13 Contract-Tests green** (Models, non-stream, stream, Auth 401/200, Validierung 400, Router-Integration (fehlendes model → resolve, explizites model → skip, Header-Tiers)). Offen: JCode-Consumer e2e (14).
 
 ### Phase 4 — Observability & Release (Backend + Product)
 15. **Strukturierte Logs + stabile Error-Codes + Request-ID** in serve/CLI.
