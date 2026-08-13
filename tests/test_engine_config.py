@@ -137,3 +137,48 @@ def test_cmd_tui_explicit_flags_skip_onboarding(tmp_path):
         ["mimi-nox", "--model", "gemma4:12b", "--api-url", "http://custom:8000/v1"]
     ]
     onboarding.assert_not_called()
+
+
+# ── Phase 0: Security-Gate (AppSec/Least-Privilege) ───────────────────────────
+import stat
+
+
+def _mode(path: Path) -> int:
+    return stat.S_IMODE(path.stat().st_mode)
+
+
+def test_saved_engine_config_file_permissions_0600(tmp_path):
+    """GIVEN eine Engine-Auswahl gespeichert wird
+    WHEN die Datei angelegt ist
+    THEN hat engine.json 0600 (nur Owner les-/schreibbar) – Least-Privilege."""
+    cfg = tmp_path / "engine.json"
+    assert ec.save_engine_config(
+        ec.EngineChoice(provider="openai_compatible", model="deepseek-v4-flash", api_url="http://x/v1"), cfg
+    )
+    assert _mode(cfg) == 0o600
+
+
+def test_saved_engine_config_dir_permissions_0700(tmp_path):
+    """GIVEN eine Engine-Auswahl gespeichert wird
+    WHEN das Konfig-Verzeichnis angelegt wird
+    THEN hat es 0700 (nur Owner) – keine Side-Channels für andere Prozesse."""
+    cfg_dir = tmp_path / "cfg"
+    cfg = cfg_dir / "engine.json"
+    assert ec.save_engine_config(ec.EngineChoice(provider="local_ollama", model="gemma4:12b"), cfg)
+    assert _mode(cfg_dir) == 0o700
+
+
+def test_saved_engine_config_never_persists_api_key(tmp_path):
+    """GIVEN eine OpenAI-kompatible Engine mit API-Key gespeichert wird
+    WHEN die Datei geschrieben wird
+    THEN enthält engine.json KEIN Key-/Secret-Feld (Keys bleiben Session-Env)."""
+    cfg = tmp_path / "engine.json"
+    assert ec.save_engine_config(
+        ec.EngineChoice(
+            provider="openai_compatible", model="custom-model", api_url="https://api.example/v1"
+        ),
+        cfg,
+    )
+    raw = cfg.read_text(encoding="utf-8").lower()
+    for forbidden in ("api_key", "apikey", "secret", "token", "key"):
+        assert forbidden not in raw, f"engine.json darf kein '{forbidden}'-Feld enthalten: {raw}"

@@ -95,12 +95,26 @@ def save_engine_config(
     cfg_path = path or default_config_path()
     try:
         cfg_path.parent.mkdir(parents=True, exist_ok=True)
+        # Härtung (AppSec/Least-Privilege): Konfig-Verzeichnis nur für den Owner
+        # (0700). Verhindert, dass andere lokale Prozesse die Engine-Auswahl lesen
+        # oder Side-Channels auf die Konfig ziehen.
+        try:
+            cfg_path.parent.chmod(0o700)
+        except OSError:
+            pass
         payload = asdict(choice)
         tmp = cfg_path.with_suffix(".tmp")
         tmp.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         tmp.replace(cfg_path)
+        # Härtung: engine.json nur für Owner les-/schreibbar (0600). Die Datei
+        # selbst enthält nie Secrets (Keys bleiben Session-Env), aber Least-
+        # Privilege gilt für jedes persistierte Artefakt.
+        try:
+            cfg_path.chmod(0o600)
+        except OSError:
+            pass
         return True
     except Exception:
         return False

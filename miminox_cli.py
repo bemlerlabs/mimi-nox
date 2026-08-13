@@ -5,6 +5,7 @@ import argparse
 import builtins
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
@@ -484,19 +485,95 @@ def cmd_start(args: argparse.Namespace) -> int:
 
 
 def cmd_update(args: argparse.Namespace) -> int:
+    if args.json:
+        print(json.dumps({"ok": True, "message": "update gestartet"}, indent=2))
     if (PROJECT_ROOT / ".git").exists():
         _run(["git", "pull", "--ff-only"])
 
     installer = PROJECT_ROOT / "install.sh"
     if not installer.exists():
-        print("install.sh not found", file=sys.stderr)
+        _emit_error(args, 1, "install.sh nicht gefunden", "Projekt-Verzeichnis prüfen oder `git pull` ausführen")
         return 1
 
     env = os.environ.copy()
     env["OLLAMA_HOST"] = LOCAL_OLLAMA_HOST
     env["MIMI_NOX_MODEL"] = args.model
     env["MIMI_NOX_NO_START"] = "1"
-    return _run(["bash", str(installer), "--no-start"], env=env).returncode
+    rc = _run(["bash", str(installer), "--no-start"], env=env).returncode
+    if args.json:
+        print(json.dumps({"ok": rc == 0, "exit_code": rc}, indent=2))
+    return rc
+
+
+# ── Phase 1: Shell-Completions (DX) ───────────────────────────────────────────
+# Generiert statische Completions-Skripte für bash/zsh/fish. Die Subcommand-Liste
+# wird aus build_parser() abgeleitet, damit neue Subcommands automatisch
+# auftauchen (kein Duplikat von Parser-Wissen).
+
+_COMPLETION_SHELLS = ("bash", "zsh", "fish")
+
+
+def _completion_subcommands() -> list[str]:
+    names = []
+    for action in build_parser()._actions:
+        if getattr(action, "choices", None) is not None:
+            names = sorted(action.choices)
+    return names or ["start", "doctor", "update", "tui", "completion"]
+
+
+def _completion_script(shell: str, cmds: list[str]) -> str:
+    joined = " ".join(cmds)
+    if shell == "bash":
+        return (
+            f"# bash completion for miminox\n"
+            f"_miminox_complete() {{\n"
+            f"    local cur=\"${{COMP_WORDS[COMP_CWORD]}}\"\n"
+            f"    COMPREPLY=( $(compgen -W '{joined}' -- \"$cur\") )\n"
+            f"}}\n"
+            f"complete -F _miminox_complete miminox\n"
+        )
+    if shell == "zsh":
+        quoted = " ".join(f'"{c}"' for c in cmds)
+        return (
+            f"#compdef miminox\n"
+            f"_miminox() {{\n"
+            f"    local -a cmds\n"
+            f"    cmds=({quoted})\n"
+            f"    _describe 'command' cmds\n"
+            f"}}\n"
+            f"compdef _miminox miminox\n"
+        )
+    # fish
+    return (
+        f"# fish completion for miminox\n"
+        f"complete -c miminox -f -n 'not __fish_use_subcommand' \\\n"
+        f"  -a '{joined}' -d 'command'\n"
+    )
+
+
+def cmd_completion(args: argparse.Namespace) -> int:
+    shell = (args.shell or "").lower()
+    if shell not in _COMPLETION_SHELLS:
+        _emit_error(
+            args,
+            2,
+            f"Unbekannte Shell: {shell!r}",
+            f"Verfügbar: {', '.join(_COMPLETION_SHELLS)} (z.B. `miminox completion bash`)",
+        )
+        return 2
+    print(_completion_script(shell, _completion_subcommands()), end="")
+    return 0
+
+
+def _emit_error(args: argparse.Namespace, code: int, message: str, fix: str = "") -> None:
+    """Actionable Errors (DX): klare Cause+Fix, nie roher Stacktrace. Mit --json
+    ein stabiles Machine-readable Format, ohne Secrets."""
+    if getattr(args, "json", False):
+        print(json.dumps({"error": {"code": code, "message": message, "fix": fix}}, indent=2))
+    else:
+        print(f"Error: {message}", file=sys.stderr)
+        if fix:
+            print(f"  Fix: {fix}", file=sys.stderr)
 
 
 def _run_engine_onboarding(
@@ -635,6 +712,33 @@ def cmd_tui(args: argparse.Namespace, config_path=None) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    """OpenAI-kompatible Engine starten (/v1/chat/completions)."""
+    import uvicorn  # lazy import — hält Startup-Budget klein
+
+    from server.openai import create_openai_app
+
+    token = args.token
+    if args.lan and not token:
+        token = secrets.token_urlsafe(16)
+    host = "0.0.0.0" if args.lan else args.host
+
+    app = create_openai_app(api_token=token or None)
+    print(f"  ─────────────────────────────────────")
+    print(f"  Engine:  {args.model}")
+    print(f"  URL:     http://{host}:{args.port}/v1/chat/completions")
+    print(f"  Models:  http://{host}:{args.port}/v1/models")
+    if token:
+        print(f"  Auth:    X-Auth-Token: {token}")
+    else:
+        print(f"  Auth:    none (localhost only — use --lan to require a token)")
+    print(f"  Docs:    http://{host}:{args.port}/api/docs")
+    print(f"  ─────────────────────────────────────\n")
+
+    uvicorn.run(app, host=host, port=args.port, log_level="info")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="miminox",
@@ -645,7 +749,9 @@ def build_parser() -> argparse.ArgumentParser:
             "  miminox start --lan --open        Expose on LAN for QR mobile pairing, open browser\n"
             "  miminox doctor --fix              Check setup and repair safe local drift\n"
             "  miminox update                    Pull latest, reinstall deps, update model\n"
-            "  miminox tui --model gemma4:12b    Start the terminal UI\n\n"
+            "  miminox tui --model gemma4:12b    Start the terminal UI\n"
+            "  miminox serve                      Run OpenAI-compatible engine (/v1/chat/completions)\n"
+            "  miminox serve --lan                Expose engine on LAN with a generated auth token\n\n"
             "Exit codes:\n"
             "  0  success\n"
             "  1  runtime/repair failure\n"
@@ -660,7 +766,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    start = sub.add_parser("start", help="Start the local web app")
+    start = sub.add_parser(
+        "start",
+        help="Start the local web app",
+        description="Start the local PWA (offline-first by default; optional --lan for QR mobile pairing).",
+    )
     start.add_argument("--host", default="127.0.0.1")
     start.add_argument("--port", type=int, default=DEFAULT_PORT)
     start.add_argument("--model", default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL))
@@ -670,7 +780,11 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--skip-model-check", action="store_true", help="Start without Ollama/model preflight")
     start.set_defaults(func=cmd_start)
 
-    doctor = sub.add_parser("doctor", help="Check local setup")
+    doctor = sub.add_parser(
+        "doctor",
+        help="Check local setup",
+        description="Diagnose the local setup. --fix repairs safe drift (fast-forward, deps, Ollama).",
+    )
     doctor.add_argument("--model", default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL))
     doctor.add_argument("--port", type=int, default=DEFAULT_PORT)
     doctor.add_argument("--json", action="store_true")
@@ -679,6 +793,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     update = sub.add_parser("update", help="Update repo, dependencies and local model")
     update.add_argument("--model", default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL))
+    update.add_argument("--json", action="store_true", help="Machine-readable output")
     update.set_defaults(func=cmd_update)
 
     tui = sub.add_parser("tui", help="Start the terminal UI")
@@ -697,13 +812,37 @@ def build_parser() -> argparse.ArgumentParser:
     tui.add_argument("--reset", action="store_true")
     tui.set_defaults(func=cmd_tui)
 
+    completion = sub.add_parser(
+        "completion",
+        help="Generate shell completions (bash | zsh | fish)",
+    )
+    completion.add_argument("shell", nargs="?", choices=_COMPLETION_SHELLS)
+    completion.set_defaults(func=cmd_completion)
+
+    serve = sub.add_parser(
+        "serve",
+        help="Run the OpenAI-compatible engine (/v1/chat/completions)",
+    )
+    serve.add_argument("--host", default="127.0.0.1", help="Bind address (default: localhost)")
+    serve.add_argument("--port", type=int, default=8766, help="Port (default: 8766)")
+    serve.add_argument("--lan", action="store_true", help="Expose on LAN with a generated auth token")
+    serve.add_argument("--token", default=os.environ.get("MIMI_NOX_SERVE_TOKEN", ""), help="Require this X-Auth-Token for every request")
+    serve.add_argument("--model", default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL), help="Model id exposed via /v1/models")
+    serve.set_defaults(func=cmd_serve)
+
     return parser
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    raise SystemExit(args.func(args))
+    try:
+        raise SystemExit(args.func(args))
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        _emit_error(args, 1, str(exc) or "Unerwarteter Fehler", "Letzte Ausgabe prüfen und erneut versuchen")
+        raise SystemExit(1) from exc
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # MiMi Nox Execution Plan
 
-> **Stand:** 2026-07-08 — Phase 0.9 abgeschlossen, Phase 1.0 Stage 0 aktiv
+> **Stand:** 2026-08-13 — Phase 0.9 + Aug-2026-Arbeiten abgeschlossen (Engine-Abstraktion, DX, CI); **Roadmap CLI-DX 2026 aktiv (Phase 1.1)** — nächste logische Schritte unten (Sektion 5).
 >
 > Dieser Plan ist der verbindliche Fahrplan für die Entwicklung von MiMi Nox.
 > Agenten und Entwickler arbeiten Phase für Phase ab.
@@ -511,3 +511,16 @@ Verbleibend für Inference nach Training: **~$5.814**
 | `AGENTS.md` | Arbeitsanweisungen für Agenten |
 | `README.md` | Public Readme |
 | `CHANGELOG.md` | Release Notes |
+
+---
+
+## 5. Roadmap CLI-DX 2026 — nächste logische Schritte (Stand 2026-08-13)
+
+Die ambitionierte, weltklasse Roadmap (Benchmark gegen OpenClaw/Claude Code/Codex/Gemini CLI/OpenCode, 4 Phasen, KPIs, Differenzierung) liegt in **`docs/CLI_ROADMAP.md`** — Quelle der Wahrheit. Kurzfassung:
+
+- **Phase 1 — DX-Fundament**: Completions, `--json`/TTY, Exit-Codes, Startup <100ms + CI-Gate, Actionable Errors
+- **Phase 2 — Agentic TUI**: Sessions, `/commands`, Diff+Approvals+`--dry-run`, Checkpoints, MCP im TUI
+- **Phase 3 — Engine & Interop**: `miminox serve` (OpenAI-kompatibel) als Engine für JCode/Codex/OpenCode; Modell-Routing hardware-adaptiv
+- **Phase 4 — Zukunft/Agents**: Subagents, Hooks, Plan→Act→Verify, Agent-Persistence
+
+Differenzierung: Lokalität/Privacy (offline-first), Hardware-Adaptivität (gemma4:12b ↔ ds4), Engine-Interop.
