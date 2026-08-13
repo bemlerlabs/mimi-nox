@@ -75,9 +75,9 @@ Subcommands: `start` | `doctor` | `update` | `tui`. Nur `doctor` hat `--json`. K
 **DoD:** Sessions-Switch <50ms · Resume <200ms · `/commands` vollständig · Diff/Approval e2e · MCP e2e mit Policy.
 
 ### Phase 3 — Engine-Interop (Backend + AppSec)
-11. **`miminox serve`**: OpenAI-kompatible Engine (`/v1/chat/completions`, `/v1/models`, `stream=true`) mit OpenAPI-Contract + Auth-Token + localhost-Bind.
+11. ✅ **`miminox serve`**: OpenAI-kompatible Engine (`/v1/chat/completions`, `/v1/models`, `stream=true`) mit OpenAPI-Contract + Auth-Token + localhost-Bind.
 12. ✅ **Modell-Router** (`core/model_router.py`): Hardware-Adaptivität gemma4:12b ↔ ds4, transparent pro Request — Engine löst Modell über den Router auf (fehlendes model → Router.resolve(), explizites model gewinnt), Header `X-Model-Tier`/`X-Model-Name`/`X-Model-Provider`, `/v1/models` listet alle Tiers.
-13. **Contract-Tests** am OpenAPI-Schema; Idempotency/Retry für remote.
+13. ✅ **Contract-Tests** am OpenAPI-Schema; Idempotency/Retry für remote.
 14. **JCode/Codex/OpenCode e2e validieren** als Consumer der Engine.
 
 **DoD:** serve läuft OpenAI-konform · Auth-Token + localhost-Bind · Contract-Tests green · JCode als erster Consumer e2e green.
