@@ -568,8 +568,16 @@ def cmd_completion(args: argparse.Namespace) -> int:
 def _emit_error(args: argparse.Namespace, code: int, message: str, fix: str = "") -> None:
     """Actionable Errors (DX): klare Cause+Fix, nie roher Stacktrace. Mit --json
     ein stabiles Machine-readable Format, ohne Secrets."""
+    # Phase 4 Item 15: stabile maschinenlesbare Error-Codes (code_id) neben dem
+    # numerischen Exit-Code. Mapping: 2 → usage_error, sonst runtime_error.
+    try:
+        from core.observability import ErrorCode  # lazy: standalone-Lauf bleibt robust
+
+        code_id = ErrorCode.USAGE.value if code == 2 else ErrorCode.RUNTIME.value
+    except Exception:
+        code_id = "usage_error" if code == 2 else "runtime_error"
     if getattr(args, "json", False):
-        print(json.dumps({"error": {"code": code, "message": message, "fix": fix}}, indent=2))
+        print(json.dumps({"error": {"code": code, "code_id": code_id, "message": message, "fix": fix}}, indent=2))
     else:
         print(f"Error: {message}", file=sys.stderr)
         if fix:

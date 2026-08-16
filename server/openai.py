@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import time
-import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -35,6 +34,12 @@ from core.model_provider import (
 )
 from core.model_config import ModelConfig, ModelTier, TIER_MAP
 from core.model_router import get_router
+from core.observability import (
+    REQUEST_ID_HEADER,
+    ErrorCode,
+    error_payload,
+    make_observability_middleware,
+)
 
 DEFAULT_MODEL = "gemma4:12b"
 STREAM_MARKER = "[DONE]"
@@ -54,7 +59,7 @@ def _provider_config_for(cfg: ModelConfig) -> ModelProviderConfig:
 
 
 def _request_id() -> str:
-    return f"chatcmpl-{uuid.uuid4().hex[:12]}"
+    return ""  # deprecated: Request-ID kommt aus der Observability-Middleware
 
 
 def _now() -> int:
@@ -91,7 +96,7 @@ async def _sse_stream(client: Any, model: str, messages: list[dict], rid: str):
                 yield _sse_delta(rid, model, delta)
         yield f"data: {STREAM_MARKER}\n\n"
     except Exception as exc:  # noqa: BLE001
-        yield f"data: {json.dumps({'error': {'message': str(exc)}})}\n\n"
+        yield f"data: {json.dumps(error_payload(ErrorCode.STREAM, str(exc), rid))}\n\n"
 
 
 def create_openai_app(api_token: str | None = None) -> FastAPI:
@@ -176,7 +181,7 @@ def create_openai_app(api_token: str | None = None) -> FastAPI:
             tier = cfg.tier.value
         model = cfg.name
         client = build_provider_client(_provider_config_for(cfg))
-        rid = _request_id()
+        rid = request.state.rid
 
         resp_headers = {
             "Cache-Control": "no-cache",
@@ -222,6 +227,20 @@ def create_openai_app(api_token: str | None = None) -> FastAPI:
                 "X-Model-Name": model,
                 "X-Model-Provider": OWNED_BY,
             },
+        )
+
+    # ── Observability (Phase 4 Item 15): Request-ID + strukturierte Logs ──
+    app.middleware("http")(make_observability_middleware(prefix="chatcmpl-"))
+
+    @app.exception_handler(HTTPException)
+    async def _http_exception_handler(request: Request, exc: HTTPException):
+        rid = request.state.rid
+        message = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+        code_id = ErrorCode.AUTH if exc.status_code == 401 else ErrorCode.VALIDATION
+        return JSONResponse(
+            error_payload(code_id, message, rid),
+            status_code=exc.status_code,
+            headers={REQUEST_ID_HEADER: rid},
         )
 
     return app
