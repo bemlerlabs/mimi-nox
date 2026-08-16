@@ -40,6 +40,8 @@ services:
       - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
       - MIMI_LOCAL_OLLAMA_BASE_URL=${MIMI_LOCAL_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - MIMI_NOX_DOCKER=1
+      # Docker exposes the port to the host interface; enable LAN auth by default.
+      - MIMI_NOX_LAN=${MIMI_NOX_LAN:-1}
       - MIMI_NOX_MOBILE_HOST=${MIMI_NOX_MOBILE_HOST:-}
     volumes:
       - mimi_data:/root/.mimi-nox
