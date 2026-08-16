@@ -89,6 +89,7 @@ Subcommands: `start` | `doctor` | `update` | `tui`. Nur `doctor` hat `--json`. K
 17. **Perf-Regression in CI** (pytest-benchmark: Startup, TTFB, Memory).
 
 **DoD:** Request-ID überall · Version single-source · CHANGELOG aktualisiert · CI-Benchmark-Gates green.
+**Fortschritt 2026-08-16:** Item 15 in serve + CLI umgesetzt — `core/observability.py` (Request-ID-Middleware mit `X-Request-ID`, `ErrorCode`/`error_payload` mit stabilen `code_id`, HTTP-Exception-Handler in `server/openai.py`, `code_id` im CLI-`--json`-Error-Format); `tests/test_observability.py` + 36 Tests (serve/CLI/Security) green. Item 16: CHANGELOG `[Unreleased]` auf die Phase aufgezogen (serve/Router/observability/LAN-Auth). Offen: Request-ID in PWA-Server (`server/main.py`), pytest-benchmark + CI-Gates (17), TTFB (5).
 
 ## 6. MVP-Priorisierung (AI-Product-Manager)
 

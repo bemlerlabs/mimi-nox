@@ -10,8 +10,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ## [Unreleased]
 
 ### Added
-- Engine-Start/Onboarding für `miminox tui`: lokale Ollama wird automatisch erkannt (offline-first), sonst fragt die CLI nach Engine-URL und Modell (eigene Ollama/vLLM, DGX-Spark ds4, OpenAI-kompatibel); Auswahl wird nach `~/.mimi-nox/engine.json` persistiert, `--configure` erzwingt die Auswahl, explizite Flags gewinnen immer
+- **`miminox serve`** — OpenAI-kompatible Engine (Phase 3): `server/openai.py` (`create_openai_app`: `/v1/models`, `/v1/chat/completions` mit SSE-Stream + `[DONE]`, Auth-Token, localhost-Bind default); `cmd_serve` (`--host/--port/--lan/--token/--model`, `--lan` generiert Token, `0.0.0.0`). JCode/Codex/OpenCode nutzen die Engine als OpenAI-Provider (Interop, e2e: `tests/test_jcode_e2e.py`).
+- **Hardware-adaptiver Model Router** (`core/model_router.py`): single source of truth für `gemma4:12b ↔ ds4`, transparent pro Session + `X-Model-*` Transparenz-Header; Router in serve verdrahtet (fehlendes Modell → resolve, explizites Modell → skip).
+- **Engine-Start/Onboarding für `miminox tui`**: lokale Ollama wird automatisch erkannt (offline-first), sonst fragt die CLI nach Engine-URL und Modell (eigene Ollama/vLLM, DGX-Spark ds4, OpenAI-kompatibel); Auswahl wird nach `~/.mimi-nox/engine.json` persistiert, `--configure` erzwingt die Auswahl, explizite Flags gewinnen immer
 - `core/engine_config.py`: `EngineChoice` + atomare `load/save/clear_engine_config`; API-Keys werden nie persistiert (nur Session-Env)
+- **Observability** (Phase 4, Item 15): `core/observability.py` — Request-ID-Middleware (`X-Request-ID`), strukturierte Error-Payloads mit stabilen `code_id` (usage/validation/auth/stream/runtime), HTTP-Exception-Handler; in serve verdrahtet + `code_id` im CLI-`--json`-Error-Format. Tests: `tests/test_observability.py`.
+
+### Security
+- **Docker Compose: LAN-Auth aktiv by default** (`MIMI_NOX_LAN=1`) — Container bindet auf die Host-Interface, dadurch wird Auth-Token + Security-Header + Rate-Limit aktiviert (konservativ: nie offenes LAN-Hosting ohne Auth).
 
 ### Planned
 - Multi-Session-Verwaltung (parallele Chats)
