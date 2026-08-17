@@ -10,8 +10,9 @@ import time
 from collections import defaultdict
 
 from fastapi import Header, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+from core.observability import REQUEST_ID_HEADER, ErrorCode, error_payload
 
 LAN_AUTH_TOKEN: str | None = None
 
@@ -42,9 +43,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if path.startswith("/api/") and path != "/api/health":
                 token = request.headers.get("X-Auth-Token")
                 if token != LAN_AUTH_TOKEN:
-                    return Response(
-                        "Unauthorized — X-Auth-Token header required in LAN mode",
+                    rid = getattr(request.state, "rid", None)
+                    return JSONResponse(
+                        error_payload(ErrorCode.AUTH, "Unauthorized — invalid or missing X-Auth-Token", rid),
                         status_code=401,
+                        headers={REQUEST_ID_HEADER: rid or ""},
                     )
         return await call_next(request)
 

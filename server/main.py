@@ -14,9 +14,17 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from core.observability import (
+    REQUEST_ID_HEADER,
+    ErrorCode,
+    error_payload,
+    make_observability_middleware,
+)
 
 from server.routes import (
     audio,
@@ -123,6 +131,40 @@ def create_app(lan_mode: bool = False) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # ── Observability (Phase 4 Item 15): Request-ID + strukturierte Logs ──
+    # Zuletzt add_middleware ⇒ outermost: request.state.rid ist für alle
+    # inneren Middlewares (Auth 401, RateLimit) + Handler gesetzt.
+    app.middleware("http")(make_observability_middleware(prefix="api"))
+
+    # Registrierung am Starlette-Base: FastAPI's eigener HTTPException
+    # (Subclass) löst über MRO denselben Handler auf, und Router-404/405
+    # (echte Starlette-HTTPException) werden damit ebenfalls erwischt.
+    async def _http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        # Starlette/FastAPI HTTPException tragen status_code + detail;
+        # getattr hält den Handler für beide Klassen typsicher.
+        rid = getattr(request.state, "rid", None)
+        detail = getattr(exc, "detail", None)
+        message = detail if isinstance(detail, str) else str(detail or "Error")
+        status_code = int(getattr(exc, "status_code", 500))
+        if status_code == 401:
+            code_id = ErrorCode.AUTH
+        elif status_code in (404, 405):
+            code_id = ErrorCode.NOT_FOUND
+        elif status_code == 429:
+            code_id = ErrorCode.VALIDATION
+        else:
+            code_id = ErrorCode.INTERNAL
+        return JSONResponse(
+            error_payload(code_id, message, rid),
+            status_code=status_code,
+            headers={REQUEST_ID_HEADER: rid or ""},
+        )
+
+    # Starlette-Base (Router-404/405) + FastAPI-Subclass (raised in Routen)
+    # — MRO-Lookup der Exception-Middleware ist klassenexakt, daher beide.
+    app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
+    app.add_exception_handler(HTTPException, _http_exception_handler)
 
     # ── API Routen ─────────────────────────────────────────────────────────
     app.include_router(health.router,   prefix="/api")

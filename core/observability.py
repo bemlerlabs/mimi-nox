@@ -37,6 +37,7 @@ class ErrorCode(str, Enum):
     STREAM = "stream_error"      # SSE: Fehler mitten im Stream
     UPSTREAM = "upstream_error"  # Provider/Backend (Ollama/ds4) nicht erreichbar
     INTERNAL = "internal_error"  # unerwartete Exception (500)
+    NOT_FOUND = "not_found"      # HTTP 404/405: unbekannte Route
 
 
 def new_request_id(prefix: str = "req") -> str:

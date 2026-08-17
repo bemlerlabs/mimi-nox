@@ -127,6 +127,53 @@ def test_stream_error_emits_stable_code(breaking_provider):
 
 
 # ---------------------------------------------------------------------------
+# PWA-Server (server/main.py) — Request-ID + stabile Error-Codes
+# ---------------------------------------------------------------------------
+
+
+def test_pwa_server_response_has_request_id_header():
+    from server.main import create_app
+
+    with TestClient(create_app()) as client:
+        resp = client.get("/api/health")
+    assert resp.status_code == 200
+    rid = resp.headers.get("x-request-id")
+    assert rid and rid.startswith("api")
+
+
+def test_pwa_server_echoes_incoming_request_id():
+    from server.main import create_app
+
+    with TestClient(create_app()) as client:
+        resp = client.get("/api/health", headers={"X-Request-ID": "cli-abc123"})
+    assert resp.status_code == 200
+    assert resp.headers.get("x-request-id") == "cli-abc123"
+
+
+def test_pwa_server_lan_auth_error_has_stable_code_and_request_id():
+    from server.main import create_app
+
+    with TestClient(create_app(lan_mode=True)) as client:
+        resp = client.get("/api/profile")  # ohne X-Auth-Token (/api/health ist Auth-out)
+    assert resp.status_code == 401
+    body = resp.json()
+    assert body["error"]["code"] == "auth_error"
+    assert body["error"]["request_id"]
+    assert resp.headers.get("x-request-id") == body["error"]["request_id"]
+
+
+def test_pwa_server_http_exception_has_stable_code():
+    from server.main import create_app
+
+    with TestClient(create_app()) as client:
+        resp = client.get("/api/nonexistent-route")
+    assert resp.status_code == 404
+    body = resp.json()
+    assert "error" in body and "code" in body["error"]
+    assert resp.headers.get("x-request-id")
+
+
+# ---------------------------------------------------------------------------
 # CLI – stabile Error-Codes
 # ---------------------------------------------------------------------------
 
