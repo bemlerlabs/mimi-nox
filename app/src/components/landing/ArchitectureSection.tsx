@@ -31,18 +31,18 @@ export default function ArchitectureSection() {
       <div className="absolute inset-0 bg-gradient-to-b from-black via-moss-deep/[0.03] to-black pointer-events-none" />
       
       {/* Root system decorative lines */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.03]" aria-hidden="true">
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.03]" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none">
         {/* Main trunk */}
-        <path d="M50% 0 C50% 15%, 45% 30%, 48% 50%, 52% 70%, 50% 85%, 47% 100%" stroke="hsl(142 40% 25%)" strokeWidth="2" fill="none" />
+        <path d="M50 0 C50 15, 45 30, 48 50, 52 70, 50 85, 47 100" stroke="hsl(142 40% 25%)" strokeWidth="2" fill="none" />
         {/* Left branches */}
-        <path d="M48% 20 C35% 22%, 20% 35%, 10% 55%" stroke="hsl(142 40% 25%)" strokeWidth="1.5" fill="none" />
-        <path d="M50% 35 C65% 38%, 80% 50%, 90% 70%" stroke="hsl(142 40% 25%)" strokeWidth="1.5" fill="none" />
-        <path d="M48% 50 C30% 52%, 15% 65%, 5% 90%" stroke="hsl(142 40% 25%)" strokeWidth="1" fill="none" />
-        <path d="M52% 65 C70% 68%, 85% 80%, 95% 95%" stroke="hsl(142 40% 25%)" strokeWidth="1" fill="none" />
+        <path d="M48 20 C35 22, 20 35, 10 55" stroke="hsl(142 40% 25%)" strokeWidth="1.5" fill="none" />
+        <path d="M50 35 C65 38, 80 50, 90 70" stroke="hsl(142 40% 25%)" strokeWidth="1.5" fill="none" />
+        <path d="M48 50 C30 52, 15 65, 5 90" stroke="hsl(142 40% 25%)" strokeWidth="1" fill="none" />
+        <path d="M52 65 C70 68, 85 80, 95 95" stroke="hsl(142 40% 25%)" strokeWidth="1" fill="none" />
         {/* Fine roots */}
-        <path d="M35% 25 C25% 28%, 15% 40%" stroke="hsl(142 35% 20%)" strokeWidth="0.5" fill="none" />
-        <path d="M65% 40 C75% 43%, 85% 55%" stroke="hsl(142 35% 20%)" strokeWidth="0.5" fill="none" />
-        <path d="M30% 55 C20% 58%, 10% 70%" stroke="hsl(142 35% 20%)" strokeWidth="0.5" fill="none" />
+        <path d="M35 25 C25 28, 15 40, 8 55" stroke="hsl(142 35% 20%)" strokeWidth="0.5" fill="none" />
+        <path d="M65 40 C75 43, 85 55, 92 72" stroke="hsl(142 35% 20%)" strokeWidth="0.5" fill="none" />
+        <path d="M30 55 C20 58, 10 70, 5 88" stroke="hsl(142 35% 20%)" strokeWidth="0.5" fill="none" />
       </svg>
 
       <div className="relative z-10 max-w-5xl mx-auto">
@@ -123,8 +123,8 @@ export default function ArchitectureSection() {
               <svg className="absolute bottom-full left-0 right-0 h-24 pointer-events-none opacity-[0.04]" viewBox="0 0 800 100" preserveAspectRatio="none">
                 <path d="M400 0 C380 20, 350 40, 320 60, 290 80, 250 90, 200 100" stroke="white" strokeWidth="2" fill="none" />
                 <path d="M400 0 C420 20, 450 40, 480 60, 510 80, 550 90, 600 100" stroke="white" strokeWidth="2" fill="none" />
-                <path d="M400 0 C390 25, 370 50, 340 75, 310 90, 280 100" stroke="white" strokeWidth="1.5" fill="none" />
-                <path d="M400 0 C410 25, 430 50, 460 75, 490 90, 520 100" stroke="white" strokeWidth="1.5" fill="none" />
+                <path d="M400 0 C390 25, 370 50, 340 75 C330 82, 310 90, 280 100" stroke="white" strokeWidth="1.5" fill="none" />
+                <path d="M400 0 C410 25, 430 50, 460 75 C470 82, 490 90, 520 100" stroke="white" strokeWidth="1.5" fill="none" />
               </svg>
 
               <div className="liquid-glass-strong rounded-2xl p-6 border border-moss/10">
