@@ -151,8 +151,12 @@ def create_app(lan_mode: bool = False) -> FastAPI:
             code_id = ErrorCode.AUTH
         elif status_code in (404, 405):
             code_id = ErrorCode.NOT_FOUND
-        elif status_code == 429:
+        elif status_code in (400, 422):
             code_id = ErrorCode.VALIDATION
+        elif status_code == 429:
+            code_id = ErrorCode.USAGE
+        elif status_code in (502, 503):
+            code_id = ErrorCode.UPSTREAM
         else:
             code_id = ErrorCode.INTERNAL
         return JSONResponse(

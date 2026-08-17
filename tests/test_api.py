@@ -145,7 +145,7 @@ class TestChatEndpoint:
         GIVEN  Ollama nicht erreichbar (OllamaNotReachableError)
         WHEN   POST /api/chat
         THEN   Status 503
-        AND    Response enthält "detail" mit verständlicher Meldung
+        AND    Response enthält "error.message" mit verständlicher Meldung (Observability-Contract)
         """
         from core.chat import OllamaNotReachableError
         with patch("server.routes.chat.react_loop", new=AsyncMock(
@@ -157,7 +157,12 @@ class TestChatEndpoint:
             })
 
         assert response.status_code == 503
-        assert "detail" in response.json()
+        # Observability-Contract (Phase 4 Item 15): 503 liefert stabilen
+        # Error-Payload {"error": {message, code, request_id}} + X-Request-ID.
+        err = response.json()["error"]
+        assert "Ollama nicht erreichbar" in err["message"]
+        assert err["code"] == "upstream_error"
+        assert response.headers.get("x-request-id") == err["request_id"]
 
     def test_given_tool_chat_emits_thinking_when_streaming_then_raw_reasoning_is_filtered(self, client):
         """

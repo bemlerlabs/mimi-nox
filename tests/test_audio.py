@@ -97,7 +97,7 @@ class TestAudioUpload:
         files = {"file": ("test.txt", b"not audio", "text/plain")}
         resp = audio_client.post("/api/audio/transcribe", files=files)
         assert resp.status_code == 422
-        assert "Ungültiger Audio-Typ" in resp.json()["detail"]
+        assert "Ungültiger Audio-Typ" in resp.json()["error"]["message"]
 
     def test_GIVEN_oversized_file_WHEN_uploaded_THEN_returns_413(self, audio_client):
         """

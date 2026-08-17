@@ -307,7 +307,7 @@ def test_given_unknown_local_model_when_provider_saved_then_request_is_rejected(
         )
 
     assert response.status_code == 422
-    assert "nicht installiert" in response.json()["detail"]
+    assert "nicht installiert" in response.json()["error"]["message"]
 
 
 @pytest.mark.asyncio
