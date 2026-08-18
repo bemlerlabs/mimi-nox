@@ -565,6 +565,133 @@ def cmd_completion(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_session(args: argparse.Namespace) -> int:
+    """Phase 2 Item 7: Multi-Session-Verwaltung.
+
+    Subkommandos: list / new / switch / rm / rename.
+    Lazy-Import von core.multi_session (standalone-Lauf bleibt robust).
+    """
+    try:
+        from core import multi_session as ms
+    except ImportError as e:
+        _emit_error(
+            args,
+            1,
+            f"Multi-Session nicht verfügbar: {e}",
+            "Installiere das vollständige Package: `pip install -e .`",
+        )
+        return 1
+
+    action = args.session_action
+    as_json = getattr(args, "json", False)
+
+    if action == "list":
+        sessions = ms.list_sessions()
+        if as_json:
+            print(json.dumps(sessions, ensure_ascii=False, indent=2))
+            return 0
+        if not sessions:
+            print("Keine Sessions. Lege mit `miminox session new <Titel>` an.")
+            return 0
+        active_id = ms.get_active_id()
+        print("Sessions (neueste zuerst):")
+        for s in sessions:
+            marker = "●" if s.get("id") == active_id else " "
+            info = ms.session_info(s["id"]) or {}
+            print(
+                f" {marker} {s.get('id'):<8}  {s.get('title', '?'):<30}  "
+                f"Nachrichten: {info.get('message_count', 0):>3}   "
+                f"Update: {info.get('updated_at', '')[:19]}"
+            )
+        return 0
+
+    if action == "new":
+        if not args.title:
+            _emit_error(
+                args, 2,
+                "`miminox session new` erwartet einen Titel.",
+                "Beispiel: `miminox session new --title 'Projekt Alpha'`",
+            )
+            return 2
+        entry = ms.create_session(args.title)
+        ms.switch_to(entry["id"])
+        if as_json:
+            print(json.dumps(entry, ensure_ascii=False, indent=2))
+        else:
+            print(f"Neue Session: {entry['id']} („{entry['title']}")
+        return 0
+
+    if action == "switch":
+        if not args.id:
+            _emit_error(
+                args, 2,
+                "`miminox session switch` erwartet eine Session-ID.",
+                "IDs siehst du mit `miminox session list`.",
+            )
+            return 2
+        if ms.get_session(args.id) is None:
+            _emit_error(
+                args, 2,
+                f"Session „{args.id}“ nicht gefunden.",
+                "IDs: `miminox session list`",
+            )
+            return 2
+        ms.switch_to(args.id)
+        if as_json:
+            print(json.dumps({"active_id": ms.get_active_id()}, indent=2))
+        else:
+            print(f"Aktive Session: {ms.get_active_id()}")
+        return 0
+
+    if action == "rm":
+        if not args.id:
+            _emit_error(
+                args, 2,
+                "`miminox session rm` erwartet eine Session-ID.",
+                "IDs siehst du mit `miminox session list`.",
+            )
+            return 2
+        if ms.get_session(args.id) is None:
+            _emit_error(
+                args, 2,
+                f"Session „{args.id}“ nicht gefunden.",
+                "IDs: `miminox session list`",
+            )
+            return 2
+        ms.delete_session(args.id)
+        if as_json:
+            print(json.dumps({"deleted": args.id}, indent=2))
+        else:
+            print(f"Session „{args.id}“ gelöscht.")
+        return 0
+
+    if action == "rename":
+        if not args.id or not args.title:
+            _emit_error(
+                args, 2,
+                "`miminox session rename` erwartet ID und neuen Titel.",
+                "Beispiel: `miminox session rename --id abc12345 --title 'Neuer Name'`",
+            )
+            return 2
+        if ms.get_session(args.id) is None:
+            _emit_error(
+                args, 2,
+                f"Session „{args.id}“ nicht gefunden.",
+                "IDs: `miminox session list`",
+            )
+            return 2
+        ms.rename_session(args.id, args.title)
+        if as_json:
+            print(json.dumps(ms.get_session(args.id), ensure_ascii=False, indent=2))
+        else:
+            print(f"Session „{args.id}“ heißt jetzt „{args.title}“.")
+        return 0
+
+    _emit_error(args, 2, f"Unbekannte Session-Aktion: {action!r}",
+               "Verfügbar: list · new · switch · rm · rename")
+    return 2
+
+
 def _emit_error(args: argparse.Namespace, code: int, message: str, fix: str = "") -> None:
     """Actionable Errors (DX): klare Cause+Fix, nie roher Stacktrace. Mit --json
     ein stabiles Machine-readable Format, ohne Secrets."""
@@ -826,6 +953,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     completion.add_argument("shell", nargs="?", choices=_COMPLETION_SHELLS)
     completion.set_defaults(func=cmd_completion)
+
+    session = sub.add_parser(
+        "session",
+        help="Multi-Session-Verwaltung (list / new / switch / rm / rename)",
+    )
+    session.add_argument(
+        "session_action",
+        choices=["list", "new", "switch", "rm", "rename"],
+        help="Aktion: list (alle anzeigen), new (erzeugen), switch (aktiv machen), rm (löschen), rename (umbenennen)",
+    )
+    session.add_argument(
+        "--id",
+        default=None,
+        metavar="ID",
+        help="Session-ID (für switch / rm / rename)",
+    )
+    session.add_argument(
+        "--title",
+        default=None,
+        metavar="TITEL",
+        help="Titel (für new) bzw. neuer Titel (für rename)",
+    )
+    session.add_argument("--json", action="store_true", help="Machine-readable JSON")
+    session.set_defaults(func=cmd_session)
 
     serve = sub.add_parser(
         "serve",
