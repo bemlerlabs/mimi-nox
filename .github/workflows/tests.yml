@@ -71,9 +71,11 @@ jobs:
       - name: Installer-Syntax-Check (Release-Bar)
         run: |
           bash -n install.sh && echo "install.sh OK"
-          # pwsh-Befehl in EINFACHEN Quotes: verhindert bash-$-Expansion ($t/$e/$_)
-          # vor der Ausführung — bash expandierte sie sonst zu leer → ParserError.
-          pwsh -NoProfile -Command '$ErrorActionPreference="Stop"; $t=[System.Management.Automation.Language.Token[]]@(); $e=[System.Management.Automation.Language.ParseError[]]@(); [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "install.ps1"),[ref]$t,[ref]$e) | Out-Null; if ($e.Count) { $e | ForEach-Object { Write-Error $_.ToString() }; exit 1 }; Write-Host "install.ps1 OK"'
+          # pwsh-Syntax-Check: ParseFile (1-arg Overload) wirft ParseException
+          # bei Syntax-Fehlern → Exit 1. Single-Quotes verhindern bash-$-Expansion.
+          # (2-arg Overload mit [ref]Token[]/[ref]ParseError[] ist fragil —
+          # bash expandierte $t/$e zu leer, dann scheiterten die Typ-Konversionen.)
+          pwsh -NoProfile -Command '$ErrorActionPreference="Stop"; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "install.ps1").Path) | Out-Null; Write-Host "install.ps1 OK"'
 
   docker-build:
     name: Docker image build (release-bar)
