@@ -10,6 +10,25 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 
 
+# ---------------------------------------------------------------------------
+# SUPERSEDED (2026-08-17): Diese Suite testet die Legacy-PWA (tab-basierte UI
+# mit #mobile-bottomnav, die per Python-HTTP-Handler aus app/src/ gespiegelt
+# wurde). Die Root-PWA wurde auf React 19 + Vite 6 + Tailwind v4 migriert;
+# app/src/ hat keinen index.html mehr — die Legacy-UI existiert nicht.
+# Die UI-Coverage (Landing/Onboarding/Chat, Panels, Modals, Mobile-Viewport)
+# wurde in app/tests/playwright/ (Playwright, 20 Specs gegen frisches Build)
+# übernommen. Die Datei bleibt zur Historie — alle Tests werden modulweit
+# übersprungen.
+# ---------------------------------------------------------------------------
+pytestmark = pytest.mark.skip(
+    reason=(
+        "Legacy PWA migrated to React+Vite; UI refactored zu Hash-Router "
+        "Landing/Onboarding/Chat; Coverage übernommen in app/tests/playwright/ "
+        "(2026-08-17)"
+    )
+)
+
+
 ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT / "app" / "src"
 SERVICE_WORKER = APP_DIR / "service-worker.js"
