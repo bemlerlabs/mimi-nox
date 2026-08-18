@@ -1,60 +1,60 @@
 import { test, expect } from '@playwright/test';
-import { dismissAllOverlays } from './helpers';
+import { ensureOnboarded, gotoHash } from './helpers';
 
-test.describe('Tab Navigation', () => {
+// "Tabs" der aktuellen UI = Workspace-Layout-Presets (Focus/Dev/Swarm/Minimal),
+// die die Panel-Komposition steuern (Chat/Agent/Explorer/Terminal/Files).
+// Die Legacy-Sidebar-Tabs (#tab-skills o.ä.) existieren nicht mehr.
 
-  async function verifyTab(page: any, tabId: string, viewId: string) {
-    await page.locator(tabId).click();
-    await expect(page.locator(tabId)).toHaveClass(/active/);
-    await expect(page.locator(viewId)).toBeVisible();
-  }
+const PRESET_BUTTONS: Record<string, string> = {
+  focus: '[data-testid="preset-focus"]',
+  dev: '[data-testid="preset-dev"]',
+  swarm: '[data-testid="preset-swarm"]',
+  minimal: '[data-testid="preset-minimal"]',
+};
 
-  test('chat tab is active by default', async ({ page }) => {
-    await page.goto('/');
-    await dismissAllOverlays(page);
-    await expect(page.locator('#tab-chat')).toHaveClass(/active/);
-    await expect(page.locator('#view-chat')).toBeVisible();
+test.describe('Workspace Layout Presets (aktuelle UI: Panels statt Tabs)', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await ensureOnboarded(page);
+    await gotoHash(page, '/chat', '[data-testid="panel-chat"]');
   });
 
-  test('switching to skills tab works', async ({ page }) => {
-    await page.goto('/');
-    await dismissAllOverlays(page);
-    await verifyTab(page, '#tab-skills', '#view-skills');
+  test('dev preset is default with terminal and files panels', async ({ page }) => {
+    await expect(page.locator('[data-testid="layout-dev"]')).toBeVisible();
+    await expect(page.locator('[data-testid="panel-terminal"]')).toBeVisible();
+    await expect(page.locator('[data-testid="panel-files"]')).toBeVisible();
+    await expect(page.locator('[data-testid="panel-explorer"]')).toBeVisible();
+    await expect(page.locator('[data-testid="context-rail"]')).toBeVisible();
   });
 
-  test('switching to history tab works', async ({ page }) => {
-    await page.goto('/');
-    await dismissAllOverlays(page);
-    await verifyTab(page, '#tab-history', '#view-history');
+  test('focus preset hides terminal/files and shows agent-free chat', async ({ page }) => {
+    await page.locator(PRESET_BUTTONS.focus).click();
+    await expect(page.locator('[data-testid="layout-focus"]')).toBeVisible();
+    await expect(page.locator('[data-testid="panel-terminal"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="panel-files"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="panel-chat"]')).toBeVisible();
   });
 
-  test('switching to tasks tab works', async ({ page }) => {
-    await page.goto('/');
-    await dismissAllOverlays(page);
-    await verifyTab(page, '#tab-tasks', '#view-tasks');
+  test('swarm preset shows the agent panel', async ({ page }) => {
+    await page.locator(PRESET_BUTTONS.swarm).click();
+    await expect(page.locator('[data-testid="layout-swarm"]')).toBeVisible();
+    await expect(page.locator('[data-testid="panel-agent"]')).toBeVisible();
   });
 
-  test('switching to memory tab works', async ({ page }) => {
-    await page.goto('/');
-    await dismissAllOverlays(page);
-    await verifyTab(page, '#tab-memory', '#view-memory');
+  test('minimal preset hides explorer and context rail', async ({ page }) => {
+    await page.locator(PRESET_BUTTONS.minimal).click();
+    await expect(page.locator('[data-testid="layout-minimal"]')).toBeVisible();
+    await expect(page.locator('[data-testid="panel-explorer"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="context-rail"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="panel-chat"]')).toBeVisible();
   });
 
-  test('switching to profile tab works', async ({ page }) => {
-    await page.goto('/');
-    await dismissAllOverlays(page);
-    await verifyTab(page, '#tab-profile', '#view-profile');
-  });
-
-  test('chat remains active after cycling through all tabs', async ({ page }) => {
-    await page.goto('/');
-    await dismissAllOverlays(page);
-    const tabs = ['#tab-skills', '#tab-history', '#tab-tasks', '#tab-memory', '#tab-profile'];
-    for (const tab of tabs) {
-      await page.locator(tab).click();
+  test('cycling through all presets returns to a working layout', async ({ page }) => {
+    for (const sel of Object.values(PRESET_BUTTONS)) {
+      await page.locator(sel).click();
+      await expect(page.locator('[data-testid="panel-chat"]')).toBeVisible();
     }
-    await page.locator('#tab-chat').click();
-    await expect(page.locator('#tab-chat')).toHaveClass(/active/);
-    await expect(page.locator('#view-chat')).toBeVisible();
+    await page.locator(PRESET_BUTTONS.dev).click();
+    await expect(page.locator('[data-testid="layout-dev"]')).toBeVisible();
   });
 });
