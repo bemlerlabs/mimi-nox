@@ -228,7 +228,8 @@ export default function ChatLayout() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden"
+              aria-label="Menü öffnen"
+              className="lg:hidden p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"
             >
               <Menu className="h-5 w-5 text-green-400/60" />
             </button>

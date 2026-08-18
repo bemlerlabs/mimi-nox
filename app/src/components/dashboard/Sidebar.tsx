@@ -8,6 +8,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useChatStore } from '@/store/chatStore'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns'
 import { de } from 'date-fns/locale'
 
@@ -74,6 +75,8 @@ export default function Sidebar({ isOpen, onClose, onOpenSettings }: SidebarProp
   const [searchQuery, setSearchQuery] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [searchFocused, setSearchFocused] = useState(false)
+  // Desktop (lg+ ≥1024px) → ständige Spalte; darunter → Slide-Drawer.
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
 
   const filteredSessions = sessions
     .filter(s => !searchQuery || s.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -96,15 +99,19 @@ export default function Sidebar({ isOpen, onClose, onOpenSettings }: SidebarProp
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — Desktop (lg+): ständige Spalte ohne Slide-Animation
+          (framer-motion setzt inline transform, der CSS-Klassen übersteuert —
+          bei !isOpen würde er die Sidebar deshalb aus dem Viewport schieben).
+          Mobile: Drawer mit Spring-Transition + Backdrop. */}
       <motion.aside
-        initial={{ x: -320 }}
-        animate={{ x: isOpen ? 0 : -320 }}
+        initial={isDesktop ? false : { x: -320 }}
+        animate={isDesktop ? { x: 0 } : { x: isOpen ? 0 : -320 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className={`fixed lg:relative left-0 top-0 h-full z-50 w-72 liquid-glass-strong border-r border-green-500/10 flex flex-col ${
-          !isOpen ? 'lg:translate-x-[-280px]' : ''
+        className={`left-0 top-0 h-full z-50 w-72 liquid-glass-strong border-r border-green-500/10 flex flex-col ${
+          isDesktop ? 'relative' : 'fixed'
         }`}
         aria-label={t('a11y.sidebar')}
+        data-testid="chat-sidebar"
       >
         {/* Header */}
         <div className="p-4 border-b border-white/5">
@@ -123,6 +130,7 @@ export default function Sidebar({ isOpen, onClose, onOpenSettings }: SidebarProp
           {/* New Session */}
           <button
             onClick={() => createSession()}
+            data-testid="new-session"
             className="w-full bg-green-500/10 hover:bg-green-500/15 border border-green-400/10 hover:border-green-400/20 text-green-400 rounded-xl h-9 text-xs font-medium transition-all duration-200 flex items-center justify-center gap-1.5"
             aria-label={t('sidebar.newChat')}
           >
@@ -158,7 +166,7 @@ export default function Sidebar({ isOpen, onClose, onOpenSettings }: SidebarProp
         </div>
 
         {/* Session List — Date Grouped */}
-        <div className="flex-1 overflow-y-auto px-3 pb-2">
+        <div className="flex-1 overflow-y-auto px-3 pb-2" data-testid="sessions-view">
           {dateGroups.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="w-10 h-10 rounded-xl liquid-glass flex items-center justify-center mb-3">
