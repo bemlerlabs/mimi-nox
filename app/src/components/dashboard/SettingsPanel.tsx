@@ -52,6 +52,16 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     loadSettings()
   }, [isOpen])
 
+  // Esc schließt das Panel (Standard-Dialog-Verhalten; a11y)
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, onClose])
+
   async function loadSettings() {
     try {
       setLoading(true)
@@ -331,6 +341,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 320, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            data-testid="settings-panel"
             className="fixed right-0 top-0 h-full w-80 max-w-[90vw] z-50 liquid-glass-strong border-l border-green-500/10 flex flex-col"
           >
             {/* Header */}
