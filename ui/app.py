@@ -28,7 +28,13 @@ from core.chat import (
 from core.react import react_loop, ReActStep
 from core.tools import ShellConfirmationRequired
 from core.swarm import run_swarm
-from core.commands import extract_swarm_task, is_swarm_command, resolve_command
+from core.commands import (
+    extract_swarm_task,
+    is_info_command,
+    is_swarm_command,
+    render_info_command,
+    resolve_command,
+)
 from core.session import (
     delete_session,
     load_last_session,
@@ -227,6 +233,18 @@ class MiMiNoxApp(App):
                 return
             self.query_one(ChatView).post_message(ChatView.AddUserMessage(user_input))
             self._run_swarm(task)
+            return
+
+        # /help /model /engine /configure → lokal rendern (kein LLM-Roundtrip).
+        # Wird vor der Skill-Resolution abgefangen: deterministisch und sofort.
+        if is_info_command(user_input):
+            self.query_one(ChatView).post_message(ChatView.AddUserMessage(user_input))
+            self.query_one(ChatView).post_message(
+                ChatView.AddSystemMessage(
+                    render_info_command(user_input),
+                    style="tool-call",
+                )
+            )
             return
 
         # ── Skill-Trigger auswerten (/research, /files, /review, /write, /shell)

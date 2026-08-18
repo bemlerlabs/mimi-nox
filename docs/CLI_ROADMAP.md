@@ -67,12 +67,15 @@ Subcommands: `start` | `doctor` | `update` | `tui`. Nur `doctor` hat `--json`. K
 **DoD:** Completions in 3 Shells · `--json` überall · Exit-Codes 0/1/2 · Startup p50 <100ms mit CI-Gate · TTFB gemessen · Help/Docs geprüft.
 **Fortschritt 2026-08-13:** Items 1–6 umgesetzt — tests/test_cli_dx.py mit 9 Gates grün (completion bash/zsh/fish, --version, exit-codes 0/1/2, JSON-Error-Härtung, Lazy-Import-Gate). Startup **p50 = 60 ms** (< 100 ms-Ziel). Offen: TTFB (5).
 ### Phase 2 — Agentic TUI (Product + Developer-Tooling)
-7. **Persistierte Sessions** + Multi-Session-Switch; Resume über Reboots (<200ms).
-8. **`/commands`**: `/help /model /engine /configure /swarm /post /plan /review`.
+7. ✅ **Persistierte Sessions** + Multi-Session-Switch; Resume über Reboots (<200ms).
+8. ✅ **`/commands`**: `/help /model /engine /configure /swarm /post /plan /review`.
 9. **Diff-UI + Approvals + `--dry-run`** (safe by default); Status-Bar mit Context-Meter.
 10. **MCP-Client verdrahten** (Baustein existiert) + Registry; Prompt-Injection-Policy aktiv.
 
 **DoD:** Sessions-Switch <50ms · Resume <200ms · `/commands` vollständig · Diff/Approval e2e · MCP e2e mit Policy.
+**Fortschritt 2026-08-18:** Item 7 + 8 umgesetzt.
+- **Item 7 (Multi-Session):** `core/multi_session.py` — Registry (`~/.mimi-nox/sessions/registry.json`) + ID-basierte `<id>.json`, atomare Writes (`.tmp` + `os.replace`), Korruptions-Safety (leerer State statt Crash), idempotente Legacy-Migration der `default.json` (kein Datenverlust), stabile 8-Hex-IDs. CLI: `miminox session list|new|switch|rm|rename` (`--json`, Usage-Error-Exit 2). TUI: Multi-Session-Hinweis im Greet (fail-safe). **DoD gemessen:** Switch <50ms (100 Switches, `tests/test_multi_session.py`), Resume <200ms. **34 Tests** (21 Unit + 13 CLI-Integration).
+- **Item 8 (/commands):** Registry komplett (`/help /model /engine /configure /swarm /post /plan /review`) + Descriptions + Tab-Completions. Info-Commands rendern **lokal ohne LLM** — TUI fängt sie per `is_info_command()` + `render_info_command()` ab (deterministisch, echte Daten aus `model_provider`/`engine_config`); `/configure` zeigt Zustand + Weg zur `miminox tui --configure`-Onboarding. `/plan`, `/review` als Prompt-Commands mit Usage-Feedback bei fehlenden Args. **16 Tests.**
 
 ### Phase 3 — Engine-Interop (Backend + AppSec)
 11. ✅ **`miminox serve`**: OpenAI-kompatible Engine (`/v1/chat/completions`, `/v1/models`, `stream=true`) mit OpenAPI-Contract + Auth-Token + localhost-Bind.
