@@ -44,6 +44,9 @@ jobs:
       - name: Run pytest
         # python -m pytest statt pytest: nutzt das CI-venv explizit;
         # unset PYTHONPATH verhindert jede venv-Kontamination (pydantic_core-Mismatch)
+        # --benchmark-json: Perf-Gates (Phase 4 Item 17) liefern einen
+        # JSON-Report als Artefakt; Toleranz-Gates (test_bench_gates.py)
+        # laufen im selben Durchlauf und FAILen bei Regression.
         run: >-
           unset PYTHONPATH
           python -m pytest tests/ -v --tb=short --no-header -q
@@ -51,10 +54,19 @@ jobs:
           --ignore=tests/test_gui_automation.py
           --ignore=tests/test_vision.py
           --ignore=tests/test_finding_01_screenshot_crossplatform.py
+          --benchmark-json=.benchmarks/bench.json
         env:
           MIMI_NOX_MODEL: mock
           MIMI_NOX_OFFLINE: "1"
           MIMI_NOX_MEMORY_DIR: /tmp/mimi-nox-ci-memory
+
+      - name: Upload benchmark artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ matrix.python-version }}
+          path: .benchmarks/
+          if-no-files-found: ignore
 
       - name: Installer-Syntax-Check (Release-Bar)
         run: |
