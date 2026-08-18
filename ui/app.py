@@ -128,12 +128,26 @@ class MiMiNoxApp(App):
         self._session = session
         count, when = session_info()
 
+        # Multi-Session-Hinweis (Phase 2 Item 7): zeigt an, wenn parallel
+        # weitere Sessions existieren. Fail-safe (keine Exception im Greet).
+        multi_hint = ""
+        try:
+            from core.multi_session import list_sessions as _ms_list
+            n_sessions = len(_ms_list())
+            if n_sessions > 1:
+                multi_hint = (
+                    f"\n   {n_sessions} Sessions vorhanden — "
+                    f"`miminox session list` für Umschalten."
+                )
+        except Exception:
+            multi_hint = ""
+
         if count > 0:
             chat.post_message(
                 ChatView.AddSystemMessage(
                     f"◑ MiMi Nox – Willkommen zurück.\n"
                     f"   Letzte Session: {count} Nachrichten, {when}\n"
-                    f"   Ctrl+R = Reset  ·  Ctrl+L = Clear  ·  q = Quit",
+                    f"   Ctrl+R = Reset  ·  Ctrl+L = Clear  ·  q = Quit{multi_hint}",
                     style="welcome",
                 )
             )
@@ -141,8 +155,8 @@ class MiMiNoxApp(App):
             chat.post_message(
                 ChatView.AddSystemMessage(
                     f"◑ MiMi Nox – Bereit. Privat. Lokal. Yours.\n"
-                    f"   /post  /debug  /idea  /explain  /commit  /swarm\n"
-                    f"   Tab = Autocomplete  ·  ↑↓ = History  ·  q = Quit",
+                    f"   /help  /post  /debug  /idea  /explain  /commit  /swarm\n"
+                    f"   Tab = Autocomplete  ·  ↑↓ = History  ·  q = Quit{multi_hint}",
                     style="welcome",
                 )
             )
