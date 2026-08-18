@@ -7,8 +7,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-import ollama
-
 
 # Module-level shared Ollama client (reuse TCP connection)
 _shared_client: Any | None = None
@@ -17,9 +15,15 @@ _TOOL_SCHEMA_CACHE: tuple[float, list[dict]] | None = None
 
 
 def _get_shared_client() -> Any:
-    """Lazy-initialized shared AsyncClient. Reuses TCP connection across calls."""
+    """Lazy-initialized shared AsyncClient. Reuses TCP connection across calls.
+
+    `ollama` wird hier (nicht modul-global) importiert: das Paket muss
+    offline-first importierbar bleiben (offline-first Positioning, AGENTS.md),
+    auch wenn der Ollama-Client/Modul in der aktuellen Umgebung fehlt.
+    """
     global _shared_client
     if _shared_client is None:
+        import ollama
         _shared_client = ollama.AsyncClient()
     return _shared_client
 

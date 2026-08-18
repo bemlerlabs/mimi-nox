@@ -107,7 +107,8 @@ def test_cmd_tui_without_flags_uses_persisted_config(tmp_path):
         cfg,
     )
 
-    args = argparse.Namespace(model=None, api_url=None, configure=False, reset=False)
+    args = argparse.Namespace(model=None, api_url=None, configure=False, reset=False,
+                              dry_run=False, yes=False, no=False)
     captured: list[list[str]] = []
     with patch("miminox.main", side_effect=lambda: captured.append(sys.argv.copy())):
         cli.cmd_tui(args, config_path=cfg)
@@ -126,6 +127,9 @@ def test_cmd_tui_explicit_flags_skip_onboarding(tmp_path):
         api_url="http://custom:8000/v1",
         configure=True,
         reset=False,
+        dry_run=False,
+        yes=False,
+        no=False,
     )
     captured: list[list[str]] = []
     with patch("miminox.main", side_effect=lambda: captured.append(sys.argv.copy())), patch(

@@ -827,16 +827,30 @@ def cmd_tui(args: argparse.Namespace, config_path=None) -> int:
         if args.reset:
             forwarded.append("--reset")
     else:
-        # Ohne Modell-Flag: persistierte Engine-Auswahl nutzen oder Onboarding.
+        # Ohne Modell-Flag: persistierte Engine-Auswahl nutzen.
+        # Standard = Qwen-DGX (User-Mandat 2026-08-18). Kein Ollama-Pull.
+        # Onboarding läuft NUR bei --configure (END-USER wählt Provider).
         choice: Any = None
         if not args.configure:
             choice = load_engine_config(config_path)
-        if choice is None:
+            if choice is None:
+                from core.engine_config import default_engine_choice
+                choice = default_engine_choice()
+        else:
+            # --configure: END-USER wählt Provider (Ollama / eigener Endpoint / OpenRouter)
             choice = _run_engine_onboarding(config_path=config_path)
         choice.apply_env()
         forwarded = ["mimi-nox"] + choice.to_flags()
         if args.reset:
             forwarded.append("--reset")
+
+    # P0-1 E1: Approval-Flags an die TUI weiterreichen
+    if args.dry_run:
+        forwarded.append("--dry-run")
+    if args.yes:
+        forwarded.append("--yes")
+    if args.no:
+        forwarded.append("--no")
 
     old_argv = sys.argv
     try:
@@ -844,6 +858,90 @@ def cmd_tui(args: argparse.Namespace, config_path=None) -> int:
         miminox.main()
     finally:
         sys.argv = old_argv
+    return 0
+
+
+# ── P0-1 E1: Deterministischer Tool-Modus (Approval / Diff / --dry-run) ────
+
+def _parse_tool_args(pairs: list[str]) -> dict:
+    """Parse --arg k=v Pairs zu einem Dict. Werte als String (Tool-typisiert
+    über das JSON-Schema des Tools; hier bewusst simpel für CLI-Usage)."""
+    out: dict[str, Any] = {}
+    for pair in pairs or []:
+        if "=" not in pair:
+            raise ValueError(f"Ungültiges --arg-Format: '{pair}' (erwartet: key=value)")
+        key, value = pair.split("=", 1)
+        key = key.strip()
+        if not key:
+            raise ValueError(f"Leerer --arg-Key: '{pair}'")
+        # JSON-Interpretation versuchen (listen/numbers/bools), sonst String
+        try:
+            out[key] = json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            out[key] = value
+    return out
+
+
+def cmd_tool(args: argparse.Namespace) -> int:
+    """P0-1 E1: Ein einzelnes Tool deterministisch ausführen (ohne LLM-Loop).
+
+    Konservative Defaults (Threat-Model E1):
+        - SAFE-Tools (read-only): immer erlaubt, ohne Flag.
+        - MUTATING/NETWORK-Tools:
+            * --dry-run → nur Vorschau, keine Ausführung (Datei wird nicht angefasst)
+            * --yes     → explizite Freigabe, Tool wird ausgeführt
+            * --no      → explizite Ablehnung, Tool wird NICHT ausgeführt
+            * kein Flag + non-interactive TTY → BLOCKED (Approval Pflicht)
+    """
+    import asyncio
+
+    from core.tools.approval import ApprovalPolicy
+    from core.tools.registry import execute_tool, get_tool_schemas
+
+    try:
+        tool_args = _parse_tool_args(args.arg)
+    except ValueError as exc:
+        _emit_error(args, 2, str(exc), "--arg expects key=value pairs")
+        return 2
+
+    # Schema-Prüfung: Tool existiert + Parameter-Name korrekt
+    schemas = {s.get("function", {}).get("name"): s for s in get_tool_schemas()}
+    if args.tool_name not in schemas:
+        _emit_error(
+            args, 1,
+            f"Unbekanntes Tool: '{args.tool_name}'",
+            "Verfügbare Tools: " + ", ".join(sorted(schemas.keys())),
+        )
+        return 1
+
+    # Konservative Policy aus CLI-Flags aufbauen.
+    # --yes/--no sind einander widersprüchlich → argparse-Mutual-Exclusion
+    # (parse-time) ist die Schranke; hier nur die Policy ableiten.
+    policy = ApprovalPolicy(
+        auto_approve=args.yes,
+        dry_run=args.dry_run,
+        interactive=False,  # CLI-Modus: --yes oder --dry-run sind die expliziten Hebel
+        declined=args.no,
+    )
+
+    try:
+        result = asyncio.run(execute_tool(args.tool_name, tool_args, policy=policy))
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        _emit_error(args, 1, str(exc) or "Tool-Fehler", "Tool-Argumente prüfen")
+        return 1
+
+    if args.json:
+        print(json.dumps({"tool": args.tool_name, "result": result}, ensure_ascii=False))
+    else:
+        print(result)
+
+    # Exit-Code-Vertrag:
+    #   0 = ausgeführt, dry-run-Vorschau oder SAFE-Auto-Approval
+    #   1 = durch Approval-Policy blockiert (mutating, kein --yes / --no / non-interactive)
+    if result.startswith("[Abgelehnt]"):
+        return 1
     return 0
 
 
@@ -945,6 +1043,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Force engine selection even if a config already exists",
     )
     tui.add_argument("--reset", action="store_true")
+    # P0-1 E1: Approval-Flags (werden von cmd_tui an die TUI weitergereicht)
+    tui.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview only; mutating tools are NOT executed (Approval-Gate)",
+    )
+    yes_no = tui.add_mutually_exclusive_group()
+    yes_no.add_argument(
+        "--yes",
+        action="store_true",
+        help="Explicitly approve execution of MUTATING/NETWORK tools",
+    )
+    yes_no.add_argument(
+        "--no",
+        action="store_true",
+        help="Explicitly decline; MUTATING/NETWORK tools are NOT executed",
+    )
     tui.set_defaults(func=cmd_tui)
 
     completion = sub.add_parser(
@@ -992,6 +1107,53 @@ def build_parser() -> argparse.ArgumentParser:
         help="Model id hint; if unset, the Model Router picks the best tier automatically",
     )
     serve.set_defaults(func=cmd_serve)
+
+    # ── P0-1 E1: Deterministischer Tool-Modus ──────────────────────────────
+    tool = sub.add_parser(
+        "tool",
+        help="Execute a single tool with approval-gates (P0-1 E1: diff / --dry-run / --yes / --no)",
+        description=(
+            "Execute one tool deterministically (no LLM loop).\n"
+            "Approval-gates (conservative defaults, Threat-Model E1):\n"
+            "  SAFE tools (read-only)    → always allowed\n"
+            "  MUTATING / NETWORK tools → require --yes or --dry-run\n\n"
+            "Flags:\n"
+            "  --dry-run  Show what WOULD happen; file is NOT touched\n"
+            "  --yes      Explicitly approve and execute\n"
+            "  --no       Explicitly decline (tool is NOT executed)\n"
+            "  --arg K=V  Tool argument (repeatable, JSON-parsed)\n"
+            "  --json     Machine-readable output\n\n"
+            "Exit codes: 0 = executed / dry-run shown, 3 = blocked by policy, 2 = usage error"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tool.add_argument("tool_name", help="Tool name (see `miminox tool --help` for the list)")
+    tool.add_argument(
+        "--arg",
+        action="append",
+        dest="arg",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Tool argument (repeatable, value JSON-parsed if possible)",
+    )
+    tool.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview only; the tool is NOT executed and no file is touched",
+    )
+    yes_no = tool.add_mutually_exclusive_group()
+    yes_no.add_argument(
+        "--yes",
+        action="store_true",
+        help="Explicitly approve execution of a MUTATING/NETWORK tool",
+    )
+    yes_no.add_argument(
+        "--no",
+        action="store_true",
+        help="Explicitly decline; the tool is NOT executed",
+    )
+    tool.add_argument("--json", action="store_true", help="Machine-readable JSON output")
+    tool.set_defaults(func=cmd_tool)
 
     return parser
 

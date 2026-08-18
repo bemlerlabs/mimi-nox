@@ -9,6 +9,11 @@ from core.tools.base import (
     _TOOL_SCHEMA_CACHE,
     ShellConfirmationRequired,
 )
+from core.tools.approval import (
+    ApprovalPolicy,
+    classify_tool,
+    request_approval,
+)
 from core.tools.task_tools import manage_tasks
 from core.tools.web_search import web_search
 from core.tools.file_ops import file_search, read_file, list_directory
@@ -82,7 +87,20 @@ TOOL_MAP: dict[str, object] = {
 }
 
 
-async def execute_tool(name: str, arguments: dict) -> str:
+async def execute_tool(name: str, arguments: dict, policy: ApprovalPolicy | None = None) -> str:
+    """Execute a tool by name.
+
+    P0-1 E1 Approval-Gate:
+        Wenn `policy` angegeben ist, wird vor der Ausführung `request_approval()`
+        aufgerufen. Bei `approved=False` wird der Report anstelle des Tool-Results
+        zurückgegeben. SAFE-Tools (read-only) werden nie geblockt.
+    """
+    # ── P0-1 E1: Approval-Gate ──────────────────────────────────────────────
+    if policy is not None:
+        decision = await request_approval(name, arguments, policy)
+        if not decision.approved:
+            return decision.report
+
     # MCP-Remote-Tools (Namespace 'mcp_') werden separat dispatched.
     mcp_tools = get_mcp_tools()
     if name in mcp_tools:

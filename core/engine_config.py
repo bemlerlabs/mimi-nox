@@ -33,6 +33,25 @@ VALID_PROVIDERS = (LOCAL_OLLAMA, CUSTOM_OLLAMA, OPENAI_COMPAT)
 
 DEFAULT_LOCAL_MODEL = "gemma4:12b"
 DEFAULT_DGX_MODEL = "deepseek-v4-flash"
+# ── Mimi Tech AI Standard-Engine (User-Mandat 2026-08-18) ─────────────────
+# Qwen 3.8 27B auf DGX Spark — Default-Engine, kein Ollama-Bundling/Download.
+# Provider-Wahl (eigener Endpoint, Ollama, OpenRouter) = END-USER-Onboarding.
+DEFAULT_DGX_SPARK_URL = "http://spark-2c73.tail8f685e.ts.net:8000/v1"
+DEFAULT_DGX_SPARK_MODEL = "qwen38-27b-unsloth-nvfp4"
+
+def default_engine_choice() -> "EngineChoice":
+    """Return the standard MiMi Nox engine: Qwen 3.8 27B on DGX Spark.
+    
+    Called when no persisted config exists and user hasn't passed
+    --configure. The END-USER can override at onboarding (--configure)
+    by choosing any OpenAI-compatible endpoint (Ollama, OpenRouter, custom).
+    """
+    return EngineChoice(
+        provider=OPENAI_COMPAT,
+        model=DEFAULT_DGX_SPARK_MODEL,
+        api_url=DEFAULT_DGX_SPARK_URL,
+    )
+
 
 CONFIG_DIR = Path(os.environ.get("MIMI_NOX_CONFIG_DIR", str(Path.home() / ".mimi-nox")))
 CONFIG_FILE = "engine.json"

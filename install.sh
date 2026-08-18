@@ -38,6 +38,15 @@ NO_START="${MIMI_NOX_NO_START:-0}"
 SKIP_MODEL="${MIMI_NOX_SKIP_MODEL:-0}"
 DRY_RUN="${MIMI_NOX_DRY_RUN:-0}"
 
+# --- Download-Integrität (Supply-Chain Gate) ---------------------------------
+# Piped `curl | sh` ist ein klassischer Supply-Chain-Angriffspunkt: ein
+# kompromittiertes Vendor-Script würde ungeprüft ausgeführt. Deshalb laden wir
+# beide Vendor-Installer erst herunter, verifizieren den SHA256 gegen den
+# gepinnten Hash und führen erst dann aus. Abweichung -> fester Abbruch.
+# Hash-Stand: 2026-08-18 (live erfasst). Rotation via Env-Override (Gate-Release).
+UV_INSTALL_SHA256="${MIMI_NOX_UV_INSTALL_SHA256:-504511fbbbd811aeaba6738abc79408956b6c7da0ca35437b3dcc24a41efc111}"
+OLLAMA_INSTALL_SHA256="${MIMI_NOX_OLLAMA_INSTALL_SHA256:-25f64b810b947145095956533e1bdf56eacea2673c55a7e586be4515fc882c9f}"
+
 for arg in "$@"; do
   case "$arg" in
     --no-start) NO_START=1 ;;
@@ -87,6 +96,42 @@ run() {
   else
     "$@"
   fi
+}
+
+# sha256 summe portabel (macOS shasum / Linux sha256sum)
+sha256_of() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    sha256sum "$1" | awk '{print $1}'
+  fi
+}
+
+# Lädt ein Vendor-Script herunter, verifiziert den gepinnten SHA256 und
+# führt es aus. Abweichender Hash => fester Abbruch (kein blindes `curl | sh`).
+# $1=URL  $2=gepinnter_SHA256  $3=label  $4=Env-Override-Name (für Rotation)
+fetch_verify_run() {
+  local url="$1" expected="$2" label="$3" override_env="$4"
+  local tmp got
+  tmp="$(mktemp /tmp/mimi-nox-vendor-XXXXXX)"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    info "DRY-RUN: lade+verifiziere ${label} aus ${url} (SHA256=${expected})"
+    return 0
+  fi
+  info "Lade ${label}-Installer …"
+  curl -fsSL "$url" -o "$tmp" || { rm -f "$tmp"; fail "Download fehlgeschlagen: ${url}"; }
+  got="$(sha256_of "$tmp")"
+  got="$(printf '%s' "$got" | tr 'ABCDEF' 'abcdef')"
+  exp="$(printf '%s' "$expected" | tr 'ABCDEF' 'abcdef')"
+  if [[ "$got" != "$exp" ]]; then
+    rm -f "$tmp"
+    fail "SHA256-Integritätsprüfung FEGEL für ${label}. Erwartet ${expected}, erhalten ${got}. Vendor hat das Script vermutlich rotiert: ${override_env} neu setzen (aktuelle sha256) und ./install.sh erneut ausführen."
+  fi
+  ok "Integrität ${label} bestätigt (SHA256 ${got:0:16}…)"
+  sh "$tmp"
+  local rc=$?
+  rm -f "$tmp"
+  return "$rc"
 }
 
 is_project_root() {
@@ -175,7 +220,7 @@ install_uv_python() {
   info "Installiere eine lokale Python-Runtime mit uv."
   uv_bin="$(find_uv || true)"
   if [[ -z "$uv_bin" ]]; then
-    run sh -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+    fetch_verify_run "https://astral.sh/uv/install.sh" "$UV_INSTALL_SHA256" "uv" "MIMI_NOX_UV_INSTALL_SHA256"
     uv_bin="$(find_uv || true)"
   fi
   if [[ -z "$uv_bin" && "$DRY_RUN" == "1" ]]; then
@@ -266,7 +311,7 @@ update_ollama() {
     fi
     fail "Deine Ollama-Version ist zu alt. Bitte installiere die neueste Version von https://ollama.com/download und starte den Installer erneut."
   fi
-  run sh -c "curl -fsSL https://ollama.com/install.sh | sh"
+  fetch_verify_run "https://ollama.com/install.sh" "$OLLAMA_INSTALL_SHA256" "ollama" "MIMI_NOX_OLLAMA_INSTALL_SHA256"
   OLLAMA_BIN="$(find_ollama || true)"
   [[ -n "$OLLAMA_BIN" ]] || fail "Ollama wurde nach dem Update nicht gefunden."
 }
@@ -323,7 +368,7 @@ if [[ -z "$OLLAMA_BIN" ]]; then
       fail "Homebrew fehlt. Installiere Ollama von https://ollama.com/download und starte danach ./install.sh erneut."
     fi
   else
-    run sh -c "curl -fsSL https://ollama.com/install.sh | sh"
+    fetch_verify_run "https://ollama.com/install.sh" "$OLLAMA_INSTALL_SHA256" "ollama" "MIMI_NOX_OLLAMA_INSTALL_SHA256"
   fi
   OLLAMA_BIN="$(find_ollama || true)"
 fi
