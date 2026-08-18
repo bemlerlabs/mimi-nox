@@ -98,9 +98,9 @@ export function WorkspaceLayout({ preset, onPresetChange, chatContent }: Workspa
 
       {/* Panes-Grid */}
       <div className="grid flex-1 gap-0 overflow-hidden" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
-        {/* Explorer links */}
+        {/* Explorer links — ab lg (1024px); auf Mobile bleibt der Chat vollflächig */}
         {showExplorer && (
-          <div data-testid="panel-explorer" className="w-48 border-r border-white/10">
+          <div data-testid="panel-explorer" className="w-48 hidden border-r border-white/10 lg:block">
             <ExplorerPanel />
           </div>
         )}
@@ -133,9 +133,9 @@ export function WorkspaceLayout({ preset, onPresetChange, chatContent }: Workspa
           </div>
         </div>
 
-        {/* Kontext-Rail (Attach/Context) rechts */}
+        {/* Kontext-Rail (Attach/Context) rechts — ab xl (1280px) */}
         {showContextRail && (
-          <div data-testid="context-rail" className="w-56 border-l border-white/10">
+          <div data-testid="context-rail" className="w-56 hidden border-l border-white/10 xl:block">
             <ContextRail />
           </div>
         )}
