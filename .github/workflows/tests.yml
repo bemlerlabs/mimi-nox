@@ -73,7 +73,7 @@ jobs:
           bash -n install.sh && echo "install.sh OK"
           # pwsh-Befehl in EINFACHEN Quotes: verhindert bash-$-Expansion ($t/$e/$_)
           # vor der Ausführung — bash expandierte sie sonst zu leer → ParserError.
-          pwsh -NoProfile -Command '$ErrorActionPreference="Stop"; $t=0; $e=0; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "install.ps1"),[ref]$t,[ref]$e) | Out-Null; if ($e.Count) { $e | ForEach-Object { Write-Error $_.ToString() }; exit 1 }; Write-Host "install.ps1 OK"'
+          pwsh -NoProfile -Command '$ErrorActionPreference="Stop"; $t=[System.Management.Automation.Language.Token[]]@(); $e=0; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "install.ps1"),[ref]$t,[ref]$e) | Out-Null; if ($e.Count) { $e | ForEach-Object { Write-Error $_.ToString() }; exit 1 }; Write-Host "install.ps1 OK"'
 
   docker-build:
     name: Docker image build (release-bar)
