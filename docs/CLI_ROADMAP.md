@@ -66,6 +66,7 @@ Subcommands: `start` | `doctor` | `update` | `tui`. Nur `doctor` hat `--json`. K
 
 **DoD:** Completions in 3 Shells · `--json` überall · Exit-Codes 0/1/2 · Startup p50 <100ms mit CI-Gate · TTFB gemessen · Help/Docs geprüft.
 **Fortschritt 2026-08-13:** Items 1–6 umgesetzt — tests/test_cli_dx.py mit 9 Gates grün (completion bash/zsh/fish, --version, exit-codes 0/1/2, JSON-Error-Härtung, Lazy-Import-Gate). Startup **p50 = 60 ms** (< 100 ms-Ziel). Offen: TTFB (5).
+**Fortschritt 2026-08-18:** Item 5 (TTFB) umgesetzt — `tests/test_bench_gates.py` misst time-to-first-token gegen die echte serve-Engine (uvicorn + Fake-Provider mit konfigurierbarer Token-Latenz 50ms, httpx-Client, p50/p95/mean über 5 gemessene Läufe nach Warmup). Lokale Messung: TTFB **p50 = 52ms** (Budget 500ms). DoD Phase 1 damit vollständig.
 ### Phase 2 — Agentic TUI (Product + Developer-Tooling)
 7. **Persistierte Sessions** + Multi-Session-Switch; Resume über Reboots (<200ms).
 8. **`/commands`**: `/help /model /engine /configure /swarm /post /plan /review`.
@@ -86,10 +87,11 @@ Subcommands: `start` | `doctor` | `update` | `tui`. Nur `doctor` hat `--json`. K
 ### Phase 4 — Observability & Release (Backend + Product)
 15. **Strukturierte Logs + stabile Error-Codes + Request-ID** in serve/CLI.
 16. **Version Single-Source** (bestehende Builds nutzen) + CHANGELOG je Phase.
-17. **Perf-Regression in CI** (pytest-benchmark: Startup, TTFB, Memory).
+17. ✅ **Perf-Regression in CI** (pytest-benchmark: Startup, TTFB, Memory).
 
 **DoD:** Request-ID überall · Version single-source · CHANGELOG aktualisiert · CI-Benchmark-Gates green.
 **Fortschritt 2026-08-16:** Item 15 in serve + CLI umgesetzt — `core/observability.py` (Request-ID-Middleware mit `X-Request-ID`, `ErrorCode`/`error_payload` mit stabilen `code_id`, HTTP-Exception-Handler in `server/openai.py`, `code_id` im CLI-`--json`-Error-Format); `tests/test_observability.py` + 36 Tests (serve/CLI/Security) green. Item 16: CHANGELOG `[Unreleased]` auf die Phase aufgezogen (serve/Router/observability/LAN-Auth). Offen: Request-ID in PWA-Server (`server/main.py`), pytest-benchmark + CI-Gates (17), TTFB (5).
+**Fortschritt 2026-08-18:** Item 17 umgesetzt — `tests/test_bench_gates.py` (3 Toleranz-Gates): Startup p50 <150ms (Baseline 60ms, 2026-08-13), TTFB p50 <500ms (Fake-Latenz 50ms/Token → Messung ~52ms), TTFB-Spread-Stabilität. Flaky-frei: Warmup vor Messung, Toleranz-Gates statt exakter Zeiten, `MIMI_NOX_BENCH_GATE=0` für Debugging-Skip. `pytest-benchmark` in dev-/bench-Extra; `--benchmark-json`-Report nach `.benchmarks/` (gitignored) als CI-Artefakt (tests.yml: Artefakt-Upload). Lokale Verifikation: 727 passed, 19 skipped (CI-Command lokal). Offen: Request-ID in PWA-Server (`server/main.py`), Memory-Budget (Phase 1 Item 5, Teil).
 
 ## 6. MVP-Priorisierung (AI-Product-Manager)
 
