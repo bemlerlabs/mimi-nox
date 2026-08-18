@@ -71,11 +71,8 @@ jobs:
       - name: Installer-Syntax-Check (Release-Bar)
         run: |
           bash -n install.sh && echo "install.sh OK"
-          # pwsh-Syntax-Check: ParseFile (1-arg Overload) wirft ParseException
-          # bei Syntax-Fehlern → Exit 1. Single-Quotes verhindern bash-$-Expansion.
-          # (2-arg Overload mit [ref]Token[]/[ref]ParseError[] ist fragil —
-          # bash expandierte $t/$e zu leer, dann scheiterten die Typ-Konversionen.)
-          pwsh -NoProfile -Command '$ErrorActionPreference="Stop"; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "install.ps1").Path) | Out-Null; Write-Host "install.ps1 OK"'
+          # pwsh-Syntax-Check: ParseFile (2-arg Overload, die in pwsh 7 die EINZIGE
+          # ist) braucht beid...[truncated]
 
   docker-build:
     name: Docker image build (release-bar)
