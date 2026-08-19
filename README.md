@@ -34,6 +34,8 @@ http://127.0.0.1:8765
 
 First run downloads the Ollama artifact for the selected model (RAM-basiert empfohlen: 12b ≈ 16GB, e4b ≈ 8–10GB, e2b ≈ 4–6GB unified memory; 256K context). Override with `MIMI_NOX_MODEL` or the CLI `--model` flag. If the download is interrupted, run the same command again.
 
+**Supply-Chain-Integrität:** Alle Vendor-Downloads (uv, Ollama-Installer) werden vor der Ausführung gegen gepinnte SHA256-Hashes verifiziert — Abweichung bricht den Installer fest ab (kein blindes `curl | sh`). Rotation via `MIMI_NOX_UV_INSTALL_SHA256` / `MIMI_NOX_OLLAMA_INSTALL_SHA256`.
+
 </details>
 
 ## Demo Videos
@@ -117,12 +119,27 @@ miminox doctor                    # Setup-Check (Ollama, Modell, Server)
 miminox doctor --fix              # sichere lokale Reparaturen (Repo, Deps, Ollama, Modell)
 miminox doctor --json             # maschinenlesbarer Health-Bericht
 miminox update                    # Repo pull + Dependencies + Modell
-miminox tui --model gemma4:12b    # Terminal-UI (Textual)
+miminox tui                       # Terminal-UI (Textual) — Standard-Engine
+miminox tui --model gemma4:12b    # TUI mit explizitem Ollama-Modell
+miminox tui --configure           # END-USER wählt Provider (Onboarding)
+miminox serve                     # OpenAI-kompatible Engine (/v1/chat/completions)
+miminox tool <name> --dry-run     # Tool deterministisch ausführen (Approval-Gate)
 ```
 
-`miminox tui` startet ohne Modell-Flag direkt in eine Engine-Auswahl (Onboarding): die lokale Ollama-Engine wird automatisch erkannt (offline-first), sonst fragt die CLI nach Engine-URL und Modell (eigene Ollama/vLLM, DGX-Spark ds4, OpenAI-kompatible API). Die Wahl wird unter `~/.mimi-nox/engine.json` gespeichert und bei jedem Start wiederverwendet; `--configure` erzwingt die Auswahl, explizite `--model`/`--api-url`-Flags gewinnen immer. API-Keys werden nie gespeichert.
+**Standard-Engine (Sprint 1, User-Mandat):** `miminox tui` startet ohne Flag mit der Mimi Tech AI Standard-Engine (Qwen 3.8 27B auf DGX Spark, OpenAI-kompatibel). Kein Ollama-Pull, kein Download — die Engine läuft remote auf dem DGX Spark und ist sofort startklar. Die persistierte Wahl liegt unter `~/.mimi-nox/engine.json`.
 
-Exit-Codes: `0` Erfolg · `1` Laufzeit/Reparatur-Fehler · `2` Usage-Fehler (unbekanntes Flag/Subcommand).
+**Provider-Onboarding:** `miminox tui --configure` startet die Engine-Auswahl für END-USERs (lokale Ollama / eigener OpenAI-kompatibler Endpoint / OpenRouter). Die Wahl wird unter `~/.mimi-nox/engine.json` gespeichert und bei jedem Start wiederverwendet; explizite `--model`/`--api-url`-Flags gewinnen immer. API-Keys werden nie gespeichert.
+
+**Approval-Gates (Sprint 1, Threat-Model E1):** `miminox tool <name>` führt ein einzelnes Tool deterministisch aus (ohne LLM-Loop) mit konservativen Approval-Defaults:
+
+- `SAFE` Tools (read-only) → immer erlaubt
+- `MUTATING` / `NETWORK` Tools → erfordern explizite Freigabe
+- `--dry-run` → Vorschau ohne Ausführung (Datei bleibt unangetastet)
+- `--yes` → explizite Freigabe
+- `--no` → explizite Ablehnung (Tool wird nicht ausgeführt)
+- `--json` → maschinenlesbares JSON-Output
+
+Exit-Codes: `0` Erfolg/Ausführung · `1` Laufzeit/Reparatur-Fehler · `2` Usage-Fehler · `3` durch Policy blockiert.
 
 Installations-Modus wählbar: `--cli` (nur TUI/Textual, minimale Dependencies) oder `--desktop`/`--gui` (Standard, PWA + gui/voice). Ohne Flag fragt der Installer interaktiv.
 

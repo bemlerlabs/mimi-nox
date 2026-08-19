@@ -7,19 +7,29 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ---
 
-## [Unreleased]
+## [1.0.0-sprint2] – 2026-08-19
+
+### Added – Sprint 1 Launch-Trust (P0-1 / P0-2 / P0-3)
+
+- **`miminox tool` — Approval-Gates (P0-1, Threat-Model E1):** deterministischer Tool-Modus (ohne LLM-Loop) mit konservativen Defaults. `SAFE` Tools (read-only) immer erlaubt; `MUTATING`/`NETWORK` Tools erfordern explizite Freigabe. Flags: `--dry-run` (Vorschau, Datei bleibt unangetastet), `--yes` (Freigabe), `--no` (Ablehnung), `--arg K=V` (JSON-parsed), `--json` (maschinenlesbar). Exit-Codes: 0 = ausgeführt/dry-run, 3 = durch Policy blockiert, 2 = Usage. `core/tools/approval.py` + 20/20 approval-Tests (e2e: dry-run/yes/no/non-interactive).
+- **Qwen 3.8 27B auf DGX Spark als Standard-Engine (P0-2):** `core/engine_config.py::default_engine_choice()` — Mimi Tech AI Standard-Engine (Qwen 3.8 27B, `qwen38-27b-unsloth-nvfp4`), kein Ollama-Bundling/Download. Provider-Wahl (eigener Endpoint, Ollama, OpenRouter) = END-USER-Onboarding via `miminox tui --configure`. Persistenz unter `~/.mimi-nox/engine.json`; explizite `--model`/`--api-url`-Flags gewinnen immer; API-Keys werden nie persistiert. 22 passed inkl. 3 LIVE DGX-Smoke-Tests.
+- **Security Release Gate (P0-3):** `docs/SECURITY_GATE_REPORT.md` — 0 install-hygiene-Treffer, `npm audit` = 0, Lighthouse 7/7 Security-Audits = 1.0.
 
 ### Added
+
 - **`miminox serve`** — OpenAI-kompatible Engine (Phase 3): `server/openai.py` (`create_openai_app`: `/v1/models`, `/v1/chat/completions` mit SSE-Stream + `[DONE]`, Auth-Token, localhost-Bind default); `cmd_serve` (`--host/--port/--lan/--token/--model`, `--lan` generiert Token, `0.0.0.0`). JCode/Codex/OpenCode nutzen die Engine als OpenAI-Provider (Interop, e2e: `tests/test_jcode_e2e.py`).
 - **Hardware-adaptiver Model Router** (`core/model_router.py`): single source of truth für `gemma4:12b ↔ ds4`, transparent pro Session + `X-Model-*` Transparenz-Header; Router in serve verdrahtet (fehlendes Modell → resolve, explizites Modell → skip).
-- **Engine-Start/Onboarding für `miminox tui`**: lokale Ollama wird automatisch erkannt (offline-first), sonst fragt die CLI nach Engine-URL und Modell (eigene Ollama/vLLM, DGX-Spark ds4, OpenAI-kompatibel); Auswahl wird nach `~/.mimi-nox/engine.json` persistiert, `--configure` erzwingt die Auswahl, explizite Flags gewinnen immer
-- `core/engine_config.py`: `EngineChoice` + atomare `load/save/clear_engine_config`; API-Keys werden nie persistiert (nur Session-Env)
-- **Observability** (Phase 4, Item 15): `core/observability.py` — Request-ID-Middleware (`X-Request-ID`), strukturierte Error-Payloads mit stabilen `code_id` (usage/validation/auth/stream/runtime/not_found), HTTP-Exception-Handler; in `miminox serve` (OpenAI-Engine) UND im PWA-Server (`server/main.py`) verdrahtet: Request-IDs auf allen Responses (Header + korrelierter Body), stabile Codes bei 401/404/429/400, Auth-401 jetzt JSON statt Text; `code_id` im CLI-`--json`-Error-Format. Tests: `tests/test_observability.py` (11 Tests).
+- **Engine-Start/Onboarding für `miminox tui`**: Default = Qwen-DGX-Standard-Engine (Sprint 1); `--configure` startet das END-USER-Onboarding (Ollama / eigener Endpoint / OpenAI-kompatibel); Auswahl persistiert nach `~/.mimi-nox/engine.json`, explizite Flags gewinnen immer.
+- `core/engine_config.py`: `EngineChoice` + atomare `load/save/clear_engine_config`; API-Keys werden nie persistiert (nur Session-Env).
+- **Observability** (Phase 4, Item 15): `core/observability.py` — Request-ID-Middleware (`X-Request-ID`), strukturierte Error-Payloads mit stabilen `code_id` (usage/validation/auth/stream/runtime/not_found), HTTP-Exception-Handler; in `miminox serve` (OpenAI-Engine) UND im PWA-Server (`server/main.py`) verdrahtet. Tests: `tests/test_observability.py` (11 Tests).
 
 ### Security
+
+- **install.sh: SHA256-Supply-Chain-Integrität (P0-2):** alle Vendor-Downloads (uv, Ollama-Installer) werden vor Ausführung gegen gepinnte SHA256-Hashes verifiziert — Abweichung bricht den Installer fest ab (kein blindes `curl | sh`). Rotation via `MIMI_NOX_UV_INSTALL_SHA256` / `MIMI_NOX_OLLAMA_INSTALL_SHA256`.
 - **Docker Compose: LAN-Auth aktiv by default** (`MIMI_NOX_LAN=1`) — Container bindet auf die Host-Interface, dadurch wird Auth-Token + Security-Header + Rate-Limit aktiviert (konservativ: nie offenes LAN-Hosting ohne Auth).
 
 ### Planned
+
 - Multi-Session-Verwaltung (parallele Chats)
 - Plugin-API für externe Skill-Pakete
 - Lokales Embedding-Modell (statt ChromaDB default)
