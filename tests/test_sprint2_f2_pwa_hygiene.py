@@ -13,6 +13,7 @@ DoD (SPECK, CTO-pinned):
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,7 @@ GLOBALS_CSS = ROOT / "app" / "src" / "styles" / "globals.css"
 PYPROJECT = ROOT / "pyproject.toml"
 TESTS_WORKFLOW = ROOT / ".github" / "workflows" / "tests.yml"
 VENV_CFG = ROOT / ".venv" / "pyvenv.cfg"
+VENV_PYTHON = ROOT / ".venv" / "bin" / "python"
 
 WCAG_NORMAL_TEXT_RATIO = 4.5
 
@@ -119,6 +121,48 @@ def _ci_python_matrix() -> list[tuple[int, int]]:
 
 
 def _venv_python() -> tuple[int, int]:
+    """Version der REALEN venv-Python-Binary — nicht nur pyvenv.cfg.
+
+    Root-Cause-Verteidigung (Sprint2-Fix, DEFEKT 2): pyvenv.cfg ist ein
+    STALE-Artefakt (behält nach Rebuild/Ersetzung die alte Version), daher
+    nicht die Single-Source-of-Truth. Wir fragen die tatsächliche Binary
+    per subprocess ab und ASSERTEN, dass sie pyvenv.cfg gleicht. Weichen
+    beide ab, FAILT dieser Helper — und damit jeder Parity-Test, der ihn
+    nutzt — exakt im jetzt-entdeckten Zustand (cfg=3.13.5 stale,
+    Binary=3.12.13). Eine STALE cfg wird so künftig vom Test selbst erwischt.
+    """
+    # (1) REALE Binary — Source of Truth
+    result = subprocess.run(
+        [
+            str(VENV_PYTHON), "-c",
+            "import sys; print(sys.version_info[0], sys.version_info[1])",
+        ],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, (
+        f".venv/bin/python lieferte Exit {result.returncode}: "
+        f"{result.stderr.strip()}"
+    )
+    out = result.stdout.strip().split()
+    assert len(out) == 2 and out[0].isdigit() and out[1].isdigit(), (
+        f"unerwartete Versions-Output von .venv/bin/python: "
+        f"{result.stdout.strip()!r}"
+    )
+    binary = (int(out[0]), int(out[1]))
+
+    # (2) pyvenv.cfg — muss stimmen (STALE cfg = Root-Cause-Zustand -> FAIL)
+    cfg = _venv_cfg_python()
+    assert binary == cfg, (
+        f".venv inkonsistent: reale Python-Binary ist {binary[0]}.{binary[1]} "
+        f"aber pyvenv.cfg sagt {cfg[0]}.{cfg[1]} (STALE-Artefakt — venv wurde "
+        f"rebuildet/ersetzt, ohne pyvenv.cfg zu regenerieren). venv "
+        f"konsistent neu bauen: python3.{binary[1]} -m venv .venv"
+    )
+    return binary
+
+
+def _venv_cfg_python() -> tuple[int, int]:
+    """Version aus .venv/pyvenv.cfg (nur der cfg-Wert — zum Verrechnen)."""
     text = VENV_CFG.read_text(encoding="utf-8")
     m = re.search(r"^version\s*=\s*(\d+)\.(\d+)", text, re.MULTILINE)
     assert m, "version not found in .venv/pyvenv.cfg"
