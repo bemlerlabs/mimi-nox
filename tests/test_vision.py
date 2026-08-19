@@ -104,8 +104,17 @@ class TestAnalyzeImage:
         mock_response = MagicMock()
         mock_response.message.content = "Ein rotes Pixel."
 
+        # base.py importiert `ollama` LAZY innerhalb von _get_shared_client()
+        # (kein modul-globales `core.tools.base.ollama`) — daher muss das
+        # ECHTE Modul `ollama.AsyncClient` gepatcht werden und der
+        # Shared-Client-State vor dem Test zurückgesetzt werden
+        # (gleicher Root-Cause wie tests/test_finding_04_shared_client.py).
+        import core.tools.base as base
+        saved_client = base._shared_client
+        base._shared_client = None
+
         try:
-            with patch("core.tools.base.ollama.AsyncClient") as MockClient:
+            with patch("ollama.AsyncClient") as MockClient:
                 instance = AsyncMock()
                 instance.chat = AsyncMock(return_value=mock_response)
                 MockClient.return_value = instance
@@ -118,6 +127,7 @@ class TestAnalyzeImage:
                 assert "images" in call_args.kwargs.get("messages", [{}])[0]
         finally:
             Path(tmp_path).unlink(missing_ok=True)
+            base._shared_client = saved_client
 
     def test_GIVEN_supported_extensions_THEN_contains_common_formats(self):
         """

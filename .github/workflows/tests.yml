@@ -23,7 +23,10 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.11', '3.12']
+        # Parity-Gate (Sprint2-F2): Matrix deckt requires-python >=3.10 ab
+        # (min 3.11) und enthält die lokale venv-Python (3.13) —
+        # Regression-Test: tests/test_sprint2_f2_pwa_hygiene.py
+        python-version: ['3.11', '3.12', '3.13']
 
     steps:
       - name: Checkout

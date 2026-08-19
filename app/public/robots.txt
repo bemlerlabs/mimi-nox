@@ -1,0 +1,7 @@
+# MiMi Nox — robots.txt
+# Produktiv-Deployment ist Tauri-bundled/offline; diese Datei gilt für
+# Web-Deployments (z.B. Landing/Mirroring). LLM-Kontext: /llms.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /ws/

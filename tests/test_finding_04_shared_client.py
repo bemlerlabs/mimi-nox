@@ -61,7 +61,11 @@ def test_given_client_exists_when_second_call_then_no_new_creation():
     """GIVEN _shared_client already set WHEN _get_shared_client() THEN AsyncClient() not called again."""
     _reset_state()
 
-    with patch("core.tools.base.ollama.AsyncClient") as MockClient:
+    # base.py importiert `ollama` LAZY innerhalb von _get_shared_client()
+    # (kein modul-globales `core.tools.base.ollama`) — daher muss das
+    # ECHTE Modul `ollama.AsyncClient` gepatcht werden, nicht der
+    # nicht-existierende Attribut-Pfad `core.tools.base.ollama.AsyncClient`.
+    with patch("ollama.AsyncClient") as MockClient:
         mock_instance = MagicMock()
         MockClient.return_value = mock_instance
 

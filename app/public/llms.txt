@@ -1,0 +1,42 @@
+# MiMi Nox
+
+> MiMi Nox ist ein Offline-first, lokaler KI-Assistent. Privat. Lokal. Dein.
+> Built by MiMi Tech AI UG (Schwarzwald, Deutschland). Apache-2.0.
+
+## Was ist MiMi Nox?
+MiMi Nox läuft vollständig lokal auf deinem Gerät: CLI (TUI), Desktop-App
+(Tauri) und PWA. Der Assistent nutzt lokale Modelle (Ollama-Default:
+gemma4-12b; konfigurierbar via MIMI_NOX_MODEL), hat kein Cloud-Backend und
+verlässt deine Daten nicht — kein Telemetrie-Endpoint, kein Tracking.
+
+## Kernfähigkeiten
+- **Chat & Agent-Loop:** lokale LLM-Anfragen über Ollama (oder
+  OpenAI-kompatible Endpoint), SSE-Streaming, Tool-Calling.
+- **Computer-Use / Tools:** `miminox tool`-Subkommando mit Approval-Gate,
+  Diff-Vorschau, `--dry-run` (Threat-Model E1); Whitelisted-Commands
+  (ls/cat/python/git/docker/…), Block-Patterns (rm -rf, sudo, …).
+- **Skills:** /chart, /deck, /pdf, i18n-Prompts; Skills erweiterbar.
+- **Memory:** lokale Vektorspeicher (ChromaDB) + Session-Speicher;
+  PWA persistiert Chat via IndexedDB (client-seitig).
+- **Vision & Audio:** Screenshots/Vision über Ollama-Vision-Modelle;
+  Speech via edge-tts (offline-fähig) bzw. lokale TTS.
+
+## Dokumentation & Quellen
+- [GitHub-Repository](https://github.com/bemlerlabs/mimi-nox)
+- [Whitepaper](https://github.com/bemlerlabs/mimi-nox/blob/main/docs/whitepaper-mimi-nox.md) (Markdown, maschinenlesbar)
+- [Launch-Playbook](https://github.com/bemlerlabs/mimi-nox/blob/main/docs/LAUNCH_PLAYBOOK.md)
+- [Sicherheits-Threat-Model](https://github.com/bemlerlabs/mimi-nox/blob/main/docs/SECURITY_THREAT_MODEL.md)
+- [Ausführung/Architektur](https://github.com/bemlerlabs/mimi-nox/blob/main/docs/EXECUTION_PLAN.md)
+- [PWA](https://mimiai.de) (produktiv Tauri-bundled/offline; Dev: localhost:5174)
+
+## Für LLM-Agenten (Verwendungshinweise)
+- API-/CLI-Konfiguration: `MIMI_NOX_MODEL`, `MIMI_MODEL_PROVIDER`,
+  `MIMI_OPENAI_COMPAT_BASE_URL`, `MIMI_NOX_OFFLINE`.
+- Backend-Port: 127.0.0.1:8765 (LAN nur opt-in via `--lan`); Web-UI auf
+  Port 5174 (Vite-Dev) bzw. gebundelt in der Desktop-App.
+- Diese PWA ist eine SPA (React 19, Hash-Router: Landing / Onboarding /
+  Chat); dynamische Inhalte laufen client-seitig über die lokale
+  Backend-API. Crawler-Regeln: siehe robots.txt.
+
+## Lizenz & Kontakt
+- Apache-2.0; © MiMi Tech AI UG — hello@mimiai.de
