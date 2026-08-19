@@ -168,6 +168,7 @@ Docker is available for development and advanced users. The primary first-run pa
 | Desktop PWA chat | Active | Root PWA is the main product |
 | Tauri desktop shell | Active | Tray, Window-Controls, Updater, Command-Palette (Cmd+K) |
 | Mobile PWA via QR | Active | LAN by default; public mode requires explicit opt-in |
+| Telegram channel (gateway) | Alpha (Sprint 3) | On-device gateway adapter, outbound-only transport, allowlist pairing, same ApprovalPolicy; e2e vs. local harness required pre-ship |
 | Provider settings | Active | `local_ollama`, `custom_ollama`, `openai_compatible` |
 | Hardware-adaptive model | Active | RAM-based `gemma4:12b` / `e4b` / `e2b`; override via `MIMI_NOX_MODEL`, `--model`, or UI |
 | Missing model recovery | Active | UI and CLI show `miminox doctor` / `miminox start` guidance |
@@ -206,6 +207,48 @@ miminox start --lan
 ```
 
 The default QR code points to a LAN URL. Public access is available only through an explicit online option and should be used only when you understand the exposure.
+
+## Telegram Channel — Gateway-Alpha (Sprint 3)
+
+**Your AI gateway on your own devices. No cloud. No account. One command.**
+
+MiMi Nox turns your own machine into an AI gateway. Chat from your phone via
+Telegram — and the gateway itself stays on your device. What "no cloud"
+means, precisely:
+
+- **The gateway is on-device, not a relay.** MiMi Nox runs as one local
+  service (one FastAPI app, one runtime). The Telegram channel is an adapter
+  inside that service — `core/tg_gateway.py` — routed into the same
+  engine and chat pipeline as the desktop PWA (`core/engine_config.py` +
+  `core/tools/registry.execute_tool`). The channel adds no second runtime
+  and no relay process, and no MiMi Nox server stores or proxies your
+  conversations. (The repo's documented, opt-in `miminox serve` OpenAI
+  adapter is a separate, user-invoked surface — not part of the gateway.)
+  The channel adapter is verified end-to-end against the local model
+  harness before it ships (Sprint 3 DoD).
+- **Telegram is the channel transport, not a pipeline.** Messages travel
+  over the Telegram API as an outbound connection from your device (MiMi Nox
+  opens no inbound port and operates no relay of its own) — the same category
+  as sending an email: the carrier's network is used, our cloud is not.
+  Conversation content, tool approvals, local files, and model execution
+  never pass through a MiMi Nox or third-party cloud.
+- **Approval-gated, same as the local product.** Channel sessions reuse the
+  P0-1 ApprovalPolicy (`core/tools/approval.py`): mutating and network tools
+  are denied by default and require your explicit approval. No auto-approve.
+- **No account, pairing by allowlist.** You pair your Telegram user ID into
+  a static allowlist stored on your own device. The allowlist is empty by
+  default, so the gateway answers nobody until you add someone. No MiMi Nox
+  account, no sign-up, no telemetry in this repo.
+- **One command.** The one-command installer starts the local service;
+  enabling the channel is a local configuration step (bot token stored with
+  owner-only file permissions, same hardening as `~/.mimi-nox/engine.json` —
+  `0700` dir, `0600` file — see `core/engine_config.py`), not a registration
+  with us.
+
+**Status: alpha.** The Telegram channel ships as Gateway-Alpha in Sprint 3
+and is verified end-to-end against the local model harness before release.
+Everything above the channel adapter is the already-shipping offline-first
+core.
 
 ## Security And Privacy
 

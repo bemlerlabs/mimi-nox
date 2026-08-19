@@ -972,6 +972,112 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_tg(args: argparse.Namespace) -> int:
+    """Sprint 3 G1: Telegram-Channel als On-Device-Gateway starten.
+
+    - Kein Cloud-Relay: Long-Poll direkt gegen die Telegram-Bot-API.
+    - Pairing-Allowlist (statisch, 0600): Default-Empty = antwortet niemandem.
+    - Strict ApprovalPolicy (P0-1-Gate, kein Auto-Approve) über die
+      existierende chat_with_tools-Pipeline (Qwen/DGX als Engine).
+    - Token via Keyring/0600 (nie im Log / nie committen).
+    """
+    import asyncio
+
+    from core import tg_pairing, tg_tokens
+    from core.tg_client import TgClient
+    from core.tg_gateway import TGGateway
+
+    # ── Token auflösen (Keyring/0600/Env) ────────────────────────────────────
+    token = tg_tokens.resolve_token()
+    if not token:
+        _emit_error(
+            args, 1,
+            "Kein Telegram-Bot-Token konfiguriert.",
+            "miminox tg-token set <TOKEN>  (Keyring/0600)  oder  "
+            "MIMI_NOX_TG_TOKEN=<TOKEN>  — Token wird NIE committen.",
+        )
+        return 1
+
+    # ── Engine: explicit Flag > persisted engine.json > DGX/Qwen-Default ─────
+    model = args.model
+    api_url = args.api_url
+    if (not model or not api_url) and load_engine_config is not None:
+        cfg = load_engine_config()
+        if cfg is not None:
+            model = model or cfg.model
+            api_url = api_url or cfg.api_url
+    from core.engine_config import (
+        DEFAULT_DGX_SPARK_MODEL,
+        DEFAULT_DGX_SPARK_URL,
+    )
+    model = model or DEFAULT_DGX_SPARK_MODEL
+    api_url = api_url or DEFAULT_DGX_SPARK_URL
+
+    # ── Allowlist: statisch aus Config-Datei (Default-Empty = niemand) ───────
+    allowlist = tg_pairing.load_pairing()
+    cfg = tg_pairing.TGGatewayConfig(
+        bot_token=token, allowlist=allowlist,
+        config_dir=os.environ.get("MIMI_NOX_CONFIG_DIR"),
+    )
+
+    client = TgClient(token=token, allowlist=set(cfg._effective_allowlist()))
+    gateway = TGGateway(
+        client=client, model=model, api_url=api_url,
+        approval_timeout=args.approval_timeout,
+    )
+
+    print(f"  ◑ MiMi Nox Telegram-Gateway (on-device, kein Relay)")
+    print(f"  Engine:  {model}")
+    print(f"  API:     {api_url}")
+    print(f"  Allowlist: {sorted(allowlist) if allowlist else 'LEER (antwortet niemandem)'}")
+    print(f"  Approval: strict P0-1-Gate (kein Auto-Approve)")
+    print(f"  Stoppen: Ctrl+C\n")
+
+    async def _loop() -> None:
+        while True:
+            try:
+                await gateway.run_poll()
+            except Exception as exc:  # noqa: BLE001
+                from core.tg_tokens import redact_token
+                print(f"  ⚠ Poll-Fehler: {redact_token(str(exc))}", file=sys.stderr)
+            await asyncio.sleep(0.5)  # Kurz-Pause zwischen Long-Poll-Runden
+            # In-Flight-Chat-Tasks laufen parallel weiter (Approval-Runden).
+
+    try:
+        asyncio.run(_loop())
+    except KeyboardInterrupt:
+        print("\n  🛑 Telegram-Gateway beendet.")
+    return 0
+
+
+def cmd_tg_token(args: argparse.Namespace) -> int:
+    """Sprint 3 G1: Telegram-Bot-Token verwalten (Keyring/0600)."""
+    from core import tg_tokens
+
+    if args.token_action == "clear":
+        tg_tokens.clear_token()
+        print("  🧹 Telegram-Bot-Token entfernt (Keyring + 0600-Datei).")
+        return 0
+
+    # set / show
+    if args.token_action == "set":
+        if not args.value:
+            _emit_error(args, 2, "Token-String fehlt.", "miminox tg-token set <TOKEN>")
+            return 2
+        ok = tg_tokens.save_token(args.value)
+        print("  ✅ Telegram-Bot-Token gespeichert (Keyring/0600).") if ok else None
+        return 0 if ok else 1
+
+    # show (Default): Maskierung anzeigen, NIEMALS das rohe Token.
+    tok = tg_tokens.resolve_token()
+    if not tok:
+        print("  – Kein Token gesetzt.")
+        return 0
+    masked = tg_tokens.redact_token(tok)
+    print(f"  Token vorhanden (maskiert): {masked}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="miminox",
@@ -1154,6 +1260,58 @@ def build_parser() -> argparse.ArgumentParser:
     )
     tool.add_argument("--json", action="store_true", help="Machine-readable JSON output")
     tool.set_defaults(func=cmd_tool)
+
+    # ── Sprint 3 G1: Telegram-Channel (On-Device-Gateway, kein Relay) ──────
+    tg = sub.add_parser(
+        "tg",
+        help="Start the Telegram channel as an on-device gateway (no cloud relay)",
+        description=(
+            "Telegram-Channel als On-Device-Gateway (kein Cloud-Relay).\n"
+            "Pairing-Allowlist (statisch, 0600): Default-Empty = antwortet niemandem.\n"
+            "Strict ApprovalPolicy (P0-1-Gate, kein Auto-Approve) über die\n"
+            "existierende chat_with_tools-Pipeline (Qwen/DGX als Engine).\n\n"
+            "Setup:\n"
+            "  miminox tg-token set <TOKEN>   Bot-Token hinterlegen (Keyring/0600)\n"
+            "  MIMI_NOX_TG_ALLOWLIST=123,456  (oder ~/.mimi-nox/tg_pairing.json)\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tg.add_argument(
+        "--model",
+        default=None,
+        help="Engine-Modell (Default: persistierte engine.json, sonst Qwen/DGX)",
+    )
+    tg.add_argument(
+        "--api-url",
+        default=None,
+        help="OpenAI-kompatible Engine-URL (Default: engine.json, sonst DGX-Spark)",
+    )
+    tg.add_argument(
+        "--approval-timeout",
+        type=float,
+        default=300.0,
+        help="Sekunden, bis eine ausstehende Telegram-Approval ausläuft (Default 300)",
+    )
+    tg.set_defaults(func=cmd_tg)
+
+    tg_token = sub.add_parser(
+        "tg-token",
+        help="Manage the Telegram bot token (Keyring/0600, never committed)",
+    )
+    tg_token.add_argument(
+        "token_action",
+        nargs="?",
+        default="show",
+        choices=["show", "set", "clear"],
+        help="show (Default) | set <TOKEN> | clear",
+    )
+    tg_token.add_argument(
+        "value",
+        nargs="?",
+        default=None,
+        help="Token string (für 'set')",
+    )
+    tg_token.set_defaults(func=cmd_tg_token)
 
     return parser
 

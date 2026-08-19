@@ -40,6 +40,7 @@ from core.tools import (
     execute_tool,
     get_tool_schemas,
 )
+from core.tools.approval import ApprovalPolicy, request_approval
 from core.quality import normalize_tool_result
 from core.profile import load_profile
 from core.memory import Memory
@@ -583,6 +584,7 @@ async def chat_with_tools(
     allowed_tool_names: list[str] | None = None,
     extra_system_prompt: str | None = None,
     on_shell_confirm: Callable[[str], object] | None = None,
+    approval_policy: ApprovalPolicy | None = None,
 ) -> str:
     """
     Tool-enabled chat mit automatischer Tool-Ausführung.
@@ -753,14 +755,27 @@ async def chat_with_tools(
 
             if name == "run_shell":
                 command = args.get("command", "")
-                if on_shell_confirm is None:
-                    raise ShellConfirmationRequired(command)
-                maybe_approved = on_shell_confirm(command)
-                approved = await maybe_approved if hasattr(maybe_approved, "__await__") else bool(maybe_approved)
-                result = await execute_confirmed_shell(command, confirmed=bool(approved))
+                # P0-1-Gate: Wenn eine ApprovalPolicy gesetzt ist (z.B.
+                # Telegram-Channel), greift das P0-1-Approval vor der
+                # Shell-Ausführung. Die Shell-Whitelist (execute_confirmed_shell)
+                # bleibt als zweite Schranke. PWA-Pfad (policy=None) ändert
+                # sich NICHTE: er nutzt weiterhin on_shell_confirm.
+                if approval_policy is not None:
+                    decision = await request_approval(name, args, approval_policy)
+                    if not decision.approved:
+                        result = decision.report
+                    else:
+                        result = await execute_confirmed_shell(command, confirmed=True)
+                else:
+                    if on_shell_confirm is None:
+                        raise ShellConfirmationRequired(command)
+                    maybe_approved = on_shell_confirm(command)
+                    approved = await maybe_approved if hasattr(maybe_approved, "__await__") else bool(maybe_approved)
+                    result = await execute_confirmed_shell(command, confirmed=bool(approved))
             else:
-                # Tool ausführen (Fehler werden in execute_tool abgefangen)
-                result = await execute_tool(name, args)
+                # Tool ausführen (Fehler werden in execute_tool abgefangen).
+                # approval_policy reist durch (P0-1-Gate: mutating → request_approval).
+                result = await execute_tool(name, args, policy=approval_policy)
 
 
             # Callback: Tool fertig

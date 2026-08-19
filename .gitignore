@@ -90,3 +90,6 @@ app/STATUS-REPORT.md
 # Logs (root-level)
 *.log
 logs/
+
+# Kanban-Worktrees (lokal, nie committen)
+.worktrees/
