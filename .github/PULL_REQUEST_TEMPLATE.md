@@ -14,8 +14,8 @@
 ## Checklist
 
 - [ ] My code follows the project's coding standards
-- [ ] I have added tests that prove my fix/feature works
-- [ ] All existing tests pass (`pytest tests/ -v`)
+- [ ] I have validated my changes with the local checks (see CONTRIBUTING.md)
+- [ ] CI quality gates pass (integration checks + frontend build)
 - [ ] I have updated the documentation (if applicable)
 - [ ] My changes generate no new warnings
 - [ ] This change respects MiMi Nox's principles: **offline-first default, explicit opt-in for online features, no telemetry**

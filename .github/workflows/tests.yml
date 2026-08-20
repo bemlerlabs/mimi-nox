@@ -17,65 +17,45 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  test:
-    name: pytest (${{ matrix.python-version }})
+  # pytest-Suite ist lokal-only (tests/ nicht im öffentlichen Repo).
+  # CI prüft stattdessen: Installer-Syntax, Docker-Build, Python-Import-Integrität.
+  integration:
+    name: Integration checks
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        # Parity-Gate (Sprint2-F2): Matrix deckt requires-python >=3.10 ab
-        # (min 3.11) und enthält die lokale venv-Python (3.13) —
-        # Regression-Test: tests/test_sprint2_f2_pwa_hygiene.py
-        python-version: ['3.11', '3.12', '3.13']
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.13"
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install package
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev]"
-          python -m playwright install --with-deps chromium
+          pip install -e "."
 
-      - name: Run pytest
-        # python -m pytest statt pytest: nutzt das CI-venv explizit;
-        # unset PYTHONPATH verhindert jede venv-Kontamination (pydantic_core-Mismatch)
-        # --benchmark-json: Perf-Gates (Phase 4 Item 17) liefern einen
-        # JSON-Report als Artefakt; Toleranz-Gates (test_bench_gates.py)
-        # laufen im selben Durchlauf und FAILen bei Regression.
-        run: >-
-          unset PYTHONPATH
-          python -m pytest tests/ -v --tb=short --no-header -q
-          --ignore=tests/test_vision_learning.py
-          --ignore=tests/test_gui_automation.py
-          --ignore=tests/test_vision.py
-          --ignore=tests/test_finding_01_screenshot_crossplatform.py
-          --benchmark-json=.benchmarks/bench.json
-        env:
-          MIMI_NOX_MODEL: mock
-          MIMI_NOX_OFFLINE: "1"
-          MIMI_NOX_MEMORY_DIR: /tmp/mimi-nox-ci-memory
-
-      - name: Upload benchmark artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-${{ matrix.python-version }}
-          path: .benchmarks/
-          if-no-files-found: ignore
+      - name: Verify package import
+        run: |
+          python -c "import miminox; import miminox_cli; import core.engine_config; import server.main; print('All core imports OK')"
 
       - name: Installer-Syntax-Check (Release-Bar)
         run: |
           bash -n install.sh && echo "install.sh OK"
-          # pwsh-Syntax-Check: ParseFile (2-arg Overload, die in pwsh 7 die EINZIGE
-          # ist) braucht beid...[truncated]
+          pwsh -NoProfile -Command "[void][System.Management.Automation.Language.Parser]::ParseFile('install.ps1', [ref]$null, [ref]$null) | Out-Null; Write-Host 'install.ps1 OK'"
+
+      - name: Security defaults audit (conservative binding)
+        run: |
+          python -c "
+          import re, pathlib
+          src = pathlib.Path('server/main.py').read_text()
+          # Server muss nicht auf 0.0.0.0 binden (Mobile-Access ist opt-in)
+          assert '0.0.0.0' not in src, 'SECURITY: Server binds to 0.0.0.0 by default'
+          print('Security defaults OK: no wildcard bind')
+          "
 
   docker-build:
     name: Docker image build (release-bar)

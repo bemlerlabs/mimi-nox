@@ -93,3 +93,8 @@ logs/
 
 # Kanban-Worktrees (lokal, nie committen)
 .worktrees/
+
+# Test-Suite (lokal-only, nicht Teil des öffentlichen Open-Source-Repos)
+# Leading slash = nur die Root-`tests/`; `app/tests/` (Playwright) bleibt tracked.
+/tests/
+scripts/run-tests.sh

@@ -269,8 +269,6 @@ Security reports: see [SECURITY.md](SECURITY.md).
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-python -m playwright install chromium
-pytest tests/ -q
 ```
 
 Run the app locally:
@@ -303,12 +301,12 @@ python scripts/create_demo_media.py
 
 ```text
 app/                React + Vite + TS PWA (main product), Tauri shell in app/src-tauri/
+app/tests/playwright/  Playwright specs (frontend, CI-validated)
 core/               Python core: chat, tools, vision, memory, skills, scheduler, profile
 server/             FastAPI server + routes (chat, memory, mobile, tasks, vision, ...)
 ui/                 Textual TUI / text UI
-tests/              pytest suite (CI runs a subset on Python 3.11/3.12)
 docs/               design docs, mockups, screenshots, demo media
-scripts/            dev/demo/eval helpers (run-tests.sh, create_demo_media.py)
+scripts/            dev/demo/eval helpers
 skills/             built-in skill markdown (prompts, rubrics, examples)
 knowledge/          offline knowledge base (German survival/medical/engineering)
 .github/workflows/  CI: tests.yml + frontend-build.yml
@@ -318,25 +316,17 @@ install.ps1         one-command installer (Windows PowerShell)
 
 ## Testing
 
-The project uses pytest plus Playwright-based visual checks for the PWA. Avoid hard-coding test counts in docs because the suite changes frequently.
+Quality gates run in CI on every push and pull request:
 
-Run tests via the canonical wrapper (leert `PYTHONPATH` und nutzt das lokale `.venv`, um venv-Kontamination zu vermeiden):
+- **Integration checks** (`tests.yml`): package import integrity, installer syntax
+  (bash + PowerShell), security-default audit (conservative server binding),
+  Docker image build
+- **Frontend build** (`frontend-build.yml`): TypeScript type check, Vite production
+  build, ESLint
 
-```bash
-./scripts/run-tests.sh                          # komplette Suite
-./scripts/run-tests.sh tests/test_installer_cli.py -q   # fokussiert
-```
-
-Recommended release checks:
-
-```bash
-./scripts/run-tests.sh tests/test_installer_cli.py tests/test_offline_first_positioning.py tests/test_repo_hygiene.py -q
-./scripts/run-tests.sh tests/test_model_provider.py tests/test_security_offline_defaults.py tests/test_offline_qr.py -q
-./scripts/run-tests.sh tests/test_pwa_visual.py -q
-bash -n install.sh
-```
-
-GitHub Actions runs a CI-safe pytest subset on Python 3.11 and 3.12.
+The Python test suite lives outside the public repository (maintainer-only) and is
+run locally with `pytest tests/ -q` before release. Contributors validate their
+changes with the checks listed in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Repository Hygiene
 

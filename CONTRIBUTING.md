@@ -12,8 +12,15 @@ Thank you for your interest in contributing! MiMi Nox is built by [MiMi Tech AI 
 git clone https://github.com/bemlerlabs/mimi-nox.git
 cd mimi-nox
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,voice]"
-playwright install chromium   # for headless browser tests
+pip install -e ".[dev]"
+```
+
+Frontend (PWA):
+
+```bash
+cd app
+npm ci
+npm run dev      # Vite dev server
 ```
 
 ---
@@ -23,33 +30,38 @@ playwright install chromium   # for headless browser tests
 | Area | Standard |
 |------|----------|
 | **Python** | PEP 8, type hints everywhere, `async/await` consistently |
-| **JavaScript** | ES2022+, ES Modules (`import/export`), no framework, no bundler |
+| **JavaScript/TypeScript** | ES2022+, TypeScript strict mode (PWA in `app/`) |
 | **CSS** | Custom Properties (`var(--green)` etc.), no Tailwind, no SCSS |
-| **Tests** | TDD — write tests first, BDD notation (Given-When-Then) |
 | **Commits** | [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`) |
 
 ---
 
-## 🧪 Running Tests
+## 🧪 Validation
 
-Nutze den kanonischen Test-Wrapper (härtet die Umgebung gegen venv-Kontamination):
+The public repository ships the **CI quality gates** — every push and pull request runs:
+
+- **Integration checks** (`tests.yml`): package import integrity, installer syntax
+  (bash + PowerShell), security-default audit (conservative server binding),
+  Docker image build
+- **Frontend build** (`frontend-build.yml`): TypeScript type check, Vite production
+  build, ESLint
+
+Before opening a PR, verify locally:
 
 ```bash
-# Komplette Suite
-./scripts/run-tests.sh
+# Backend: import integrity
+python -c "import miminox; import miminox_cli; print('OK')"
 
-# Fokussiert (Release-Bar)
-./scripts/run-tests.sh tests/test_installer_cli.py -q
-./scripts/run-tests.sh tests/test_offline_first_positioning.py tests/test_repo_hygiene.py -q
-./scripts/run-tests.sh tests/test_model_provider.py tests/test_security_offline_defaults.py tests/test_offline_qr.py -q
-./scripts/run-tests.sh tests/test_pwa_visual.py -q
+# Installers: syntax
+bash -n install.sh
+
+# Frontend: type check + build
+cd app && npx tsc --noEmit && npm run build
 ```
 
-> **Warum der Wrapper?** Die lokale Umgebung kann einen gesetzten `PYTHONPATH` auf einen
-> fremden venv (z.B. Hermes/System, python3.11) zeigen → `pydantic_core`-Mismatch.
-> `scripts/run-tests.sh` leert `PYTHONPATH` und nutzt explizit `.venv/bin/python -m pytest`.
-
-> **Rule:** New features **must** include tests. No tests → no merge.
+> **Note:** The Python test suite is maintained privately (maintainer-only) and is
+> not part of the public repository. CI enforces the quality gates above. If you are
+> a maintainer, run the full suite locally before release.
 
 ---
 
@@ -59,14 +71,13 @@ Nutze den kanonischen Test-Wrapper (härtet die Umgebung gegen venv-Kontaminatio
 
 1. Implement the function in `core/tools.py` (async, type-annotated)
 2. Register it in the `TOOLS` list
-3. Write tests in `tests/test_tools.py`
+3. Update the README tool reference
 
 ### New API Endpoint
 
 1. Create route in `server/routes/<name>.py`
 2. Register in `server/main.py`
-3. Add tests in `tests/test_api.py`
-4. Update README API reference
+3. Update README API reference
 
 ### New Skill
 
@@ -80,8 +91,8 @@ Simply add a Markdown file to `skills/` — no Python required.
 |-------|---------|
 | Local execution and offline-first defaults | Add mandatory API keys |
 | Privacy by design | Add external analytics/telemetry |
-| Async everywhere (no blocking calls in main thread) | Use React/Vue/Angular in frontend |
-| Support all platforms (macOS, Linux, Windows) | Break cross-platform compatibility |
+| Async everywhere (no blocking calls in main thread) | Break cross-platform compatibility |
+| Keep server binding conservative (127.0.0.1 default) | Bind to 0.0.0.0 without explicit opt-in |
 
 ---
 
@@ -89,10 +100,9 @@ Simply add a Markdown file to `skills/` — no Python required.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feat/my-feature`)
-3. Write tests (Given-When-Then)
+3. Run the local validation commands above
 4. Commit with Conventional Commits
-5. Ensure all tests pass (`pytest tests/ -v`)
-6. Open a Pull Request using our PR template
+5. Open a Pull Request using our PR template
 
 ---
 
@@ -102,4 +112,4 @@ By contributing, you agree that your contributions will be licensed under the [A
 
 ---
 
-*MiMi Tech AI UG — Bad Liebenzell, Black Forest, Germany 🌲*
+*MiMi Tech AI UG — Black Forest, Germany 🌲*
