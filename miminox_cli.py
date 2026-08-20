@@ -42,6 +42,7 @@ except Exception:
 try:
     from core.engine_config import (
         EngineChoice,
+        LOCAL_OLLAMA,
         OPENAI_COMPAT,
         load_engine_config,
         save_engine_config,
@@ -62,10 +63,12 @@ except Exception:  # standalone source-tree run ohne core/ Paket
             return flags
 
         def apply_env(self) -> None:
+            os.environ["MIMI_MODEL_PROVIDER"] = self.provider
             os.environ["MIMI_NOX_MODEL"] = self.model
             if self.api_url:
                 os.environ["MIMI_OPENAI_COMPAT_BASE_URL"] = self.api_url
 
+    LOCAL_OLLAMA = "local_ollama"
     OPENAI_COMPAT = "openai_compatible"
     load_engine_config = lambda *a, **k: None  # type: ignore
     save_engine_config = lambda *a, **k: False  # type: ignore
@@ -445,16 +448,37 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if payload["ok"] else 1
 
 
-def cmd_start(args: argparse.Namespace) -> int:
+def cmd_start(args: argparse.Namespace, config_path=None) -> int:
+    # Engine-Auswahl: explizites --model gewinnt, sonst engine.json → Qwen-DGX.
+    # Dieselbe Logik wie `miminox tui` (eine Quelle → CLI und PWA nutzen immer
+    # dieselbe Engine). Ohne das hier startete die PWA immer auf lokaler Ollama,
+    # weil der Parser-Default args.model nie None war und engine.json nie gelesen
+    # wurde.
+    if args.model:
+        choice = EngineChoice(provider=LOCAL_OLLAMA, model=args.model)
+    else:
+        choice = resolve_engine_choice(config_path=config_path)
+    choice.apply_env()
+
     if not args.skip_model_check:
-        ready, detail = _ensure_model_ready_for_start(args.model)
-        _print_check(ready, f"Model {args.model} ready", detail)
+        if choice.provider == OPENAI_COMPAT and choice.api_url:
+            ready, detail = _probe_remote_engine(choice.api_url, choice.model)
+            _print_check(ready, f"Engine {choice.model} erreichbar", detail)
+        else:
+            ready, detail = _ensure_model_ready_for_start(choice.model)
+            _print_check(ready, f"Model {choice.model} ready", detail)
         if not ready:
+            _emit_error(
+                args, 1,
+                f"Engine '{choice.model}' ist nicht startklar",
+                "Remote: DGX/vLLM starten (oder `miminox start --skip-model-check`) · "
+                f"Lokal: `ollama pull {choice.model}` · Andere Engine: `miminox tui --configure`",
+            )
             return 1
 
     env = os.environ.copy()
     env["OLLAMA_HOST"] = LOCAL_OLLAMA_HOST
-    env["MIMI_NOX_MODEL"] = args.model
+    env["MIMI_NOX_MODEL"] = choice.model
     env.setdefault("MIMI_LOCAL_OLLAMA_BASE_URL", LOCAL_OLLAMA_BASE_URL)
     host = "0.0.0.0" if args.lan else args.host
     env["MIMI_NOX_HOST"] = host
@@ -795,6 +819,43 @@ def _run_engine_onboarding(
     return choice
 
 
+def resolve_engine_choice(config_path=None, configure: bool = False) -> Any:
+    """Resolve the engine choice for ``tui``/``start``.
+
+    Priority: persisted ``engine.json`` → (interactive onboarding if
+    ``configure``) → Qwen-DGX default (User-Mandat 2026-08-18). This is the
+    single source of truth so the CLI and the PWA always pick the same engine.
+    """
+    from core.engine_config import default_engine_choice, load_engine_config
+
+    choice = load_engine_config(config_path)
+    if choice is not None:
+        return choice
+    if configure:
+        return _run_engine_onboarding(config_path=config_path)
+    return default_engine_choice()
+
+
+def _probe_remote_engine(api_url: str, model: str) -> tuple[bool, str]:
+    """Non-blocking health probe for an OpenAI-compatible remote engine.
+
+    Returns (reachable, detail). Does NOT pull or install anything — a remote
+    vLLM/DGX engine just needs to answer ``GET {api_url}/models``.
+    """
+    base = (api_url or "").strip().rstrip("/")
+    if not base:
+        return False, "no engine URL"
+    payload = _json_get(f"{base}/models", timeout=4.0)
+    if payload is None:
+        return False, f"engine not reachable: {base}"
+    ids = [m.get("id") for m in payload.get("data", []) if isinstance(m, dict)]
+    if model and any(model in (i or "") for i in ids):
+        return True, f"engine up, model '{model}' served"
+    if ids:
+        return True, f"engine up (served models: {', '.join(map(str, ids))})"
+    return False, f"engine answered but lists no models: {base}"
+
+
 def _ask_url(input_fn, prompt: str, required: bool = False) -> str | None:
     """Liest eine Engine-Basis-URL; None bei Abbruch/leer und nicht required."""
     while True:
@@ -819,30 +880,20 @@ def cmd_tui(args: argparse.Namespace, config_path=None) -> int:
 
     # Explizite Flags gewinnen immer → kein Onboarding nötig.
     if args.model or args.api_url:
-        forwarded = ["mimi-nox"]
-        if args.model:
-            forwarded.extend(["--model", args.model])
-        if args.api_url:
-            forwarded.extend(["--api-url", args.api_url])
-        if args.reset:
-            forwarded.append("--reset")
+        choice = EngineChoice(
+            provider=OPENAI_COMPAT if args.api_url else LOCAL_OLLAMA,
+            model=args.model,
+            api_url=args.api_url,
+        )
     else:
-        # Ohne Modell-Flag: persistierte Engine-Auswahl nutzen.
+        # Ohne Modell-Flag: engine.json → (Onboarding bei --configure) → Qwen-DGX.
         # Standard = Qwen-DGX (User-Mandat 2026-08-18). Kein Ollama-Pull.
-        # Onboarding läuft NUR bei --configure (END-USER wählt Provider).
-        choice: Any = None
-        if not args.configure:
-            choice = load_engine_config(config_path)
-            if choice is None:
-                from core.engine_config import default_engine_choice
-                choice = default_engine_choice()
-        else:
-            # --configure: END-USER wählt Provider (Ollama / eigener Endpoint / OpenRouter)
-            choice = _run_engine_onboarding(config_path=config_path)
-        choice.apply_env()
-        forwarded = ["mimi-nox"] + choice.to_flags()
-        if args.reset:
-            forwarded.append("--reset")
+        choice = resolve_engine_choice(config_path=config_path, configure=args.configure)
+
+    choice.apply_env()
+    forwarded = ["mimi-nox"] + choice.to_flags()
+    if args.reset:
+        forwarded.append("--reset")
 
     # P0-1 E1: Approval-Flags an die TUI weiterreichen
     if args.dry_run:
@@ -1112,7 +1163,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     start.add_argument("--host", default="127.0.0.1")
     start.add_argument("--port", type=int, default=DEFAULT_PORT)
-    start.add_argument("--model", default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL))
+    start.add_argument(
+        "--model",
+        default=None,
+        help="Engine-Modell (Default: persistierte engine.json, sonst Qwen/DGX)",
+    )
     start.add_argument("--lan", action="store_true", help="Expose on the local network for QR mobile pairing")
     start.add_argument("--reload", action="store_true")
     start.add_argument("--open", action="store_true", help="Open the browser after startup")
@@ -1136,10 +1191,14 @@ def build_parser() -> argparse.ArgumentParser:
     update.set_defaults(func=cmd_update)
 
     tui = sub.add_parser("tui", help="Start the terminal UI")
-    tui.add_argument("--model", default=os.environ.get("MIMI_NOX_MODEL", DEFAULT_MODEL))
+    tui.add_argument(
+        "--model",
+        default=None,
+        help="Engine-Modell (Default: persistierte engine.json, sonst Qwen/DGX)",
+    )
     tui.add_argument(
         "--api-url",
-        default=os.environ.get("MIMINOX_API_URL"),
+        default=None,
         help="OpenAI-compatible engine base URL (e.g. DGX-Spark ds4 "
         "http://spark-...:8000/v1). Default: local Ollama.",
     )

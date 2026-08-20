@@ -15,7 +15,8 @@ from pathlib import Path
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Header, Footer
+from textual.containers import Horizontal
+from textual.widgets import Footer, Static
 
 from core import __edition__, __tagline__, __version__
 from core.chat import (
@@ -63,6 +64,17 @@ class MiMiNoxApp(App):
     TITLE = f"◑ MiMi Nox  v{__version__}"
     SUB_TITLE = __tagline__
 
+    def _provider_label(self) -> str:
+        """Label for the active engine (status bar).
+
+        Remote OpenAI-compatible engine (DGX/vLLM) vs. local Ollama. Derived
+        from the TUI's own api_url (the field the chat call actually uses), so
+        it always matches what the user sees in the model list.
+        """
+        if self.api_url:
+            return "DGX · vLLM"
+        return "Ollama · lokal"
+
     BINDINGS = [
         Binding("ctrl+r", "reset_session", "Reset session", show=True),
         Binding("ctrl+l", "clear_chat", "Clear display", show=True),
@@ -91,7 +103,13 @@ class MiMiNoxApp(App):
     # ── Layout ───────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=False)
+        # Black-Forest Brand-Header (unique statt generischem Textual-Header):
+        # [◑] MiMi Nox  v4.0.0  ........  Privat. Lokal. Yours.
+        with Horizontal(id="brand-header"):
+            yield Static("[#42d392]◑[/#42d392]", id="brand-mark")
+            yield Static("MiMi Nox", id="brand-title")
+            yield Static(f"v{__version__}", id="brand-version")
+            yield Static(__tagline__, id="brand-tagline")
         yield ChatView(id="chat-view")
         yield HistoryInput(id="input-area")
         yield StatusBar(id="status-bar")
@@ -167,8 +185,36 @@ class MiMiNoxApp(App):
                 )
             )
 
+    def _handle_model_switch(self, new_model: str) -> None:
+        """Runtime-Engine-Wechsel: setzt das aktive Modell ohne Neustart.
+
+        Der Provider (api_url) bleibt unverändert — es wird nur der
+        Modell-Name innerhalb derselben Engine gewechselt. Damit ist
+        "/model qwen38-27b-unsloth-nvfp4" auf der DGX und
+        "/model gemma4:12b" auf lokaler Ollama möglich, ohne die
+        laufende Session (History, Skills, Memory) zu verlieren.
+        """
+        if not new_model:
+            return
+        self.model = new_model
+        chat = self.query_one(ChatView)
+        chat.post_message(ChatView.AddUserMessage(f"/model {new_model}"))
+        # Status-Label sofort aktualisieren (Provider bleibt gleich).
+        self.query_one(StatusBar).post_message(
+            StatusBar.SetStatus(
+                connected=True, model=self.model, provider=self._provider_label()
+            )
+        )
+        chat.post_message(
+            ChatView.AddSystemMessage(
+                f"◑ Modell gewechselt → {self.model}  ({self._provider_label()})\n"
+                f"   History + Session bleiben erhalten.",
+                style="system-msg",
+            )
+        )
+
     async def _async_check_connection(self) -> None:
-        """Ping Ollama on startup, show model list if model not found."""
+        """Ping the active engine on startup, show model list if not found."""
         if self.api_url:
             connected, status_text, available = await check_engine_connection(
                 self.api_url, self.model
@@ -177,39 +223,66 @@ class MiMiNoxApp(App):
             connected, status_text, available = await check_ollama_connection(self.model)
 
         self.query_one(StatusBar).post_message(
-            StatusBar.SetStatus(connected=connected, model=self.model)
+            StatusBar.SetStatus(connected=connected, model=self.model, provider=self._provider_label())
         )
 
         chat = self.query_one(ChatView)
 
         if not connected:
-            chat.post_message(
-                ChatView.AddSystemMessage(
-                    "⚠  Ollama nicht erreichbar.\n"
-                    "   Starte Ollama mit:  ollama serve\n"
-                    "   Download:           https://ollama.com",
-                    style="error-msg",
+            if self.api_url:
+                # Remote-Engine (DGX/vLLM) — nicht Ollama
+                chat.post_message(
+                    ChatView.AddSystemMessage(
+                        f"⚠  Remote-Engine nicht erreichbar: {self.api_url}\n"
+                        f"   Starte vLLM auf der DGX oder prüfe die URL.\n"
+                        f"   Modell: {self.model}",
+                        style="error-msg",
+                    )
                 )
-            )
+            else:
+                chat.post_message(
+                    ChatView.AddSystemMessage(
+                        "⚠  Ollama nicht erreichbar.\n"
+                        "   Starte Ollama mit:  ollama serve\n"
+                        "   Download:           https://ollama.com",
+                        style="error-msg",
+                    )
+                )
             return
 
-        # Model not pulled locally → show available options
+        # Model not listed by the active engine → show what IS available
         model_present = any(self.model in name for name in available)
         if not model_present:
-            model_list = "\n".join(
-                f"   • {name}" for name in available[:10]
-            ) or "   (keine Modelle installiert)"
-            chat.post_message(
-                ChatView.AddSystemMessage(
-                    f"⚠  Modell '{self.model}' nicht lokal vorhanden.\n\n"
-                    f"   Installiere es mit:\n"
-                    f"   ollama pull {self.model}\n\n"
-                    f"   Oder starte mit einem vorhandenen Modell:\n"
-                    f"{model_list}\n\n"
-                    f"   Tipp: ollama pull gemma4:12b  (★ neu, Tool-Calling, 3GB)",
-                    style="error-msg",
+            if self.api_url:
+                # Remote-Engine (DGX/vLLM): Modell muss auf der Engine laufen
+                model_list = "\n".join(
+                    f"   • {name}" for name in available[:10]
+                ) or "   (Engine meldet keine Modelle)"
+                chat.post_message(
+                    ChatView.AddSystemMessage(
+                        f"⚠  Modell '{self.model}' nicht auf der Engine geladen.\n\n"
+                        f"   Verfügbare Modelle auf {self.api_url}:\n"
+                        f"{model_list}\n\n"
+                        f"   Lade es auf der DGX oder wechsle mit:\n"
+                        f"   /model <name>",
+                        style="error-msg",
+                    )
                 )
-            )
+            else:
+                model_list = "\n".join(
+                    f"   • {name}" for name in available[:10]
+                ) or "   (keine Modelle installiert)"
+                chat.post_message(
+                    ChatView.AddSystemMessage(
+                        f"⚠  Modell '{self.model}' nicht lokal vorhanden.\n\n"
+                        f"   Installiere es mit:\n"
+                        f"   ollama pull {self.model}\n\n"
+                        f"   Oder starte mit einem vorhandenen Modell:\n"
+                        f"{model_list}\n\n"
+                        f"   Tipp: ollama pull gemma4:12b  (★ neu, Tool-Calling, 3GB)",
+                        style="error-msg",
+                    )
+                )
 
     # ── Message Handling ──────────────────────────────────────────────────────
 
@@ -233,6 +306,13 @@ class MiMiNoxApp(App):
                 return
             self.query_one(ChatView).post_message(ChatView.AddUserMessage(user_input))
             self._run_swarm(task)
+            return
+
+        # /model <name> → Runtime-Engine-Wechsel (ohne Neustart).
+        # Ein bloßes "/model" (ohne Argument) bleibt der Info-Command
+        # (wirft unten weiter) — der Switch erfordert explizit "<name>".
+        if user_input.lower().startswith("/model ") and len(user_input.split()) > 1:
+            self._handle_model_switch(user_input.split()[1].strip())
             return
 
         # /help /model /engine /configure → lokal rendern (kein LLM-Roundtrip).

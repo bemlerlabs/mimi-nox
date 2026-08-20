@@ -26,9 +26,37 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _bootstrap_engine_choice() -> None:
+    """Persistierte Engine-Auswahl (~/.mimi-nox/engine.json) in die Env übernehmen.
+
+    Warum: Der Server-Provider-Resolver liest MIMI_MODEL_PROVIDER (siehe
+    core.model_provider._provider_from_env). Direkte Server-Starts
+    (``python run_server.py``, Docker, IDE) laufen nicht über
+    miminox_cli.py, das die Engine auflöst — ohne diesen Bootstrap wurde
+    engine.json nie gelesen und die PWA lief immer auf lokaler Ollama,
+    obwohl CLI + engine.json Qwen/DGX nutzen. Damit wird engine.json die
+    eine Quelle über alle Startpfade.
+
+    Explizite Env gewinnen: Wer MIMI_MODEL_PROVIDER selbst gesetzt hat
+    (z.B. ``miminox start``, das die Engine bereits aufgelöst hat),
+    bleibt unangetastet.
+    """
+    if os.environ.get("MIMI_MODEL_PROVIDER"):
+        return
+    try:
+        from core.engine_config import load_engine_config
+    except Exception:
+        return
+    choice = load_engine_config()
+    if choice is None:
+        return
+    choice.apply_env()
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    _bootstrap_engine_choice()
     if args.lan:
         args.host = "0.0.0.0"
         os.environ["MIMI_NOX_LAN"] = "1"

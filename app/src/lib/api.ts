@@ -73,8 +73,27 @@ export function updateSettings(settings: Partial<AppSettings>): Promise<AppSetti
   })
 }
 
-export async function healthCheck(): Promise<{ status: string; model: string }> {
-  return request<{ status: string; model: string }>('/api/health')
+/**
+ * Active-Engine-Status vom Backend (Single Source of Truth).
+ * Spiegelt server/routes/health.py::HealthResponse wider.
+ */
+export interface HealthInfo {
+  status: string
+  version?: string
+  ollama: boolean
+  models: string[]
+  active_tier: string
+  active_model: string
+  dgx_online: boolean
+  active_provider: string
+  offline_capable: boolean
+  requires_internet: boolean
+  model_installed?: boolean
+  detail?: string
+}
+
+export async function healthCheck(): Promise<HealthInfo> {
+  return request<HealthInfo>('/api/health')
 }
 
 // ── Scheduler (P2-8) ───────────────────────────────────────────────────────

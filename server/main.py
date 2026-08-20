@@ -37,6 +37,7 @@ from server.routes import (
     model_provider,
     profile,
     schedule,
+    settings,
     skills,
     tasks,
     vision,
@@ -179,7 +180,8 @@ def create_app(lan_mode: bool = False) -> FastAPI:
     app.include_router(feedback.router, prefix="/api")
     app.include_router(audio.router,    prefix="/api")
     app.include_router(mobile.router,   prefix="/api")
-    app.include_router(schedule.router, prefix="/api")
+    app.include_router(schedule.router,   prefix="/api")
+    app.include_router(settings.router,   prefix="/api")
     app.include_router(vision.router,   prefix="/api")
     app.include_router(tasks.router,    prefix="/api")
     app.include_router(export.router,   prefix="/api")

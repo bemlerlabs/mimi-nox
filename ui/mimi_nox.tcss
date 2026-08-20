@@ -1,49 +1,78 @@
 /* =========================================================
-   ◑ MiMi Nox – BlackForest Edition
-   Textual CSS (TCSS) – Nox Dark Palette
-   
+   ◑ MiMi Nox – Black Forest Edition
+   Textual CSS (TCSS) – Black Forest Palette (PWA-Parität)
+
    MiMi Tech AI UG – Bad Liebenzell, Schwarzwald
-   
-   Palette:
-     $bg-deep      #050508   Nox Black
-     $surface      #0d0e14   Surface Dark
-     $nox-purple   #c084fc   Nox Accent (Nacht + Tech)
-     $nox-dim      #7c3aed   Tool-Call Purple
-     $text         #e2e8f0   Warm White
-     $muted        #64748b   Dimmed
-     $pine         #1a1a2e   Surface Border
-     $amber        #f87171   Error Red
+
+   PWA-Palette (app/src/styles/globals.css):
+     $bg-deep      #06080c   Nox Black (PWA --background)
+     $surface      #0c1117   Obsidian (PWA --surface)
+     $border       #1e293b   Muted border
+     $text         #e8edf4   Cool White (PWA --foreground)
+     $muted        #8da3b8   Dimmed (PWA --muted-foreground)
+     $firefly      #42d392   Firefly Green (PWA --primary / --accent)
+     $moss         #1a4d33   Moss (PWA --moss)
      $success      #22c55e   Success Green
+     $amber        #ff6b35   Error / Warning
    ========================================================= */
 
 /* ── Root ───────────────────────────────────────────────── */
 
 App {
-    background: #050508;
+    background: #06080c;
 }
 
 Screen {
-    background: #050508;
+    background: #06080c;
     layout: vertical;
 }
 
-/* ── Header ─────────────────────────────────────────────── */
+/* ── Brand-Header (replaces default Textual Header) ─────── */
 
-Header {
-    background: #0d0e14;
-    color: #c084fc;
-    text-style: bold;
-    height: 1;
+#brand-header {
+    background: #0c1117;
+    border-bottom: heavy #1e293b;
+    padding: 0 1;
+    height: 3;
     dock: top;
+    layout: horizontal;
+}
+
+#brand-mark {
+    color: #42d392;
+    text-style: bold;
+    width: auto;
+    content-align: left middle;
+}
+
+#brand-title {
+    color: #e8edf4;
+    text-style: bold;
+    width: auto;
+    content-align: left middle;
+}
+
+#brand-version {
+    color: #8da3b8;
+    width: auto;
+    content-align: left middle;
+}
+
+#brand-tagline {
+    color: #1e293b;
+    text-style: italic;
+    width: 1fr;
+    text-align: right;
+    content-align: right middle;
 }
 
 /* ── Chat View ──────────────────────────────────────────── */
 
 #chat-view {
-    background: #050508;
-    border: tall #1a1a2e;
-    scrollbar-color: #1a1a2e;
-    scrollbar-color-hover: #2d2d4e;
+    background: #06080c;
+    border: tall #1e293b;
+    scrollbar-color: #1e293b;
+    scrollbar-color-hover: #2d3a4e;
     padding: 0 1;
     height: 1fr;
 }
@@ -52,19 +81,19 @@ Header {
 
 #input-area {
     height: 3;
-    background: #08090f;
-    border: tall #1a1a2e;
+    background: #0c1117;
+    border: tall #1e293b;
     padding: 0 1;
 }
 
 #input-area.command-mode {
-    border: tall #c084fc;
-    background: #0e0a1a;
+    border: tall #42d392;
+    background: #0a1a12;
 }
 
 #chat-input {
-    background: #050508;
-    color: #c084fc;
+    background: #06080c;
+    color: #e8edf4;
     border: none;
     height: 1;
     width: 1fr;
@@ -72,15 +101,15 @@ Header {
 
 #chat-input:focus {
     border: none;
-    background: #050508;
+    background: #06080c;
 }
 
 /* ── Command Hint ───────────────────────────────────────── */
 
 #command-hint {
     height: 1;
-    background: #0d0e14;
-    color: #64748b;
+    background: #0c1117;
+    color: #8da3b8;
     padding: 0 1;
     display: none;
 }
@@ -93,21 +122,22 @@ Header {
 
 #status-bar {
     height: 1;
-    background: #0d0e14;
-    color: #64748b;
+    background: #0c1117;
+    color: #8da3b8;
     dock: bottom;
     padding: 0 1;
     layout: horizontal;
+    border-top: heavy #1e293b;
 }
 
 #status-bar.streaming {
-    background: #0e0a1a;
-    color: #c084fc;
+    background: #0a1a12;
+    color: #42d392;
 }
 
 #status-bar.error {
     background: #1a0a0a;
-    color: #f87171;
+    color: #ff6b35;
 }
 
 #status-indicator {
@@ -116,60 +146,75 @@ Header {
 }
 
 #status-indicator.offline {
-    color: #f87171;
+    color: #ff6b35;
 }
 
 #status-indicator.streaming {
-    color: #c084fc;
+    color: #42d392;
 }
 
 #status-model {
     width: auto;
-    color: #64748b;
+    color: #8da3b8;
     padding: 0 1;
+}
+
+#status-provider {
+    width: auto;
+    color: #42d392;
+    padding: 0 1;
+    text-style: bold;
 }
 
 #status-tagline {
     width: 1fr;
-    color: #2d2d4e;
+    color: #1e293b;
     text-align: right;
 }
 
 /* ── Scrollbar ──────────────────────────────────────────── */
 
 ScrollableContainer > ScrollBar {
-    background: #050508;
-    color: #1a1a2e;
+    background: #06080c;
+    color: #1e293b;
 }
 
 /* ── Welcome / System Messages ──────────────────────────── */
 
 .welcome {
-    color: #64748b;
+    color: #8da3b8;
     text-style: italic;
 }
 
 .system-msg {
-    color: #64748b;
+    color: #8da3b8;
 }
 
 .error-msg {
-    color: #f87171;
+    color: #ff6b35;
     text-style: bold;
 }
 
 /* ── Fallback / Tool hints ──────────────────────────────── */
 
 .fallback-hint {
-    color: #64748b;
+    color: #8da3b8;
     text-style: italic;
 }
 
 .tool-call {
-    color: #7c3aed;
+    color: #42d392;
     text-style: italic;
 }
 
 .tool-done {
     color: #22c55e;
+}
+
+/* ── Footer ─────────────────────────────────────────────── */
+
+Footer {
+    background: #06080c;
+    color: #8da3b8;
+    border-top: heavy #1e293b;
 }

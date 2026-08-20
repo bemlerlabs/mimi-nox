@@ -122,7 +122,13 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   async function checkHealth() {
     try {
       const result = await healthCheck()
-      alert(`Backend Status: ${result.status}\nModel: ${result.model}`)
+      const provider = result.active_provider === 'openai_compatible' ? 'Remote (vLLM/DGX)' : result.active_provider
+      alert(
+        `Backend Status: ${result.status}\n` +
+        `Engine: ${provider}\n` +
+        `Modell: ${result.active_model}\n` +
+        `Tier: ${result.active_tier}${result.dgx_online ? ' (DGX online)' : ''}`
+      )
     } catch {
       alert('Backend nicht erreichbar. Läuft der Server?')
     }

@@ -79,10 +79,24 @@ class EngineChoice:
         return flags
 
     def apply_env(self) -> None:
-        """Setzt Session-Env-Variablen, die das Provider-System liest."""
+        """Setzt Session-Env-Variablen, die das Provider-System liest.
+
+        Wichtig: ``MIMI_MODEL_PROVIDER`` wird gemäß ``self.provider`` gesetzt,
+        damit der Server-Resolver (core.model_provider._provider_from_env) die
+        konfigurierte Engine aufschlägt – statt stillschweigend auf
+        ``local_ollama`` zurückzufallen. Ohne diesen Key nutzte die PWA nie die
+        konfigurierte Engine (z. B. Qwen-DGX), sondern immer lokale Ollama.
+        """
+        os.environ["MIMI_MODEL_PROVIDER"] = self.provider
         os.environ["MIMI_NOX_MODEL"] = self.model
-        if self.api_url:
+        if self.provider == OPENAI_COMPAT and self.api_url:
             os.environ["MIMI_OPENAI_COMPAT_BASE_URL"] = self.api_url
+            # Der Provider-Resolver (core.model_provider._provider_from_env) liest
+            # das Modell aus MIMI_OPENAI_COMPAT_MODEL – ohne diesen Key würde die
+            # Engine "custom-model" melden, obwohl MIMI_NOX_MODEL korrekt ist.
+            os.environ["MIMI_OPENAI_COMPAT_MODEL"] = self.model
+        elif self.provider == CUSTOM_OLLAMA and self.api_url:
+            os.environ["MIMI_CUSTOM_OLLAMA_BASE_URL"] = self.api_url
 
 
 def default_config_path() -> Path:

@@ -549,22 +549,37 @@ async def check_engine_connection(api_url: str, model: str) -> tuple[bool, str, 
     """
     Quick connectivity check for an OpenAI-compatible engine (e.g. DGX-Spark ds4).
     Returns (is_connected, status_message, available_models).
-    Remote engines cannot pull models locally, so available_models is always empty.
+
+    Root-Cause-Fix: nutzt den leichten ``/v1/models``-Metadata-Endpunkt (~100ms),
+    NICHT einen vollen LLM-Chat-Request. Ein 27B-Modell braucht 5-15s TTFB für die
+    erste Inferenz — mit 3s Start-Timeout wäre ein Chat-Ping immer ein False-
+    Negative ("nicht verbunden"). Health-Check = Metadata, keine Inferenz
+    (Backend-Architekt-Prinzip: leicher Health-Check, klares Timeout-Budget).
     """
+    import httpx
+
+    # vLLM/DGX-URLs sind oft mit /v1-Suffix (z.B. http://host:8000/v1) —
+    # der /v1/models-Endpunkt hängt an der Basis URL, nicht am /v1-Pfad.
+    base = api_url.rstrip("/")
+    if base.endswith("/v1"):
+        base = base[:-3]
+    models_url = f"{base}/v1/models"
+    headers = {"Authorization": f"Bearer {key}"} if (key := os.environ.get("MIMI_OPENAI_COMPAT_API_KEY", "")) else {}
     try:
-        provider = build_engine_provider(api_url, model)
-        client = build_provider_client(provider)
-        await asyncio.wait_for(
-            client.chat(
-                model=model,
-                messages=[{"role": "user", "content": "ping"}],
-                stream=False,
-            ),
-            timeout=3.0,
-        )
-        return True, f"connected · {model}", []
-    except asyncio.TimeoutError:
-        return False, "timeout", []
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(models_url, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+        available = [m.get("id", "") for m in data.get("data", []) if m.get("id")]
+        model_present = any(model in name for name in available)
+        if model_present:
+            return True, f"connected · {model}", available
+        if available:
+            # Engine läuft, aber aktives Modell nicht gemeldet → als verbunden
+            # behandeln (vLLM listet das geladene Modell korrekt; andere
+            # Server-Versionen könnten Abweichungen haben).
+            return True, f"connected · {model} (nicht in /v1/models gelistet)", available
+        return True, f"connected · {model} (keine Modell-Liste)", []
     except Exception:
         return False, "offline", []
 

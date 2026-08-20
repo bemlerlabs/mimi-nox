@@ -223,7 +223,7 @@ class ChatView(Widget):
     }
     #streaming-area {
         display: none;
-        color: #a8c5a0;
+        color: #42d392;
         padding: 0 1;
         margin-top: 1;
     }
@@ -278,15 +278,15 @@ class ChatView(Widget):
 
     def on_chat_view_add_user_message(self, event: "ChatView.AddUserMessage") -> None:
         log = self.query_one("#chat-log", RichLog)
-        log.write(f"\n[bold #39ff14]You[/bold #39ff14]")
-        log.write(f"[#39ff14]{event.text}[/#39ff14]")
+        log.write(f"\n[bold #42d392]You[/bold #42d392]")
+        log.write(f"[#e8edf4]{event.text}[/#e8edf4]")
 
     def on_chat_view_begin_assistant_message(
         self, event: "ChatView.BeginAssistantMessage"
     ) -> None:
         self._accumulated_chunks = ""
         streaming = self.query_one("#streaming-area", Static)
-        streaming.update("[bold #a8c5a0]Assistant[/bold #a8c5a0]\n▌")
+        streaming.update("[bold #42d392]Assistant[/bold #42d392]\n▌")
         streaming.add_class("active")
 
     def on_chat_view_append_chunk(self, event: "ChatView.AppendChunk") -> None:
@@ -294,8 +294,8 @@ class ChatView(Widget):
         streaming = self.query_one("#streaming-area", Static)
         # ▌ cursor at end gives streaming feel
         streaming.update(
-            f"[bold #a8c5a0]Assistant[/bold #a8c5a0]\n"
-            f"[#a8c5a0]{self._accumulated_chunks}[/#a8c5a0]▌"
+            f"[bold #42d392]Assistant[/bold #42d392]\n"
+            f"[#e8edf4]{self._accumulated_chunks}[/#e8edf4]▌"
         )
 
     def on_chat_view_finalize_assistant_message(
@@ -309,8 +309,8 @@ class ChatView(Widget):
         # Flush to RichLog as a permanent entry
         if self._accumulated_chunks:
             log = self.query_one("#chat-log", RichLog)
-            log.write(f"\n[bold #a8c5a0]Assistant[/bold #a8c5a0]")
-            log.write(f"[#a8c5a0]{self._accumulated_chunks}[/#a8c5a0]")
+            log.write(f"\n[bold #42d392]Assistant[/bold #42d392]")
+            log.write(f"[#e8edf4]{self._accumulated_chunks}[/#e8edf4]")
 
         self._accumulated_chunks = ""
 
@@ -319,12 +319,12 @@ class ChatView(Widget):
     ) -> None:
         log = self.query_one("#chat-log", RichLog)
         style_map = {
-            "welcome":       "#5a7a5a italic",
-            "system-msg":    "#5a7a5a",
+            "welcome":       "#8da3b8 italic",
+            "system-msg":    "#8da3b8",
             "error-msg":     "bold #ff6b35",
-            "fallback-hint": "#5a7a5a italic",
+            "fallback-hint": "#8da3b8 italic",
         }
-        rich_style = style_map.get(event.style, "#5a7a5a")
+        rich_style = style_map.get(event.style, "#8da3b8")
         log.write(f"[{rich_style}]{event.text}[/{rich_style}]")
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -347,16 +347,20 @@ class StatusBar(Widget):
     """
     Single-line status bar docked at the bottom.
 
-    Shows: [●/✗/⏳ Ollama status] │ [model] │ [🌲 tagline]
+    Shows: [●/✗/⏳ engine status] │ [● provider] │ [model] │ [🌲 tagline]
+
+    Der Provider-Label macht sichtbar, welche Engine gerade aktiv ist
+    (Qwen/DGX, Ollama, …) — statt nur "Ollama: connected" zu zeigen.
     """
 
     # ── Textual Messages ─────────────────────────────────────────────────────
 
     class SetStatus(TextualMessage):
-        def __init__(self, connected: bool, model: str) -> None:
+        def __init__(self, connected: bool, model: str, provider: str = "") -> None:
             super().__init__()
             self.connected = connected
             self.model = model
+            self.provider = provider
 
     class SetStreaming(TextualMessage):
         def __init__(self, streaming: bool) -> None:
@@ -372,14 +376,16 @@ class StatusBar(Widget):
 
     _connected: bool = False
     _model: str = "–"
+    _provider: str = ""
     _streaming: bool = False
     _error: str = ""
 
     def compose(self) -> ComposeResult:
         yield Static("", id="status-indicator", markup=True)
+        yield Static("", id="status-provider", markup=True)
         yield Static("", id="status-model", markup=True)
         yield Static(
-            "[#2d4a2d]🌲 No cloud. No tracking. Straight from the Black Forest.[/#2d4a2d]",
+            "[#1e293b]🌲 No cloud. No tracking. Straight from the Black Forest.[/#1e293b]",
             id="status-tagline",
             markup=True,
         )
@@ -389,6 +395,7 @@ class StatusBar(Widget):
     def on_status_bar_set_status(self, event: "StatusBar.SetStatus") -> None:
         self._connected = event.connected
         self._model = event.model
+        self._provider = event.provider
         self._error = ""
         self.remove_class("error")
         self._update_display()
@@ -412,18 +419,23 @@ class StatusBar(Widget):
 
     def _update_display(self) -> None:
         indicator = self.query_one("#status-indicator", Static)
+        provider_label = self.query_one("#status-provider", Static)
         model_label = self.query_one("#status-model", Static)
 
         if self._error:
             indicator.update(f"[bold #ff6b35]⚠  {self._error}[/bold #ff6b35]")
+            provider_label.update("")
             model_label.update("")
             return
 
         if self._streaming:
-            indicator.update("[#a8c5a0]⏳ Generating…[/#a8c5a0]")
+            indicator.update("[#42d392]⏳ Generating…[/#42d392]")
         elif self._connected:
-            indicator.update("[#39ff14]●  Ollama: connected[/#39ff14]")
+            indicator.update("[#22c55e]●  Engine: connected[/#22c55e]")
         else:
-            indicator.update("[#ff6b35]✗  Ollama: offline[/#ff6b35]")
+            indicator.update("[#ff6b35]✗  Engine: offline[/#ff6b35]")
 
-        model_label.update(f"[#5a7a5a]  │  {self._model}[/#5a7a5a]")
+        provider_label.update(
+            f"[#42d392]  │  {self._provider}[/#42d392]" if self._provider else ""
+        )
+        model_label.update(f"[#8da3b8]  │  {self._model}[/#8da3b8]")
