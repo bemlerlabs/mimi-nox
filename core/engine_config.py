@@ -37,7 +37,7 @@ DEFAULT_DGX_MODEL = "deepseek-v4-flash"
 # Qwen 3.8 27B auf DGX Spark — Default-Engine, kein Ollama-Bundling/Download.
 # Provider-Wahl (eigener Endpoint, Ollama, OpenRouter) = END-USER-Onboarding.
 DEFAULT_DGX_SPARK_URL = "http://spark-2c73.tail8f685e.ts.net:8000/v1"
-DEFAULT_DGX_SPARK_MODEL = "qwen38-27b-unsloth-nvfp4"
+DEFAULT_DGX_SPARK_MODEL = "qwen3.8-27b"
 
 def default_engine_choice() -> "EngineChoice":
     """Return the standard MiMi Nox engine: Qwen 3.8 27B on DGX Spark.

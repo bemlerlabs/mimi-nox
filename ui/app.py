@@ -190,7 +190,7 @@ class MiMiNoxApp(App):
 
         Der Provider (api_url) bleibt unverändert — es wird nur der
         Modell-Name innerhalb derselben Engine gewechselt. Damit ist
-        "/model qwen38-27b-unsloth-nvfp4" auf der DGX und
+        "/model qwen3.8-27b" auf der DGX und
         "/model gemma4:12b" auf lokaler Ollama möglich, ohne die
         laufende Session (History, Skills, Memory) zu verlieren.
         """
