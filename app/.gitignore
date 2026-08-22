@@ -52,3 +52,5 @@ Thumbs.db
 playwright-report/
 blob-report/
 test-results/
+# Playwright real-run Artefakte (lokal generiert)
+test-results-real/

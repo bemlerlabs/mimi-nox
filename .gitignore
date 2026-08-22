@@ -98,3 +98,6 @@ logs/
 # Leading slash = nur die Root-`tests/`; `app/tests/` (Playwright) bleibt tracked.
 /tests/
 scripts/run-tests.sh
+
+# E2E-Test-Server (lokal generiert: engine.json, Audio/Image-Dirs)
+.e2e-runtime/
