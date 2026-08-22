@@ -7,6 +7,53 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ---
 
+## [Unreleased] – 2026-08-21
+
+### Changed — Installer-Mandat: warn-only (kein Ollama-Install, kein Modell-Pull)
+
+Gemäß Founder-Mandat (2026-08-21, mehrfach bekräftigt) ist der Installer **nicht** mehr
+verantwortlich für die AI-Engine. Der One-Command-Install bleibt einwandfrei für das
+Produkt selbst (Python-Runtime via uv mit SHA256-Verifikation, PWA-Build, Datenordner,
+Server-Start). Die AI-Engine wählt der **End-User** selbst in der App:
+
+- **`install.sh` / `install.ps1`:** Ollama-Autoinstallation + Modell-Pull
+  (`gemma4:*`, `nomic-embed-text`) entfernt. Stattdessen: **warn-only** — der Installer
+  erkennt eine lokal bereits installierte Ollama (informational) und zeigt an, dass die
+  Engine in der App gewählt wird. Kein Ollama-Download mehr, dadurch auch kein
+  `OLLAMA_INSTALL_SHA256` mehr (nur `UV_INSTALL_SHA256` für den Python-Installer bleibt).
+- **PWA `SetupPage.tsx` (neu):** First-Run-Engine-Auswahl in der App — lokale Ollama,
+  remote Ollama (z. B. DGX/LAN), oder OpenAI-kompatibler Endpunkt — mit Live-Probe gegen
+  `/v1/models` und Modell-Auswahl. Persistenz unter `~/.mimi-nox/engine.json`.
+- **`tests/test_installer_cli.py`:** 9 veraltete Ollama-Install/Pull-Tests durch neue
+  Tests des warn-only-Vertrags ersetzt (31/31 grün).
+
+### Fixed
+
+- **DGX-Modell-Drift (Root-Cause):** `core/engine_config.py::DEFAULT_DGX_SPARK_MODEL`
+  von `qwen38-27b-unsloth-nvfp4` → `qwen3.8-27b` — die alte ID existiert auf dem
+  Live-DGX nicht mehr (verifiziert via `/v1/models`, `max_model_len=262144`). Weitere
+  3 Referenzen (ui/app.py, 2 Tests) synchron angepasst.
+- **Test-Pollution (Root-Cause, 11 Failures):** `tests/conftest.py` bekommt ein
+  `autouse`-Isolations-Fixture — snapshot/restore von `os.environ` und
+  `core.model_provider._ACTIVE_OVERRIDE` pro Test. Stellt hermetische Testsicherung
+  für die gesamte Provider-Pollution-Klasse her (statt Symptome einzeln zu patchen).
+- **CI-Python-Matrix (2 Failures):** `.github/workflows/tests.yml` nutzt jetzt
+  `strategy.matrix.python-version: ['3.10','3.11','3.12','3.13']` (Untergrenze =
+  `requires-python`) — löst den Hygiene-Test-Paritäts-Verstoß.
+
+### Security / Hygiene
+
+- **Frontend-Lint-Härtung:** 4 ESLint-Errors fixt (`no-self-assign` in
+  composerHistory, `no-empty-object-type` in Input, `no-unused-vars` in
+  WorkspaceSidebar-Test, `@ts-ignore`→`@ts-expect-error` in Button) + 4
+  `react-hooks/exhaustive-deps`-Warnings in ChatLayout (root-cause: `sendViaApi`
+  ungebunden + fehlende `setPendingToolCall`-Deps). `npm run lint` → exit 0.
+- **Toter Re-Export entfernt:** `SetupPage.tsx` re-exportierte `getSetupStatus`
+  (Funktion aus `lib/api`), den niemand von dort importierte (App.tsx nutzt den
+  `lib/api`-Import direkt). Removed → löst `react-refresh/only-export-components`.
+
+---
+
 ## [1.0.0-sprint2] – 2026-08-19
 
 ### Added – Sprint 1 Launch-Trust (P0-1 / P0-2 / P0-3)

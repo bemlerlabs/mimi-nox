@@ -106,4 +106,4 @@ Telegram-User (unvertrauenswürdig) ── Outbound-Polling ──▶ core/tg_ga
   eine injizierte Channel-Message (Guard-wrapped) triggert **kein**
   Tool-Call bei der Qwen-Engine; die Antwort ist eine Ablehnung.
   Endpoint `http://spark-2c73.tail8f685e.ts.net:8000/v1`,
-  Modell `qwen38-27b-unsloth-nvfp4`, `enable_thinking=false`.
+  Modell `qwen3.8-27b`, `enable_thinking=false`.

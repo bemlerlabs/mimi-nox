@@ -4,6 +4,16 @@
 **Stand:** 2026-08-19 (re-audit by @sec) · **Vorherige Version:** 2026-08-18 @cto
 **Scope:** ① Install-Hygiene · ② Threat-Model-Delta vs Code · ③ Dep-/Lighthouse-Scan
 
+> **Nachtrag (2026-08-21):** Der Installer wurde gemäß Founder-Mandat auf
+> **warn-only** umgestellt — `install.sh`/`install.ps1` laden den Ollama-
+> Installer nicht mehr herunter und verifizieren keinen
+> `OLLAMA_INSTALL_SHA256` mehr (nur noch `UV_INSTALL_SHA256` für den
+> Python-Runtime-Installer). Die Ollama-Installer-Bezüge in §1.1 (HIT L48)
+> und §1.2 sind damit **historisch korrekt für den Stand 2026-08-19**, aber
+> nicht mehr im aktuellen `install.sh` abbildbar. Die SHA256-Supply-Chain-
+> Logik (bash 3.2-Kompatibilitäts-Fix, `fetch_verify_run`) bleibt unverändert
+> gültig für den uv-Download.
+
 > ⚠️ **Korrektur dieser Version:** Die Vorversion (2026-08-18) enthielt eine
 > **nicht existierende Lighthouse-Audit-Tabelle** (falsche Audit-IDs `csp-xss`/
 > `has-hsts`/`trusted-types-xss`/`is-on-https` aus Lighthouse 12; die reale

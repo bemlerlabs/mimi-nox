@@ -22,6 +22,12 @@ jobs:
   integration:
     name: Integration checks
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # CI-Python-Parity (test_sprint2_f2_pwa_hygiene.py):
+        # Untergrenze = requires-python (>=3.10), lokales venv (3.13) in der
+        # Matrix, alle Eintraege innerhalb der pyproject-Classifiers.
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     steps:
       - name: Checkout
@@ -30,7 +36,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
       - name: Install package
