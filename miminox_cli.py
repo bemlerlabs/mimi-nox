@@ -374,6 +374,60 @@ def _print_check(ok: bool, label: str, detail: str = "") -> None:
     print(f"{status:7} {label}{suffix}")
 
 
+def ensure_pwa_built() -> bool:
+    """PWA-Build (app/dist) sicherstellen, falls er fehlt.
+
+    Root-Cause (2026-08-21): ``app/dist`` ist ein git-ignoriertes Build-Artefakt.
+    In einem frischen Clone fehlt es — der Server hätte sonst nur eine
+    Fallback-Page unter ``/`` ausgeliefert. Wer ``miminox start`` nutzt, soll
+    trotzdem sofort die PWA bekommen: npm ci + npm run build in ``app/``.
+
+    Idempotent: existiert ``app/dist/index.html`` bereits, passiert nichts.
+    Fehlendes npm/Node ist kein Fehler, sondern eine Warnung (API läuft
+    weiter, Fallback-Page zeigt die Build-Anleitung).
+    """
+    dist_index = PROJECT_ROOT / "app" / "dist" / "index.html"
+    if dist_index.is_file():
+        return True
+
+    app_dir = PROJECT_ROOT / "app"
+    package_json = app_dir / "package.json"
+    if not package_json.is_file():
+        _print_check(False, "PWA-Build", "app/package.json fehlt — PWA nicht baubar; Server zeigt Fallback-Page unter /")
+        return False
+
+    if shutil.which("npm") is None:
+        _print_check(
+            False,
+            "PWA-Build",
+            "npm nicht gefunden — PWA fehlt (Server zeigt Fallback-Page unter /). "
+            "Installiere Node.js (https://nodejs.org) und führe erneut aus: "
+            "cd app && npm ci && npm run build",
+        )
+        return False
+
+    _print_check(True, "PWA-Build", "app/dist fehlt — PWA wird jetzt gebaut (npm ci + npm run build in app/) …")
+    env = os.environ.copy()
+    env["OLLAMA_HOST"] = LOCAL_OLLAMA_HOST
+    try:
+        install = _run(["npm", "ci", "--prefix", str(app_dir)], env=env, check=False)
+        if install.returncode != 0:
+            # lockfile-Probleme: npm install als Fallback
+            install = _run(["npm", "install", "--prefix", str(app_dir)], env=env, check=False)
+        if install.returncode == 0:
+            build = _run(["npm", "run", "build", "--prefix", str(app_dir)], env=env, check=False)
+            if build.returncode == 0 and dist_index.is_file():
+                _print_check(True, "PWA-Build", "app/dist/index.html vorhanden — PWA bereit")
+                return True
+            _print_check(False, "PWA-Build", "Build beendet, aber app/dist/index.html fehlt — Server zeigt Fallback-Page unter /")
+            return False
+        _print_check(False, "PWA-Build", "npm fehlgeschlagen — Server zeigt Fallback-Page unter / (API bleibt erreichbar)")
+        return False
+    except Exception as exc:  # PWA-Build darf den Start nie blockieren
+        _print_check(False, "PWA-Build", f"PWA-Build-Problem: {exc} — Server zeigt Fallback-Page unter /")
+        return False
+
+
 def _run_doctor_repairs(args: argparse.Namespace) -> list[tuple[str, bool, str]]:
     repairs: list[tuple[str, bool, str]] = []
     if os.environ.get("OLLAMA_HOST") not in (None, "", LOCAL_OLLAMA_HOST, LOCAL_OLLAMA_BASE_URL):
@@ -387,6 +441,9 @@ def _run_doctor_repairs(args: argparse.Namespace) -> list[tuple[str, bool, str]]
 
     model_ok, model_detail = _ensure_model_ready_for_start(args.model)
     repairs.append((f"Repair model {args.model}", model_ok, model_detail))
+
+    pwa_ok = ensure_pwa_built()
+    repairs.append(("Repair PWA build", pwa_ok, "app/dist/index.html vorhanden" if pwa_ok else "PWA-Build nicht möglich (siehe Ausgabe)"))
     return repairs
 
 
@@ -461,20 +518,37 @@ def cmd_start(args: argparse.Namespace, config_path=None) -> int:
     choice.apply_env()
 
     if not args.skip_model_check:
+        # Nicht-blockierende Readiness-Checks: MiMi Nox ist Engine-agnostisch —
+        # der Server startet IMMER, und die PWA leitet den User durch die
+        # Engine-Auswahl (/api/setup/status → Setup-UI). Root-Cause: eine
+        # nicht erreichbare Engine in engine.json durfte den Start nicht
+        # blockieren, denn dann wäre die UI, in der der User eine andere
+        # Engine wählen kann, unerreichbar. Ollama wird nicht installiert,
+        # keine Modelle gepullt — der User wählt (lokal/remote) selbst.
         if choice.provider == OPENAI_COMPAT and choice.api_url:
             ready, detail = _probe_remote_engine(choice.api_url, choice.model)
-            _print_check(ready, f"Engine {choice.model} erreichbar", detail)
+            if ready:
+                _print_check(True, f"Engine {choice.model} erreichbar", detail)
+            else:
+                _print_check(False, f"Engine {choice.model} erreichbar",
+                             f"{detail} — Server startet trotzdem; in der App Engine/Modell wählen.")
         else:
-            ready, detail = _ensure_model_ready_for_start(choice.model)
-            _print_check(ready, f"Model {choice.model} ready", detail)
-        if not ready:
-            _emit_error(
-                args, 1,
-                f"Engine '{choice.model}' ist nicht startklar",
-                "Remote: DGX/vLLM starten (oder `miminox start --skip-model-check`) · "
-                f"Lokal: `ollama pull {choice.model}` · Andere Engine: `miminox tui --configure`",
-            )
-            return 1
+            service_ok, service_detail = _ensure_ollama_service()
+            if service_ok and _model_installed(choice.model):
+                ready, detail = _model_loadable(choice.model)
+                _print_check(ready, f"Modell {choice.model} ready", detail)
+            elif service_ok:
+                _print_check(False, f"Modell {choice.model} ready",
+                             f"Modell nicht installiert — Modell in der App wählen oder: ollama pull {choice.model}")
+            else:
+                _print_check(False, "Ollama Service",
+                             f"{service_detail} — Server startet trotzdem; Engine in der App wählen "
+                             f"(oder Ollama installieren: ollama.com).")
+
+    # PWA-Build sicherstellen (frischer-Clone-Pfad): app/dist ist git-ignoriert,
+    # fehlend wäre / eine Fallback-Page. Hier wird gebaut, bevor der Server
+    # startet — `miminox start` liefert so ab dem ersten Aufruf die PWA.
+    ensure_pwa_built()
 
     env = os.environ.copy()
     env["OLLAMA_HOST"] = LOCAL_OLLAMA_HOST
