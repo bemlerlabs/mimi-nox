@@ -98,15 +98,42 @@
       "undergrowth": "Undergrowth"
     },
     "items": [
-      { "name": "/write", "desc": "Emails, notes, summaries" },
-      { "name": "/review", "desc": "Review code, plans, documents" },
-      { "name": "/files", "desc": "Read & analyze local files" },
-      { "name": "/pdf", "desc": "Read, create, analyze PDFs" },
-      { "name": "/scan", "desc": "Analyze screenshots & images" },
-      { "name": "/svg", "desc": "Design & create SVG assets" },
-      { "name": "/chart", "desc": "Generate charts & diagrams" },
-      { "name": "/shell", "desc": "Shell commands (approval-gated)" },
-      { "name": "/research", "desc": "Online research (opt-in)" }
+      {
+        "name": "/write",
+        "desc": "Emails, notes, summaries"
+      },
+      {
+        "name": "/review",
+        "desc": "Review code, plans, documents"
+      },
+      {
+        "name": "/files",
+        "desc": "Read & analyze local files"
+      },
+      {
+        "name": "/pdf",
+        "desc": "Read, create, analyze PDFs"
+      },
+      {
+        "name": "/scan",
+        "desc": "Analyze screenshots & images"
+      },
+      {
+        "name": "/svg",
+        "desc": "Design & create SVG assets"
+      },
+      {
+        "name": "/chart",
+        "desc": "Generate charts & diagrams"
+      },
+      {
+        "name": "/shell",
+        "desc": "Shell commands (approval-gated)"
+      },
+      {
+        "name": "/research",
+        "desc": "Online research (opt-in)"
+      }
     ],
     "moreSkills": "+ 12+ more skills available",
     "expandAll": "expand all"
@@ -117,11 +144,29 @@
     "subtitle": "No account. No cloud. No tracking. Just install and go.",
     "detected": "{platform} detected — you can switch to another platform anytime.",
     "platforms": {
-      "macos-arm": { "label": "macOS", "desc": "Apple Silicon (M1/M2/M3/M4) — native", "recommended": "Recommended" },
-      "macos-x86": { "label": "macOS", "desc": "Intel (x86_64) — universal binary" },
-      "windows": { "label": "Windows", "desc": "Windows 10/11 — 64-bit" },
-      "linux": { "label": "Linux", "desc": "AppImage · .deb · .rpm", "badge": "Multi-Format" },
-      "web": { "label": "Web / PWA", "desc": "In the browser — no install needed", "start": "Launch MiMi Nox" }
+      "macos-arm": {
+        "label": "macOS",
+        "desc": "Apple Silicon (M1/M2/M3/M4) — native",
+        "recommended": "Recommended"
+      },
+      "macos-x86": {
+        "label": "macOS",
+        "desc": "Intel (x86_64) — universal binary"
+      },
+      "windows": {
+        "label": "Windows",
+        "desc": "Windows 10/11 — 64-bit"
+      },
+      "linux": {
+        "label": "Linux",
+        "desc": "AppImage · .deb · .rpm",
+        "badge": "Multi-Format"
+      },
+      "web": {
+        "label": "Web / PWA",
+        "desc": "In the browser — no install needed",
+        "start": "Launch MiMi Nox"
+      }
     },
     "altInstall": "Alternatively",
     "npmCommand": "npm create miminox@latest",
@@ -158,10 +203,22 @@
       "later": "Later"
     },
     "suggestions": [
-      { "title": "Explain my project", "desc": "Analyze your code" },
-      { "title": "Write an email", "desc": "Review my code" },
-      { "title": "Analyze this image", "desc": "Create a diagram" },
-      { "title": "Search online", "desc": "Research a topic" }
+      {
+        "title": "Explain my project",
+        "desc": "Analyze your code"
+      },
+      {
+        "title": "Write an email",
+        "desc": "Review my code"
+      },
+      {
+        "title": "Analyze this image",
+        "desc": "Create a diagram"
+      },
+      {
+        "title": "Search online",
+        "desc": "Research a topic"
+      }
     ],
     "emptyStateTitle": "MiMi Nox",
     "emptyStateDesc": "Your local AI assistant. Private. Local. Yours."
@@ -193,10 +250,22 @@
     "reload": "Reload page",
     "modelTitle": "Choose model",
     "modelOptions": [
-      { "label": "gemma4:e4b", "desc": "Default — fast & efficient" },
-      { "label": "LLaMA 3.1 8B", "desc": "Open source, powerful" },
-      { "label": "Mistral 7B", "desc": "Reliable, good for code" },
-      { "label": "Custom Ollama", "desc": "Custom model" }
+      {
+        "label": "gemma4:e4b",
+        "desc": "Default — fast & efficient"
+      },
+      {
+        "label": "LLaMA 3.1 8B",
+        "desc": "Open source, powerful"
+      },
+      {
+        "label": "Mistral 7B",
+        "desc": "Reliable, good for code"
+      },
+      {
+        "label": "Custom Ollama",
+        "desc": "Custom model"
+      }
     ],
     "apiTitle": "API Settings",
     "endpointLabel": "Ollama Endpoint",
@@ -276,5 +345,20 @@
     "openSource": "Open Source",
     "activeUsers": "Active Users",
     "offline": "Offline"
+  },
+  "setup": {
+    "kicker": "First Run · Engine Selection",
+    "title": "Which engine does MiMi Nox use?",
+    "subtitle": "MiMi Nox installs nothing and pulls no models — just pick your existing engine and model.",
+    "option": {
+      "local_ollama": "Local Ollama (this device)",
+      "custom_ollama": "Remote Ollama (e.g. DGX / LAN)",
+      "openai_compatible": "OpenAI-compatible API (vLLM / SGLang / …)"
+    },
+    "endpointLabel": "Endpoint URL",
+    "probe": "Probe endpoint",
+    "modelLabel": "Model",
+    "finish": "Save",
+    "reset": "Forget engine selection (choose again)"
   }
 }

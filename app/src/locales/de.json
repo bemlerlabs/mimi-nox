@@ -98,15 +98,42 @@
       "undergrowth": "Unterwuchs"
     },
     "items": [
-      { "name": "/write", "desc": "E-Mails, Notizen, Zusammenfassungen" },
-      { "name": "/review", "desc": "Code, Pläne, Dokumente reviewen" },
-      { "name": "/files", "desc": "Lokale Dateien lesen & analysieren" },
-      { "name": "/pdf", "desc": "PDFs lesen, erstellen, analysieren" },
-      { "name": "/scan", "desc": "Screenshots & Bilder analysieren" },
-      { "name": "/svg", "desc": "SVG-Assets entwerfen & erstellen" },
-      { "name": "/chart", "desc": "Charts & Diagramme generieren" },
-      { "name": "/shell", "desc": "Shell-Befehle (approval-gated)" },
-      { "name": "/research", "desc": "Online-Recherche (opt-in)" }
+      {
+        "name": "/write",
+        "desc": "E-Mails, Notizen, Zusammenfassungen"
+      },
+      {
+        "name": "/review",
+        "desc": "Code, Pläne, Dokumente reviewen"
+      },
+      {
+        "name": "/files",
+        "desc": "Lokale Dateien lesen & analysieren"
+      },
+      {
+        "name": "/pdf",
+        "desc": "PDFs lesen, erstellen, analysieren"
+      },
+      {
+        "name": "/scan",
+        "desc": "Screenshots & Bilder analysieren"
+      },
+      {
+        "name": "/svg",
+        "desc": "SVG-Assets entwerfen & erstellen"
+      },
+      {
+        "name": "/chart",
+        "desc": "Charts & Diagramme generieren"
+      },
+      {
+        "name": "/shell",
+        "desc": "Shell-Befehle (approval-gated)"
+      },
+      {
+        "name": "/research",
+        "desc": "Online-Recherche (opt-in)"
+      }
     ],
     "moreSkills": "+ 12+ weitere Skills verfügbar",
     "expandAll": "alle erweitern"
@@ -117,11 +144,29 @@
     "subtitle": "Kein Account. Kein Cloud. Kein Tracking. Einfach installieren und loslegen.",
     "detected": "{platform} erkannt — Du kannst jederzeit eine andere Plattform wählen.",
     "platforms": {
-      "macos-arm": { "label": "macOS", "desc": "Apple Silicon (M1/M2/M3/M4) — native", "recommended": "Empfohlen" },
-      "macos-x86": { "label": "macOS", "desc": "Intel (x86_64) — universal binary" },
-      "windows": { "label": "Windows", "desc": "Windows 10/11 — 64-bit" },
-      "linux": { "label": "Linux", "desc": "AppImage · .deb · .rpm", "badge": "Multi-Format" },
-      "web": { "label": "Web / PWA", "desc": "Im Browser — kein Install nötig", "start": "MiMi Nox starten" }
+      "macos-arm": {
+        "label": "macOS",
+        "desc": "Apple Silicon (M1/M2/M3/M4) — native",
+        "recommended": "Empfohlen"
+      },
+      "macos-x86": {
+        "label": "macOS",
+        "desc": "Intel (x86_64) — universal binary"
+      },
+      "windows": {
+        "label": "Windows",
+        "desc": "Windows 10/11 — 64-bit"
+      },
+      "linux": {
+        "label": "Linux",
+        "desc": "AppImage · .deb · .rpm",
+        "badge": "Multi-Format"
+      },
+      "web": {
+        "label": "Web / PWA",
+        "desc": "Im Browser — kein Install nötig",
+        "start": "MiMi Nox starten"
+      }
     },
     "altInstall": "Alternativ",
     "npmCommand": "npm create miminox@latest",
@@ -158,10 +203,22 @@
       "later": "Später"
     },
     "suggestions": [
-      { "title": "Erkläre mir mein Projekt", "desc": "Analysiere deinen Code" },
-      { "title": "Schreibe eine E-Mail", "desc": "Reviewe meinen Code" },
-      { "title": "Analysiere dieses Bild", "desc": "Erstelle ein Diagramm" },
-      { "title": "Suche Online", "desc": "Recherche zu einem Thema" }
+      {
+        "title": "Erkläre mir mein Projekt",
+        "desc": "Analysiere deinen Code"
+      },
+      {
+        "title": "Schreibe eine E-Mail",
+        "desc": "Reviewe meinen Code"
+      },
+      {
+        "title": "Analysiere dieses Bild",
+        "desc": "Erstelle ein Diagramm"
+      },
+      {
+        "title": "Suche Online",
+        "desc": "Recherche zu einem Thema"
+      }
     ],
     "emptyStateTitle": "MiMi Nox",
     "emptyStateDesc": "Dein lokaler KI-Assistent. Privat. Lokal. Dein."
@@ -193,10 +250,22 @@
     "reload": "Seite neu laden",
     "modelTitle": "Modell wählen",
     "modelOptions": [
-      { "label": "gemma4:e4b", "desc": "Default — schnell & effizient" },
-      { "label": "LLaMA 3.1 8B", "desc": "Open Source, stark" },
-      { "label": "Mistral 7B", "desc": "Zuverlässig, gut für Code" },
-      { "label": "Custom Ollama", "desc": "Eigenes Modell" }
+      {
+        "label": "gemma4:e4b",
+        "desc": "Default — schnell & effizient"
+      },
+      {
+        "label": "LLaMA 3.1 8B",
+        "desc": "Open Source, stark"
+      },
+      {
+        "label": "Mistral 7B",
+        "desc": "Zuverlässig, gut für Code"
+      },
+      {
+        "label": "Custom Ollama",
+        "desc": "Eigenes Modell"
+      }
     ],
     "apiTitle": "API Einstellungen",
     "endpointLabel": "Ollama Endpoint",
@@ -276,5 +345,20 @@
     "openSource": "Open Source",
     "activeUsers": "Aktive Nutzer",
     "offline": "Offline"
+  },
+  "setup": {
+    "kicker": "First Run · Engine-Auswahl",
+    "title": "Welche Engine nutzt MiMi Nox?",
+    "subtitle": "MiMi Nox installiert nichts und lädt keine Modelle — wähle einfach deine vorhandene Engine und das Modell.",
+    "option": {
+      "local_ollama": "Ollama lokal (dieses Gerät)",
+      "custom_ollama": "Ollama remote (z. B. DGX / LAN)",
+      "openai_compatible": "OpenAI-kompatible API (vLLM / SGLang / …)"
+    },
+    "endpointLabel": "Endpunkt-URL",
+    "probe": "Endpunkt prüfen",
+    "modelLabel": "Modell",
+    "finish": "Übernehmen",
+    "reset": "Engine-Auswahl vergessen (neu wählen)"
   }
 }

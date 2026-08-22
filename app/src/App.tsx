@@ -1,13 +1,57 @@
-import { HashRouter as Router, Routes, Route } from 'react-router-dom'
-import { lazy, Suspense, useEffect } from 'react'
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { useCommandPalette } from '@/hooks/useCommandPalette'
 import CommandPalette from '@/components/ui/CommandPalette'
+import { getSetupStatus, type SetupStatus } from '@/lib/api'
 
 // Route-level code-splitting: landing, onboarding and chat are independent bundles
 const LandingPage = lazy(() => import('./pages/LandingPage'))
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
 const ChatPage = lazy(() => import('./pages/ChatPage'))
+const SetupPage = lazy(() => import('./pages/SetupPage'))
+
+/**
+ * First-Run-Engine-Gate:
+ * configured=true  → Landing/Chat wie bisher
+ * configured=false → /setup (User wählt seine Engine: Ollama lokal/remote,
+ *                    OpenAI-kompatibel — wird in engine.json persistiert)
+ *
+ * Der Status kommt aus dem Backend (GET /api/setup/status), nicht aus
+ * localStorage — engine.json ist die Single Source of Truth (CLI + PWA).
+ * Ohne Backend (offline-Statik-Serve) greift die Landingpage: das Gate
+ * darf die App nie hart blockieren.
+ */
+function useSetupGate() {
+  const [state, setState] = useState<'checking' | 'ok' | 'setup'>('checking')
+
+  useEffect(() => {
+    getSetupStatus()
+      .then((status: SetupStatus) => setState(status.configured ? 'ok' : 'setup'))
+      .catch(() => setState('ok'))
+  }, [])
+
+  return state
+}
+
+function GateRoute({ children }: { children: React.ReactNode }) {
+  const gate = useSetupGate()
+  if (gate === 'checking') return <RouteFallback />
+  if (gate === 'setup') return <Navigate to="/setup" replace />
+  return <>{children}</>
+}
+
+function SetupGateRoute() {
+  const gate = useSetupGate()
+  if (gate === 'checking') return <RouteFallback />
+  // configured=true → User hat schon eine Engine → Setup-Route führt zum Chat
+  if (gate === 'ok') return <Navigate to="/chat" replace />
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <SetupPage onDone={() => window.location.reload()} />
+    </Suspense>
+  )
+}
 
 function RouteFallback() {
   return (
@@ -49,10 +93,16 @@ function AppInner() {
         <Route
           path="/"
           element={
-            <Suspense fallback={<RouteFallback />}>
-              <LandingPage />
-            </Suspense>
+            <GateRoute>
+              <Suspense fallback={<RouteFallback />}>
+                <LandingPage />
+              </Suspense>
+            </GateRoute>
           }
+        />
+        <Route
+          path="/setup"
+          element={<SetupGateRoute />}
         />
         <Route
           path="/onboarding"
@@ -65,9 +115,11 @@ function AppInner() {
         <Route
           path="/chat"
           element={
-            <Suspense fallback={<RouteFallback />}>
-              <ChatPage />
-            </Suspense>
+            <GateRoute>
+              <Suspense fallback={<RouteFallback />}>
+                <ChatPage />
+              </Suspense>
+            </GateRoute>
           }
         />
       </Routes>

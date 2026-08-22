@@ -1,9 +1,11 @@
 /**
  * API client for MiMi Nox — talks to the local backend.
- * Backend runs on localhost:8765 by default (overridable via VITE_API_URL).
+ *
+ * Default: same-origin. Die PWA wird vom API-Server selbst ausgeliefert
+ * (Prod/One-Command-Install) und in Dev über den Vite-Proxy (5173 → 8765).
+ * VITE_API_URL überschreibt für externe Setups (z. B. fester ferner Port).
  */
-
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8765'
+const BASE_URL = import.meta.env.VITE_API_URL || ''
 
 // Types aus kanonischer Quelle (types/index.ts) re-exportieren — einzige Wahrheit.
 import type {
@@ -92,8 +94,56 @@ export interface HealthInfo {
   detail?: string
 }
 
-export async function healthCheck(): Promise<HealthInfo> {
+export function healthCheck(): Promise<HealthInfo> {
   return request<HealthInfo>('/api/health')
+}
+
+// ── Setup (First-Run-Engine-Auswahl) ───────────────────────────────────────
+
+/**
+ * Setup-Status: ist schon eine Engine persistiert (engine.json)?
+ * configured=false → die PWA zeigt die Engine-Auswahl (SetupPage).
+ */
+export interface SetupStatus {
+  configured: boolean
+  provider: string
+  model: string | null
+  url: string | null
+  reachable: boolean
+  available_models: string[]
+}
+
+export interface ProviderProbeResponse {
+  reachable: boolean
+  models: string[]
+  detail: string
+}
+
+export function getSetupStatus(): Promise<SetupStatus> {
+  return request<SetupStatus>('/api/setup/status')
+}
+
+/**
+ * Endpunkt prüfen + verfügbare Modelle auflisten (Ollama: /api/tags,
+ * OpenAI-kompatibel: /v1/models). Kein Persist — reine Erkennung.
+ */
+export function probeProvider(
+  provider: 'local_ollama' | 'custom_ollama' | 'openai_compatible',
+  baseUrl?: string,
+  apiKey?: string
+): Promise<ProviderProbeResponse> {
+  return request<ProviderProbeResponse>('/api/model/providers/probe', {
+    method: 'POST',
+    body: JSON.stringify({
+      provider,
+      base_url: baseUrl || null,
+      api_key: apiKey || null,
+    }),
+  })
+}
+
+export function resetSetup(): Promise<{ configured: boolean }> {
+  return request<{ configured: boolean }>('/api/setup/reset', { method: 'POST' })
 }
 
 // ── Scheduler (P2-8) ───────────────────────────────────────────────────────
