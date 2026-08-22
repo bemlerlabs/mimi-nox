@@ -5,29 +5,11 @@ GREEN='\033[0;32m'
 DIM='\033[2m'
 BOLD='\033[1m'
 RED='\033[0;31m'
+YELLOW='\033[0;33m'
 NC='\033[0m'
-
-# Hardware-adaptive Default-Modellwahl (RAM-basiert).
-# Der User kann mit MIMI_NOX_MODEL oder --model überschreiben.
-recommended_ollama_model() {
-  local ram_gb=0
-  if command -v sysctl >/dev/null 2>&1; then
-    ram_gb=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1024 / 1024 / 1024 ))
-  fi
-  if (( ram_gb <= 0 )) && [[ -r /proc/meminfo ]]; then
-    local kb
-    kb=$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)
-    ram_gb=$(( kb / 1024 / 1024 ))
-  fi
-  if (( ram_gb >= 16 )); then echo "gemma4:12b";
-  elif (( ram_gb >= 8 )); then echo "gemma4:e4b";
-  else echo "gemma4:e2b"; fi
-}
 
 REPO_URL="${MIMI_NOX_REPO_URL:-https://github.com/bemlerlabs/mimi-nox.git}"
 INSTALL_DIR="${MIMI_NOX_INSTALL_DIR:-$HOME/Documents/MiMi-Nox}"
-MODEL="${MIMI_NOX_MODEL:-$(recommended_ollama_model)}"
-EMBED_MODEL="${MIMI_NOX_EMBED_MODEL:-nomic-embed-text}"
 PORT="${MIMI_NOX_PORT:-8765}"
 LOCAL_OLLAMA_HOST="${MIMI_NOX_OLLAMA_HOST:-127.0.0.1:11434}"
 LOCAL_OLLAMA_URL="$LOCAL_OLLAMA_HOST"
@@ -35,28 +17,31 @@ if [[ "$LOCAL_OLLAMA_URL" != http://* && "$LOCAL_OLLAMA_URL" != https://* ]]; th
   LOCAL_OLLAMA_URL="http://${LOCAL_OLLAMA_URL}"
 fi
 NO_START="${MIMI_NOX_NO_START:-0}"
-SKIP_MODEL="${MIMI_NOX_SKIP_MODEL:-0}"
 DRY_RUN="${MIMI_NOX_DRY_RUN:-0}"
 
 # --- Download-Integrität (Supply-Chain Gate) ---------------------------------
 # Piped `curl | sh` ist ein klassischer Supply-Chain-Angriffspunkt: ein
 # kompromittiertes Vendor-Script würde ungeprüft ausgeführt. Deshalb laden wir
-# beide Vendor-Installer erst herunter, verifizieren den SHA256 gegen den
-# gepinnten Hash und führen erst dann aus. Abweichung -> fester Abbruch.
-# Hash-Stand: 2026-08-18 (live erfasst). Rotation via Env-Override (Gate-Release).
+# den uv-Installer (Python-Runtime) erst herunter, verifizieren den SHA256
+# gegen den gepinnten Hash und führen erst dann aus. Abweichung -> fester
+# Abbruch. Hash-Stand: 2026-08-18 (live erfasst). Rotation via Env-Override.
+# Hinweis: Ollama wird NICHT vom Installer installiert (Mandat 2026-08-21) —
+# es gibt daher bewusst keinen Ollama-Download/Hash mehr in diesem Skript.
 UV_INSTALL_SHA256="${MIMI_NOX_UV_INSTALL_SHA256:-504511fbbbd811aeaba6738abc79408956b6c7da0ca35437b3dcc24a41efc111}"
-OLLAMA_INSTALL_SHA256="${MIMI_NOX_OLLAMA_INSTALL_SHA256:-25f64b810b947145095956533e1bdf56eacea2673c55a7e586be4515fc882c9f}"
 
 for arg in "$@"; do
   case "$arg" in
     --no-start) NO_START=1 ;;
-    --skip-model) SKIP_MODEL=1 ;;
     --dry-run) DRY_RUN=1 ;;
     --cli|--headless|--tui) INSTALL_MODE="cli" ;;
     --desktop|--gui|--web|--pwa) INSTALL_MODE="desktop" ;;
     --help|-h)
-      echo "Usage: ./install.sh [--no-start] [--skip-model] [--dry-run] [--cli|--desktop]"
-      echo "Env: MIMI_NOX_INSTALL_DIR, MIMI_NOX_MODEL, MIMI_NOX_PORT"
+      echo "Usage: ./install.sh [--no-start] [--dry-run] [--cli|--desktop]"
+      echo "Env: MIMI_NOX_INSTALL_DIR, MIMI_NOX_PORT, MIMI_NOX_NO_START, MIMI_NOX_DRY_RUN"
+      echo ""
+      echo "MiMi Nox — one-command install. AI-Engine wird in der App gewählt"
+      echo "(lokale Ollama oder externer Endpunkt wie DGX)."
+      echo "Ollama wird NICHT installiert und es werden KEINE Modelle geladen."
       echo ""
       echo "Modes:"
       echo "  --cli      Minimal-CLI-Pfad: installiert nur das TUI (textual), startet 'miminox tui'"
@@ -88,6 +73,7 @@ fi
 
 step() { echo -e "${GREEN}▶${NC} ${BOLD}$1${NC}"; }
 info() { echo -e "  ${DIM}$1${NC}"; }
+warn() { echo -e "  ${YELLOW}⚠${NC} $1"; }
 ok() { echo -e "  ${GREEN}✓${NC} $1"; }
 fail() { echo -e "  ${RED}✗${NC} $1" >&2; exit 1; }
 run() {
@@ -140,7 +126,7 @@ is_project_root() {
 
 echo ""
 echo -e "${GREEN}${BOLD}MiMi Nox offline-first installer${NC}"
-echo -e "${DIM}Local Ollama + ${MODEL} by default. Online/API is optional.${NC}"
+echo -e "${DIM}One-command install. AI-Engine wird in der App gewählt (lokale Ollama oder externer Endpunkt).${NC}"
 echo ""
 
 if ! is_project_root; then
@@ -170,11 +156,14 @@ case "$OS_NAME" in
 esac
 command -v curl >/dev/null 2>&1 || fail "curl fehlt. Installiere curl und starte den Installer erneut."
 
+# Speicherplatz: ~4 GB für Produkt/Abhängigkeiten/PWA-Build. Modell-Downloads
+# laufen NICHT hier (Engine wird in der App gewählt) → Warnung, kein Abbruch.
 FREE_KB=$(df -Pk "$PROJECT_DIR" | awk 'NR==2 {print $4}')
-if [[ "${FREE_KB:-0}" -lt 16000000 ]]; then
-  fail "Mindestens 16 GB freier Speicher empfohlen. Aktuell verfügbar: $((FREE_KB / 1024 / 1024)) GB."
+if [[ "${FREE_KB:-0}" -lt 4096000 ]]; then
+  warn "Weniger als ~4 GB freier Speicher (aktuell: $((FREE_KB / 1024 / 1024)) GB). Installation wird trotzdem versucht."
+else
+  ok "Speicherplatz OK"
 fi
-ok "Speicherplatz OK"
 
 step "Python 3.10+ prüfen"
 find_uv() {
@@ -267,149 +256,24 @@ else
   ok "$("$PYTHON" -c 'import sys; print(sys.version.split()[0])') gefunden"
 fi
 
-find_ollama() {
-  for candidate in \
-    "/Applications/Ollama.app/Contents/Resources/ollama" \
-    "/opt/homebrew/opt/ollama/bin/ollama" \
-    "/opt/homebrew/bin/ollama" \
-    "/usr/local/bin/ollama" \
-    "$(command -v ollama 2>/dev/null || true)"; do
-    [[ -n "$candidate" && -x "$candidate" ]] && { echo "$candidate"; return 0; }
-  done
-  return 1
-}
-
-ollama_version_text() {
-  "$OLLAMA_BIN" --version 2>&1 || true
-}
-
-preferred_ollama_models() {
-  local requested="$1"
-  echo "$requested"
-  if [[ "$OS_NAME" == "Darwin" && "$requested" == "gemma4:12b" ]]; then
-    echo "gemma4:12b-mlx"
-    echo "gemma4:12b-nvfp4"
+# ── KI-Engine (Info-Step, nie blockierend) ──────────────────────────────────
+# Mandat 2026-08-21: Ollama wird NICHT installiert, KEINE Modelle geladen.
+# Dieser Schritt prüft nur, ob lokal Ollama bereitsteht, und zeigt einen
+# Hinweis. Fehlt Ollama → Warnung (kein Abbruch); die Engine wird in der App
+# gewählt (SetupPage: lokale Ollama / remote Ollama / OpenAI-kompatibel).
+step "KI-Engine prüfen (Info)"
+OLLAMA_BIN="$(command -v ollama 2>/dev/null || true)"
+OLLAMA_SERVICE_OK=0
+if [[ -n "$OLLAMA_BIN" ]]; then
+  if curl -fsS --max-time 3 "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1; then
+    OLLAMA_SERVICE_OK=1
   fi
-}
-
-update_ollama() {
-  info "Ollama ist zu alt fuer ${MODEL}. Update wird versucht."
-  if [[ "$OS_NAME" == "Darwin" ]]; then
-    if command -v brew >/dev/null 2>&1; then
-      run brew update || true
-      if brew list --formula ollama >/dev/null 2>&1; then
-        info "Entferne Homebrew-Formula 'ollama', damit die aktuelle Ollama.app-CLI nicht verdeckt wird."
-        run brew uninstall --formula ollama || true
-      fi
-      run brew reinstall --cask --force ollama-app || run brew upgrade --cask ollama-app || run brew install --cask --force ollama-app || run brew reinstall --cask --force ollama || run brew upgrade --cask ollama || run brew install --cask --force ollama
-      OLLAMA_BIN="$(find_ollama || true)"
-      [[ -n "$OLLAMA_BIN" ]] || fail "Ollama wurde nach dem Update nicht gefunden."
-      pkill -x Ollama >/dev/null 2>&1 || true
-      pkill -f "ollama serve" >/dev/null 2>&1 || true
-      sleep 2
-      return 0
-    fi
-    fail "Deine Ollama-Version ist zu alt. Bitte installiere die neueste Version von https://ollama.com/download und starte den Installer erneut."
-  fi
-  fetch_verify_run "https://ollama.com/install.sh" "$OLLAMA_INSTALL_SHA256" "ollama" "MIMI_NOX_OLLAMA_INSTALL_SHA256"
-  OLLAMA_BIN="$(find_ollama || true)"
-  [[ -n "$OLLAMA_BIN" ]] || fail "Ollama wurde nach dem Update nicht gefunden."
-}
-
-pull_ollama_model() {
-  local requested="$1"
-  local tried_update="0"
-  local saw_newer_error="0"
-  local model
-
-  for model in $(preferred_ollama_models "$requested"); do
-    local log_file="/tmp/mimi-nox-ollama-pull-${model//[^A-Za-z0-9_.-]/_}.log"
-    info "Versuche Modell: ${model}"
-    if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$model" 2>&1 | tee "$log_file"; then
-      MODEL="$model"
-      return 0
-    fi
-    if grep -qi "requires a newer version of Ollama" "$log_file"; then
-      saw_newer_error="1"
-      if [[ "$tried_update" != "1" ]]; then
-        tried_update="1"
-        update_ollama
-        if [[ "$OS_NAME" == "Darwin" && -d "/Applications/Ollama.app" ]]; then
-          run open -a Ollama
-          sleep 3
-        fi
-        for _ in $(seq 1 30); do
-          curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1 && break
-          sleep 1
-        done
-        info "Ollama CLI nach Update: $(ollama_version_text | tr '\n' ' ')"
-        if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" pull "$model" 2>&1 | tee "$log_file"; then
-          MODEL="$model"
-          return 0
-        fi
-      fi
-    fi
-  done
-
-  if [[ "$saw_newer_error" == "1" ]]; then
-    fail "Ollama ist weiterhin zu alt fuer ${requested}. Installiere die neueste Ollama-Version direkt von https://ollama.com/download, beende Ollama komplett und starte den Installer erneut. Aktuelle CLI: $(ollama_version_text | tr '\n' ' ')"
-  fi
-  return 1
-}
-
-step "Ollama prüfen"
-OLLAMA_BIN="$(find_ollama || true)"
-if [[ -z "$OLLAMA_BIN" ]]; then
-  info "Ollama CLI fehlt. Installation startet."
-  if [[ "$OS_NAME" == "Darwin" ]]; then
-    if command -v brew >/dev/null 2>&1; then
-      run brew install --cask ollama || run brew install ollama
-    else
-      fail "Homebrew fehlt. Installiere Ollama von https://ollama.com/download und starte danach ./install.sh erneut."
-    fi
-  else
-    fetch_verify_run "https://ollama.com/install.sh" "$OLLAMA_INSTALL_SHA256" "ollama" "MIMI_NOX_OLLAMA_INSTALL_SHA256"
-  fi
-  OLLAMA_BIN="$(find_ollama || true)"
 fi
-[[ -n "$OLLAMA_BIN" ]] || fail "Ollama wurde nicht gefunden."
-ok "$OLLAMA_BIN"
-
-step "Ollama Service starten"
-if [[ "${OLLAMA_HOST:-}" != "" && "${OLLAMA_HOST}" != "$LOCAL_OLLAMA_HOST" && "${OLLAMA_HOST}" != "$LOCAL_OLLAMA_URL" ]]; then
-  info "Ignoriere globales OLLAMA_HOST=${OLLAMA_HOST}; MiMi nutzt lokal ${LOCAL_OLLAMA_HOST}."
-fi
-if ! curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1; then
-  if [[ "$OS_NAME" == "Darwin" && -d "/Applications/Ollama.app" ]]; then
-    run open -a Ollama
-  fi
-  run env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" serve >/tmp/mimi-nox-ollama.log 2>&1 &
-  sleep 3
-fi
-for _ in $(seq 1 30); do
-  curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1 && break
-  sleep 1
-done
-curl -fsS "${LOCAL_OLLAMA_URL}/api/tags" >/dev/null 2>&1 || fail "Ollama Service antwortet nicht auf ${LOCAL_OLLAMA_URL}. Log: /tmp/mimi-nox-ollama.log"
-ok "Ollama läuft"
-
-if [[ "$SKIP_MODEL" != "1" ]]; then
-  step "KI-Modell installieren: ${MODEL}"
-  if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" show "$MODEL" >/dev/null 2>&1; then
-    ok "$MODEL bereits installiert"
-  else
-    info "Modell ${MODEL}: hardware-adaptiv gewählt (RAM-basiert). MIMI_NOX_MODEL oder --model überschreibt."
-    run pull_ollama_model "$MODEL"
-    ok "$MODEL bereit"
-  fi
-
-  step "Memory-Modell installieren: ${EMBED_MODEL}"
-  if env OLLAMA_HOST="$LOCAL_OLLAMA_HOST" "$OLLAMA_BIN" show "$EMBED_MODEL" >/dev/null 2>&1; then
-    ok "$EMBED_MODEL bereits installiert"
-  else
-    run pull_ollama_model "$EMBED_MODEL"
-    ok "$EMBED_MODEL bereit"
-  fi
+if [[ -n "$OLLAMA_BIN" && "$OLLAMA_SERVICE_OK" == "1" ]]; then
+  ok "Ollama erkannt — seine Modelle stehen in der App zur Auswahl."
+else
+  warn "Kein Ollama erkannt — das ist OK: MiMi Nox installiert keine KI von selbst."
+  info "Nach dem Start wählst du in der App deine Engine (lokale Ollama oder externer Endpunkt wie DGX)."
 fi
 
 step "Lokale Python-Umgebung einrichten"
@@ -425,6 +289,34 @@ else
 fi
 ok "Dependencies installiert"
 
+# ── PWA-Build (Desktop-Modus) ───────────────────────────────────────────────
+# Der Server liefert die Web-App (PWA) aus app/dist/ — ein Build-Artefakt, das
+# git-ignoriert ist und deshalb in einem frischen Clone fehlt. Im Desktop-Modus
+# bauen wir das Frontend jetzt, damit http://127.0.0.1:8765/ direkt lädt.
+# CLI-Modus (TUI) braucht kein Frontend → Build wird übersprungen (schneller).
+if [[ "$INSTALL_MODE" != "cli" ]]; then
+  build_pwa() {
+    step "PWA (Web-App) bauen"
+    if ! command -v npm >/dev/null 2>&1; then
+      fail "npm fehlt — Node.js/Node-Module ist erforderlich für den PWA-Build. Installiere Node.js (https://nodejs.org) und starte den Installer erneut."
+    fi
+    if [[ ! -f "$PROJECT_DIR/app/package-lock.json" ]]; then
+      info "npm install läuft (ohne lockfile)"
+      run npm --prefix "$PROJECT_DIR/app" install
+    else
+      run npm --prefix "$PROJECT_DIR/app" ci
+    fi
+    run npm --prefix "$PROJECT_DIR/app" run build
+    if [[ ! -f "$PROJECT_DIR/app/dist/index.html" ]]; then
+      fail "PWA-Build fehlgeschlagen: app/dist/index.html existiert nicht."
+    fi
+    ok "PWA gebaut → app/dist"
+  }
+  build_pwa
+else
+  info "CLI-Modus: PWA-Build wird übersprungen (TUI braucht kein Frontend)"
+fi
+
 step "Lokale Datenordner anlegen"
 mkdir -p "$HOME/.mimi-nox/memory" "$HOME/.mimi-nox/skills" "$HOME/.mimi-nox/sessions/audio" "$HOME/.mimi-nox/sessions/images"
 ok "$HOME/.mimi-nox bereit"
@@ -434,7 +326,7 @@ echo -e "${GREEN}${BOLD}Setup fertig.${NC}"
 echo "Projekt: $PROJECT_DIR"
 echo "Check:   .venv/bin/miminox doctor"
 if [[ "$INSTALL_MODE" == "cli" ]]; then
-  echo "Start:   .venv/bin/miminox tui --model $MODEL"
+  echo "Start:   .venv/bin/miminox tui"
 else
   echo "Start:   .venv/bin/miminox start --open"
   echo "URL:     http://127.0.0.1:${PORT}"
@@ -448,8 +340,8 @@ if [[ "$NO_START" != "1" && "$DRY_RUN" != "1" ]]; then
     [[ "$reply" =~ ^[JjYy]$ ]] || exit 0
   fi
   if [[ "$INSTALL_MODE" == "cli" ]]; then
-    exec .venv/bin/miminox tui --model "$MODEL"
+    exec .venv/bin/miminox tui
   else
-    exec .venv/bin/miminox start --port "$PORT" --model "$MODEL" --open
+    exec .venv/bin/miminox start --port "$PORT" --open
   fi
 fi

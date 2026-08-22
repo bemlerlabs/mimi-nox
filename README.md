@@ -1,16 +1,15 @@
 <div align="center">
 
-<img src="docs/screenshots/hero-banner.png" alt="MiMi Nox - local AI assistant running on your machine" width="100%">
+<img src="docs/screenshots/hero-banner.png" alt="MiMi Nox - local AI assistant with engine selection in-app" width="100%">
 
 # MiMi Nox
 
 **Offline-first local AI assistant for chat, images, files, memory, and approval-gated tools. Optional online/API features are always opt-in.**
 
-MiMi Nox starts with local Ollama and a hardware-adaptive default model (RAM-basiert: `gemma4:12b` bei 16GB+, `gemma4:e4b` bei 8–16GB, `gemma4:e2b` darunter). Die Modellwahl bleibt dem User überlassen — per `MIMI_NOX_MODEL`, `--model` oder in der UI. Custom Ollama servers, public mobile access, web research, text-to-speech services, and OpenAI-compatible APIs are optional opt-in paths.
+MiMi Nox installs the app in one command — the AI engine is chosen in the app afterwards (local Ollama, remote Ollama, or any OpenAI-compatible endpoint like a DGX Spark). The installer does not install Ollama and does not pull any model. Custom Ollama servers, public mobile access, web research, text-to-speech services, and OpenAI-compatible APIs are optional opt-in paths.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Ollama](https://img.shields.io/badge/Default-Ollama-111827?style=for-the-badge)](https://ollama.com)
-[![Model](https://img.shields.io/badge/Model-gemma4%20(adaptive)-22c55e?style=for-the-badge)](https://ollama.com/library/gemma4)
+[![Engine-Auswahl](https://img.shields.io/badge/Engine-Auswahl%20in%20der%20App-8250df?style=for-the-badge)](https://ollama.com)
 [![License](https://img.shields.io/badge/License-Apache%202.0-22c55e?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
 [![Tests](https://github.com/bemlerlabs/mimi-nox/actions/workflows/tests.yml/badge.svg)](https://github.com/bemlerlabs/mimi-nox/actions/workflows/tests.yml)
 [![Frontend Build](https://github.com/bemlerlabs/mimi-nox/actions/workflows/frontend-build.yml/badge.svg)](https://github.com/bemlerlabs/mimi-nox/actions/workflows/frontend-build.yml)
@@ -26,15 +25,15 @@ curl -fsSL https://raw.githubusercontent.com/bemlerlabs/mimi-nox/main/install.sh
 <details>
 <summary>What this command does</summary>
 
-The installer targets `~/Documents/MiMi-Nox`, checks or installs Ollama where possible, pulls the RAM-adaptive default model (`gemma4:12b` at 16GB+, `gemma4:e4b` at 8–16GB, `gemma4:e2b` below), prepares Python, starts the local server, and opens:
+The installer targets `~/Documents/MiMi-Nox`, prepares Python, builds the PWA, checks whether a local Ollama is already available (informational only — never installs or pulls), starts the local server, and opens:
 
 ```text
 http://127.0.0.1:8765
 ```
 
-First run downloads the Ollama artifact for the selected model (RAM-basiert empfohlen: 12b ≈ 16GB, e4b ≈ 8–10GB, e2b ≈ 4–6GB unified memory; 256K context). Override with `MIMI_NOX_MODEL` or the CLI `--model` flag. If the download is interrupted, run the same command again.
+On first run you pick the AI engine in the app: local Ollama (bring your own models), remote Ollama, or an OpenAI-compatible endpoint (e.g. a DGX Spark — no download, no install). Ollama model requirements (RAM-basiert): 12b ≈ 16GB, e4b ≈ 8–10GB, e2b ≈ 4–6GB unified memory; 256K context.
 
-**Supply-Chain-Integrität:** Alle Vendor-Downloads (uv, Ollama-Installer) werden vor der Ausführung gegen gepinnte SHA256-Hashes verifiziert — Abweichung bricht den Installer fest ab (kein blindes `curl | sh`). Rotation via `MIMI_NOX_UV_INSTALL_SHA256` / `MIMI_NOX_OLLAMA_INSTALL_SHA256`.
+**Supply-Chain-Integrität:** Alle Vendor-Downloads (uv) werden vor der Ausführung gegen gepinnte SHA256-Hashes verifiziert — Abweichung bricht den Installer fest ab (kein blindes `curl | sh`). Rotation via `MIMI_NOX_UV_INSTALL_SHA256`.
 
 </details>
 
@@ -65,8 +64,8 @@ MiMi Nox is a local web app and Python backend for a personal AI assistant:
 
 | Capability | Default behavior | Network behavior |
 |---|---|---|
-| Chat with the RAM-adaptive default model | Local Ollama | No internet required once model is installed |
-| Image understanding / OCR | Local Ollama | No internet required once model is installed |
+| Chat with the chosen model | Local Ollama (in-app selection) | No internet required once model is installed |
+| Image understanding / OCR | Local Ollama (in-app selection) | No internet required once model is installed |
 | Files, PDFs, profile, memory | Local disk | No internet required |
 | QR phone access | Local network | Public mobile tunnel is Optional Online |
 | Shell and desktop actions | Approval required | Local only unless a tool explicitly uses the internet |
@@ -75,7 +74,7 @@ MiMi Nox is a local web app and Python backend for a personal AI assistant:
 | Custom Ollama server | Advanced Opt-in | Localhost or LAN endpoint |
 | OpenAI-compatible API | Advanced Opt-in | Your configured API provider |
 
-Offline-first means the core product works locally after Ollama and the model are installed. It does not mean every optional integration is offline.
+Offline-first means the core product works locally once you have picked an engine in the app (Ollama or OpenAI-compatible). It does not mean every optional integration is offline.
 
 ## Why Use It
 
@@ -157,8 +156,8 @@ Docker is available for development and advanced users. The primary first-run pa
 |---|---|---|
 | OS | macOS 13+, Ubuntu 22+, Windows with PowerShell path | macOS 14+ or recent Linux |
 | Python | 3.10 | 3.12+ |
-| Ollama | Installed by script where supported | Latest stable |
-| RAM | 8 GB (`gemma4:e4b`) | 16 GB+ (`gemma4:12b`) |
+| Ollama | User-managed (installer only detects) | Latest stable |
+| RAM | 8 GB (`gemma4:e4b`) | 16 GB+ (`gemma4:12b`) — or use a remote endpoint |
 | Storage | 12 GB free | 20 GB+ |
 
 ## Feature Status
@@ -338,8 +337,8 @@ Tracked files should not include generated dependency folders, local databases, 
 Browser PWA
   -> FastAPI server
     -> Provider router
-      -> local Ollama by default
-      -> custom Ollama or OpenAI-compatible API only when configured
+      -> engine chosen in-app: local Ollama, remote Ollama, or OpenAI-compatible (DGX)
+      -> explicit --model/--api-url flags override the persisted choice
 
 Core modules
   -> chat, tools, vision, memory, skills, scheduler, profile
