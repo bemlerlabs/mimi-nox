@@ -16,7 +16,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from core.observability import (
@@ -207,12 +207,66 @@ def create_app(lan_mode: bool = False) -> FastAPI:
     import tempfile
     app.mount("/charts", StaticFiles(directory=tempfile.gettempdir()), name="charts")
 
-    # ── Statische Dateien (Web-Frontend) ───────────────────────────────────
-    frontend_dir = Path(__file__).parent.parent / "app" / "src"
-    if frontend_dir.exists():
-        app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+    # ── Statische Dateien (Web-Frontend / PWA) ──────────────────────────────
+    mount_frontend(app)
 
     return app
+
+
+# ── Frontend (PWA) Auflösung ─────────────────────────────────────────────────
+# Der PWA-Build liegt in app/dist (git-ignoriertes Build-Artefakt). app/src ist
+# nur die Vite-Quelle (kein index.html) — ein Mount darauf lieferte Silent-404.
+# MIMI_NOX_FRONTEND_DIR erlaubt Tests/CI, ein isoliertes Build-Verzeichnis
+# einzuhängen, ohne den Produktionspfad zu überschreiben.
+def resolve_frontend_dir() -> Path:
+    override = os.environ.get("MIMI_NOX_FRONTEND_DIR")
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parent.parent / "app" / "dist"
+
+
+def _frontend_missing_hint() -> HTMLResponse:
+    """Root-Fallback, wenn der PWA-Build fehlt: Reparatur-Anleitung statt 404."""
+    return HTMLResponse(
+        """<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MiMi Nox — PWA-Setup</title>
+<style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:4rem auto;
+line-height:1.6;color:#111}code{background:#f2f2f2;padding:.1rem .4rem;
+border-radius:4px}pre{background:#111;color:#eee;padding:1rem;border-radius:8px;
+overflow:auto}</style></head>
+<body><h1>◑ MiMi Nox — PWA wird vorbereitet</h1>
+<p>Die Web-App (PWA) wurde noch nicht gebaut. Der API-Server läuft bereits —
+nur das Frontend fehlt noch. So baust du die PWA lokal:</p>
+<pre>cd app
+npm install
+npm run build</pre>
+<p>…und danach einfach diese Seite neu laden. Alternativ startet der
+One-Command-Installer den Build für dich.</p>
+<p>API-Endpunkte sind bereits erreichbar: <a href="/api/health">/api/health</a>
+· <a href="/api/docs">/api/docs</a></p>
+</body></html>""",
+        status_code=200,
+    )
+
+
+def mount_frontend(app: FastAPI) -> None:
+    """PWA unter `/` ausliefern.
+
+    - Build vorhanden  → StaticFiles(html=True) (index.html + Assets)
+    - Build fehlt      → Root zeigt die Build-Anleitung (200, kein 404)
+    """
+    frontend_dir = resolve_frontend_dir()
+    if (frontend_dir / "index.html").is_file():
+        app.mount(
+            "/", StaticFiles(directory=str(frontend_dir), html=True),
+            name="frontend",
+        )
+    else:
+        @app.get("/", include_in_schema=False)
+        async def _root_missing_build() -> HTMLResponse:
+            return _frontend_missing_hint()
 
 
 # Standalone-Instanz (für uvicorn direkt)

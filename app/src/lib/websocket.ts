@@ -16,15 +16,26 @@ export class WSClient {
   private ws: WebSocket | null = null
   private url: string
   private reconnectAttempts: number = 0
-  private maxReconnectAttempts: number = 5
-  private reconnectDelay: number = 1000
+  private maxReconnectAttempts = 5
+  private reconnectDelay = 1000
   private messageCallback: WSEventCallback | null = null
   private toolApprovalCallback: ToolApprovalCallback | null = null
   private statusCallback: ((status: 'connected' | 'disconnected' | 'reconnecting') => void) | null = null
   private pingInterval: ReturnType<typeof setInterval> | null = null
 
-  constructor(baseUrl: string = 'ws://localhost:8765') {
-    this.url = `${baseUrl}/ws/chat`
+  /**
+   * Default: same-origin (PWA wird vom Backend serviert → API+WS auf dem
+   * selben Port, keine hartkodierte 8765-Annahme). VITE_WS_URL überschreibt
+   * für Dev-Setupps (Vite-Port ≠ API-Port, ohne Proxy).
+   */
+  constructor(baseUrl?: string) {
+    const base =
+      baseUrl ||
+      import.meta.env.VITE_WS_URL ||
+      (typeof window !== 'undefined'
+        ? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`
+        : 'ws://localhost:8765')
+    this.url = `${base.replace(/\/$/, '')}/ws/chat`
   }
 
   connect(sessionId?: string): Promise<void> {

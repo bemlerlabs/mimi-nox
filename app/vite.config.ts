@@ -19,6 +19,23 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // Dev-Proxy: API + WS vom Vite-Port (same-origin) zum Backend (8765).
+    // Damit läuft die PWA in Dev ohne hartkodierte API-URL (wie in Prod,
+    // wo der Server die PWA selbst serviert). VITE_API_URL/VITE_WS_URL
+    // überschreiben weiterhin für externe Setups.
+    proxy: {
+      '/api': {
+        target: process.env.MIMI_API_TARGET || 'http://127.0.0.1:8765',
+        changeOrigin: true,
+      },
+      '/ws': {
+        target: process.env.MIMI_API_TARGET || 'http://127.0.0.1:8765',
+        ws: true,
+        changeOrigin: true,
+      },
+      '/audio': 'http://127.0.0.1:8765',
+      '/images': 'http://127.0.0.1:8765',
+    },
   },
   build: {
     outDir: 'dist',
