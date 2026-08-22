@@ -151,6 +151,21 @@ export default function ChatLayout() {
     return () => client.disconnect()
   }, [t, addMessage, setTyping, setPendingToolCall])
 
+  const sendViaApi = useCallback(async (message: string) => {
+    try {
+      let streamedContent = ''
+      const handleChunk = (chunk: string) => {
+        streamedContent += chunk
+        addMessage('assistant', streamedContent)
+      }
+
+      await sendMessage(message, undefined, handleChunk)
+      addMessage('assistant', streamedContent || t('chat.responseReceived'))
+    } catch (err) {
+      addMessage('system', t('chat.apiError', { message: err instanceof Error ? err.message : String(err) }))
+    }
+  }, [addMessage, t])
+
   const handleSend = useCallback((message: string, attachments?: Attachment[]) => {
     if (!currentSession) {
       createSession()
@@ -165,27 +180,18 @@ export default function ChatLayout() {
     addMessage('user', payload)
     setTyping(true)
 
-    if (wsClientRef.current) {
+    // WS-Nur-wenn-tatsächlich-verbunden: Das Backend hat (aktuell) keinen
+    // /ws/chat-Endpunkt — wsClientRef.current existiert immer, der
+    // readyState aber nicht. Ohne wsConnected-Check würde send() die
+    // Nachricht still verwerfen ("Cannot send: not connected") und die UI
+    // ewig auf die Antwort warten. REST (POST /api/chat) ist der
+    // zuverlässige Pfad (Root-Cause-Fix 2026-08-21).
+    if (wsClientRef.current && wsConnected) {
       wsClientRef.current.send(payload)
     } else {
       sendViaApi(payload).finally(() => setTyping(false))
     }
-  }, [currentSession, createSession, addMessage, setTyping])
-
-  async function sendViaApi(message: string) {
-    try {
-      let streamedContent = ''
-      const handleChunk = (chunk: string) => {
-        streamedContent += chunk
-        addMessage('assistant', streamedContent)
-      }
-
-      await sendMessage(message, undefined, handleChunk)
-      addMessage('assistant', streamedContent || t('chat.responseReceived'))
-    } catch (err) {
-      addMessage('system', t('chat.apiError', { message: err instanceof Error ? err.message : String(err) }))
-    }
-  }
+  }, [currentSession, createSession, addMessage, setTyping, wsConnected, sendViaApi])
 
   // Tool approval handlers
   const handleToolApprove = useCallback(() => {
@@ -194,7 +200,7 @@ export default function ChatLayout() {
     wsClientRef.current.approveTool(session_id, tool_name, true)
     setPendingToolCall(null)
     pendingToolRef.current = null
-  }, [])
+  }, [setPendingToolCall])
 
   const handleToolDeny = useCallback(() => {
     if (!pendingToolRef.current || !wsClientRef.current) return
@@ -203,12 +209,12 @@ export default function ChatLayout() {
     addMessage('system', t('chat.toolDenied', { toolName: tool_name }))
     setPendingToolCall(null)
     pendingToolRef.current = null
-  }, [addMessage, t])
+  }, [addMessage, t, setPendingToolCall])
 
   const dismissToolRequest = useCallback(() => {
     setPendingToolCall(null)
     pendingToolRef.current = null
-  }, [])
+  }, [setPendingToolCall])
 
   return (
     <ErrorBoundary>

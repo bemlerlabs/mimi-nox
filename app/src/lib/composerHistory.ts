@@ -35,10 +35,6 @@ export class ComposerHistory {
   /** ↑ — ältere Nachricht; liefert die Nachricht oder null am Anfang. */
   prev(): string | null {
     if (this.entries.length === 0) return null
-    if (this.cursor === -1 && this.draft) {
-      // Draft als Basis merken (nur beim ersten ↑)
-      this.draft = this.draft
-    }
     this.cursor = this.cursor === -1 ? this.entries.length - 1 : Math.max(0, this.cursor - 1)
     return this.entries[this.cursor] ?? null
   }

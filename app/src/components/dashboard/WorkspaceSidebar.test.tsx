@@ -59,13 +59,13 @@ describe('WorkspaceSidebar — Pin-Funktion', () => {
   })
 
   it('Pin-Toggle ruft onTogglePin mit der Session-ID auf', () => {
-    let pinned = false
-    const onTogglePin = (_id: string) => {
-      pinned = true
+    let receivedId: string | null = null
+    const onTogglePin = (id: string) => {
+      receivedId = id
     }
     const sessions = [{ id: 's1', title: 'A', messages: [], createdAt: Date.now() }]
     render(<WorkspaceSidebar sessions={sessions} onTogglePin={onTogglePin} />)
     fireEvent.click(screen.getByTestId('pin-btn'))
-    expect(pinned).toBe(true)
+    expect(receivedId).toBe('s1')
   })
 })

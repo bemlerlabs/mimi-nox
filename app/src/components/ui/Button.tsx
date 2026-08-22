@@ -36,7 +36,7 @@ export interface ButtonProps
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, as: Tag = 'button', ...props }, ref) => {
     return (
-      // @ts-ignore
+      // @ts-expect-error — polymorfer Tag (button | a) mit forwardRef
       <Tag className={cn(buttonVariants({ variant, size }), className)} ref={ref} {...props} />
     )
   },
