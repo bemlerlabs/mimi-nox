@@ -184,6 +184,52 @@ def _base_url(value: str | None, default: str = DEFAULT_OLLAMA_BASE_URL) -> str:
     return raw
 
 
+def _endpoint_requires_api_key(base_url: str) -> bool:
+    """Key-Requirement ist endpoint-Abhängig, nicht provider-Abhängig.
+
+    Root-Cause: Ein lokaler/privater OpenAI-kompatibler Endpunkt (DGX-Spark
+    via Tailnet ``*.ts.net``, ``127.0.0.1``, ``*.local``, RFC1918-Privatnetz)
+    braucht KEIN API-Key — aber ein öffentlicher Cloud-API (OpenAI, OpenRouter,
+    …) braucht einen. Die alte Logik machte ``requires_api_key`` ein
+    provider-Konstante (True) → jede PWA-Auswahl einer keyless-DGX-Engine
+    scheiterte mit "no API key is configured", obwohl der Endpunkt offen ist.
+
+    Heuristik (bewusst einfach, keine DNS-Abfrage — deterministisch & offline):
+    - leer / kein Host      → False (lokal)
+    - localhost / 127.x / ::1 → False
+    - *.ts.net / *.local / *.lan / mDNS-Name → False (Tailnet/lokal)
+    - RFC1918 (10./172.16-31./192.168.) → False
+    - sonst (öffentlicher Host) → True
+    """
+    host = ""
+    raw = (base_url or "").strip().rstrip("/")
+    if raw:
+        if "://" in raw:
+            rest = raw.split("://", 1)[1]
+        else:
+            rest = raw
+        host = rest.split("/", 1)[0].split(":", 1)[0].lower()
+
+    if not host:
+        return False
+    if host in ("localhost", "0.0.0.0", "::1"):
+        return False
+    if host.startswith("127."):
+        return False
+    if host.startswith("192.168"):
+        return False
+    if host.startswith("10."):
+        return False
+    # RFC1918 172.16.0.0–172.31.255.255 (exakt, nicht Prefix-Annäherung)
+    if host.startswith("172."):
+        parts = host.split(".")
+        if len(parts) >= 2 and parts[1].isdigit() and 16 <= int(parts[1]) <= 31:
+            return False
+    if host.endswith((".ts.net", ".local", ".lan", ".internal", ".home.arpa")):
+        return False
+    return True
+
+
 def _provider_from_env() -> ModelProviderConfig:
     provider = validate_provider_type(os.environ.get("MIMI_MODEL_PROVIDER", "local_ollama"))
 
@@ -199,15 +245,17 @@ def _provider_from_env() -> ModelProviderConfig:
         )
 
     if provider == "openai_compatible":
+        compat_base = _base_url(os.environ.get("MIMI_OPENAI_COMPAT_BASE_URL"), "")
         return ModelProviderConfig(
             provider="openai_compatible",
             model=os.environ.get("MIMI_OPENAI_COMPAT_MODEL", "custom-model"),
-            base_url=_base_url(os.environ.get("MIMI_OPENAI_COMPAT_BASE_URL"), ""),
+            base_url=compat_base,
             label="OpenAI-compatible API",
             offline_capable=False,
             requires_internet=True,
             advanced_opt_in=True,
             api_key_configured=bool(os.environ.get("MIMI_OPENAI_COMPAT_API_KEY")),
+            requires_api_key=_endpoint_requires_api_key(compat_base),
         )
 
     return ModelProviderConfig(
@@ -263,6 +311,12 @@ def set_active_provider(
             requires_internet=True,
             advanced_opt_in=True,
             api_key_configured=bool(os.environ.get("MIMI_OPENAI_COMPAT_API_KEY")),
+            # Key-Requirement ist endpoint-Abhängig (DGX/Tailnet/LAN = keyless,
+            # öffentliche Cloud = Key). Root-Cause-Fix: die PWA-Route
+            # (POST /api/settings → set_active_provider) baute die Config mit
+            # Default requires_api_key=True → keyless-DGX-Engine lief im
+            # /api/chat immer mit "no API key" in den Boden.
+            requires_api_key=_endpoint_requires_api_key(base_url or ""),
         )
 
     _ACTIVE_OVERRIDE = config

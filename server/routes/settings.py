@@ -19,6 +19,7 @@ aktive Modell zurück.
 """
 from __future__ import annotations
 
+import json
 import os
 
 from fastapi import APIRouter, HTTPException
@@ -30,7 +31,7 @@ from core.model_provider import (
     set_active_provider,
     validate_provider_type,
 )
-from core.engine_config import EngineChoice, save_engine_config
+from core.engine_config import EngineChoice, load_engine_config, save_engine_config, clear_engine_config
 
 router = APIRouter(tags=["Settings"])
 
@@ -113,7 +114,13 @@ async def update_settings(req: SettingsRequest) -> dict:
             save_engine_config(EngineChoice(
                 provider=active.provider,
                 model=active.model,
-                api_url=active.base_url if active.provider == "openai_compatible" else None,
+                # api_url bei Ollama-Remote UND OpenAI-kompatibel persistieren:
+                # ohne URL würde ein externer Ollama-Endpunkt (z.B. DGX via LAN)
+                # nach dem Server-Neustart auf localhost:11434 fallen.
+                api_url=active.base_url
+                if active.provider in ("openai_compatible", "custom_ollama")
+                and active.base_url
+                else None,
             ))
         except Exception:
             pass  # Persistenz ist best-effort; die session-lokale Auswahl greift trotzdem.
@@ -124,3 +131,95 @@ async def update_settings(req: SettingsRequest) -> dict:
         "language": os.environ.get("MIMI_LANGUAGE", "de"),
         "theme": os.environ.get("MIMI_THEME", "dark"),
     }
+
+
+# ── Setup-Status (First-Run-Gate der PWA) ──────────────────────────────────
+# Root-Cause: Die PWA wusste beim ersten Start nie, ob schon eine Engine
+# gewählt wurde — deshalb zeigte sie den alten Tauri-Only-Onboarding-Wizard
+# (check_ollama via IPC), der im Browser nie lief. /api/setup/status ist
+# die Single Source of Truth für "braucht der User die Engine-Auswahl?".
+
+
+def _setup_provider_dict() -> dict:
+    """Aktive Engine + Erreichbarkeits-Status für die Setup-UI."""
+    persisted = load_engine_config()
+    active = get_active_provider()
+    provider = persisted.provider if persisted else active.provider
+    model = persisted.model if (persisted and persisted.model) else active.model
+    url = persisted.api_url if persisted else (active.base_url if active.provider == "openai_compatible" else None)
+    reachable = False
+    available_models: list[str] = []
+    if provider in ("local_ollama", "custom_ollama"):
+        reachable, available_models = _probe_local(provider, url)
+    elif provider == "openai_compatible" and url:
+        reachable, available_models = _probe_remote(url)
+    return {
+        "configured": persisted is not None,
+        "provider": provider,
+        "model": model,
+        "url": url,
+        "reachable": reachable,
+        "available_models": available_models,
+    }
+
+
+def _probe_local(provider: str, url: str | None):
+    """Synchroner Ollama-Probe (für den Status-Call ohne async-Kontext)."""
+    import urllib.request
+
+    base = (url or ("http://127.0.0.1:11434" if provider == "local_ollama" else "")).strip()
+    if base and not base.startswith(("http://", "https://")):
+        base = f"http://{base}"
+    base = base.rstrip("/")
+    try:
+        with urllib.request.urlopen(f"{base}/api/tags", timeout=4.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        names = [str(m.get("name") or "") for m in data.get("models", []) if m.get("name")]
+        return True, names
+    except Exception:
+        return False, []
+
+
+def _probe_remote(url: str):
+    """Synchroner OpenAI-kompatibler Probe (GET /v1/models)."""
+    import urllib.request
+
+    base = url.strip().rstrip("/")
+    if not base.startswith(("http://", "https://")):
+        base = f"http://{base}"
+    if base.endswith("/v1"):
+        base = base[:-3]
+    headers = {}
+    key = os.environ.get("MIMI_OPENAI_COMPAT_API_KEY", "")
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    try:
+        req = urllib.request.Request(f"{base}/v1/models", headers=headers)
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        ids = [str(m.get("id") or "") for m in data.get("data", []) if m.get("id")]
+        return True, ids
+    except Exception:
+        return False, []
+
+
+@router.get("/setup/status")
+async def get_setup_status() -> dict:
+    """Gibt an, ob der User schon eine Engine gewählt hat.
+
+    configured=True  → engine.json existiert → PWA springt direkt in den Chat.
+    configured=False → PWA zeigt die Engine-Auswahl (End-User-Choice).
+    reachable/available_models sind ein Bonus: die PWA kann die erkannten
+    Modelle direkt als Auswahl anbieten (z.B. alle lokalen Ollama-Modelle).
+    """
+    return _setup_provider_dict()
+
+
+@router.post("/setup/reset")
+async def reset_setup() -> dict:
+    """Löscht die Engine-Auswahl (engine.json) — der User wählt neu.
+
+    Session-lokal bleibt der aktuelle Provider aktiv, bis neu gewählt wird.
+    """
+    clear_engine_config()
+    return {"configured": False}
